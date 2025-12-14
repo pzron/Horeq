@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import passport from "./auth";
+import bcrypt from "bcrypt";
 import { 
   insertUserSchema,
   insertCategorySchema,
@@ -17,6 +19,79 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Authentication
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, email, password, role } = req.body;
+      
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      const userData = insertUserSchema.parse({
+        username,
+        email,
+        password: hashedPassword,
+        role: role || "customer",
+      });
+
+      const user = await storage.createUser(userData);
+      const { password: _, ...userWithoutPassword } = user;
+      
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Registration successful but login failed" });
+        }
+        res.status(201).json(userWithoutPassword);
+      });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: "An error occurred during login" });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info.message || "Invalid credentials" });
+      }
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed" });
+        }
+        const { password, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const { password, ...userWithoutPassword } = req.user as any;
+    res.json(userWithoutPassword);
+  });
+
   // Products
   app.get("/api/products", async (_req, res) => {
     try {

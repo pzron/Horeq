@@ -2,6 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import passport from "./auth";
+import pkg from "pg";
+const { Pool } = pkg;
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,6 +26,32 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+const PgSession = connectPgSimple(session);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+app.use(
+  session({
+    store: new PgSession({
+      pool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
+    secret: process.env.SESSION_SECRET || "horeq-secret-key-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
