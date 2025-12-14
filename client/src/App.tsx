@@ -18,6 +18,8 @@ import Checkout from "@/pages/Checkout";
 import Auth from "@/pages/Auth";
 import AffiliateAuth from "@/pages/AffiliateAuth";
 import AdminAuth from "@/pages/AdminAuth";
+import AdminDashboard from "@/pages/AdminDashboard";
+import AffiliateDashboard from "@/pages/AffiliateDashboard";
 import Profile from "@/pages/Profile";
 import Deals from "@/pages/Deals";
 import Search from "@/pages/Search";
@@ -39,8 +41,8 @@ function Router() {
       <Route path="/deals" component={Deals} />
       <Route path="/search" component={Search} />
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/admin" component={Dashboard} />
-      <Route path="/affiliate" component={Dashboard} />
+      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/affiliate" component={AffiliateDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
