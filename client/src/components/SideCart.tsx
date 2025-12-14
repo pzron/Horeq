@@ -118,7 +118,7 @@ export function SideCart() {
                   <span className="text-muted-foreground">Shipping</span>
                   <span className="font-medium">{shipping === 0 ? 'Free' : formatCurrency(shipping)}</span>
                 </div>
-                {shipping > 0 && (
+                {shipping > 0 && subtotal < 5000 && (
                   <p className="text-xs text-muted-foreground">Add {formatCurrency(5000 - subtotal)} more for free shipping</p>
                 )}
                 <Separator />
