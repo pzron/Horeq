@@ -7,10 +7,12 @@ Horeq is a full-stack e-commerce platform built with React frontend and Express 
 ## Recent Updates (December 2024)
 
 - **Navbar Redesign**: Single-line navigation with Shop, Combo Deals, Flash Deals and integrated search
-- **60+ Categories**: Expanded category catalog with auto-scrolling animation on homepage
-- **New Shop Page**: Full-featured product listing with filters, sorting, grid/list view, pagination
+- **120 Categories**: Expanded category catalog with infinite auto-scrolling animation on homepage
+- **New Shop Page**: Full-featured product listing with 1000+ unique products, filters, sorting, grid/list view, pagination
+- **Product Page Enhancements**: Color/size variant selector, share button for easy product sharing
+- **Enhanced Checkout**: 3-step checkout with shipping options (Express/Standard/Economy), coupon code support, order review
 - **Enhanced Profile**: Complete user profile with 7 sections (Info, Orders, Addresses, Payments, Tracking, Affiliate, Settings)
-- **Affiliate Dashboard**: Full affiliate system with stats, earnings, referral tracking, and payout management
+- **Affiliate Program**: Apply-to-join affiliate program interface
 - **Delivery Tracking**: Visual order tracking with step-by-step progress
 
 ## User Preferences
