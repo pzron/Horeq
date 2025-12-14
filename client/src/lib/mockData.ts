@@ -4,7 +4,10 @@ import {
   CreditCard, Headphones, Sparkles, Heart, Dumbbell, Sofa, Baby, UtensilsCrossed,
   PawPrint, Flower2, Plane, Bike, Hammer, Scissors, Paintbrush, Microscope,
   Pill, Footprints, Globe, TreePine, Car, Glasses, Crown, Gem, Wine, Smartphone,
-  Monitor, Briefcase, Umbrella, Snowflake, Sun, Moon, Key, Package
+  Monitor, Briefcase, Umbrella, Snowflake, Sun, Moon, Key, Package, Tent, Mountain,
+  Anchor, Palette, Ruler, Wrench, Plug, Lamp, Bed, Bath, Shirt as TShirt, 
+  BadgePercent, Banknote, Receipt, Tag, Megaphone, Radio, Tv, Fan, Thermometer,
+  Lightbulb, Lock, Shield, Wifi, Bluetooth, Battery, Cpu, HardDrive
 } from "lucide-react";
 
 export interface Product {
@@ -22,6 +25,17 @@ export interface Product {
   stock?: number;
   sold?: number;
   comboAvailable?: boolean;
+  images?: string[];
+  variants?: ProductVariant[];
+  specifications?: Record<string, string>;
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  type: string;
+  price?: number;
+  stock?: number;
 }
 
 export interface Category {
@@ -71,6 +85,30 @@ export const CATEGORIES: Category[] = [
   { id: '34', name: 'Outdoor', icon: Umbrella, count: 380, slug: 'outdoor', color: '#15803d', bgColor: 'bg-green-700' },
   { id: '35', name: 'Winter', icon: Snowflake, count: 290, slug: 'winter', color: '#2563eb', bgColor: 'bg-blue-600' },
   { id: '36', name: 'Summer', icon: Sun, count: 510, slug: 'summer', color: '#eab308', bgColor: 'bg-yellow-500' },
+  { id: '37', name: 'Camping', icon: Tent, count: 320, slug: 'camping', color: '#166534', bgColor: 'bg-green-800' },
+  { id: '38', name: 'Hiking', icon: Mountain, count: 280, slug: 'hiking', color: '#78716c', bgColor: 'bg-stone-500' },
+  { id: '39', name: 'Marine', icon: Anchor, count: 190, slug: 'marine', color: '#0369a1', bgColor: 'bg-sky-700' },
+  { id: '40', name: 'Crafts', icon: Palette, count: 420, slug: 'crafts', color: '#c026d3', bgColor: 'bg-fuchsia-600' },
+  { id: '41', name: 'Measuring', icon: Ruler, count: 150, slug: 'measuring', color: '#71717a', bgColor: 'bg-zinc-500' },
+  { id: '42', name: 'Hardware', icon: Wrench, count: 380, slug: 'hardware', color: '#44403c', bgColor: 'bg-stone-700' },
+  { id: '43', name: 'Electrical', icon: Plug, count: 290, slug: 'electrical', color: '#facc15', bgColor: 'bg-yellow-400' },
+  { id: '44', name: 'Lighting', icon: Lamp, count: 340, slug: 'lighting', color: '#fbbf24', bgColor: 'bg-amber-400' },
+  { id: '45', name: 'Bedroom', icon: Bed, count: 420, slug: 'bedroom', color: '#818cf8', bgColor: 'bg-indigo-400' },
+  { id: '46', name: 'Bathroom', icon: Bath, count: 380, slug: 'bathroom', color: '#38bdf8', bgColor: 'bg-sky-400' },
+  { id: '47', name: 'Mens Wear', icon: TShirt, count: 1200, slug: 'mens-wear', color: '#2dd4bf', bgColor: 'bg-teal-400' },
+  { id: '48', name: 'Deals', icon: BadgePercent, count: 890, slug: 'deals', color: '#f472b6', bgColor: 'bg-pink-400' },
+  { id: '49', name: 'Finance', icon: Banknote, count: 120, slug: 'finance', color: '#4ade80', bgColor: 'bg-green-400' },
+  { id: '50', name: 'Vouchers', icon: Receipt, count: 560, slug: 'vouchers', color: '#a78bfa', bgColor: 'bg-violet-400' },
+  { id: '51', name: 'Promotions', icon: Tag, count: 780, slug: 'promotions', color: '#fb923c', bgColor: 'bg-orange-400' },
+  { id: '52', name: 'Marketing', icon: Megaphone, count: 90, slug: 'marketing', color: '#f87171', bgColor: 'bg-red-400' },
+  { id: '53', name: 'Radio', icon: Radio, count: 180, slug: 'radio', color: '#a3a3a3', bgColor: 'bg-neutral-400' },
+  { id: '54', name: 'Television', icon: Tv, count: 340, slug: 'television', color: '#334155', bgColor: 'bg-slate-700' },
+  { id: '55', name: 'Cooling', icon: Fan, count: 220, slug: 'cooling', color: '#7dd3fc', bgColor: 'bg-sky-300' },
+  { id: '56', name: 'Heating', icon: Thermometer, count: 180, slug: 'heating', color: '#fca5a5', bgColor: 'bg-red-300' },
+  { id: '57', name: 'Smart Home', icon: Lightbulb, count: 450, slug: 'smart-home', color: '#fde047', bgColor: 'bg-yellow-300' },
+  { id: '58', name: 'Security', icon: Lock, count: 320, slug: 'security', color: '#475569', bgColor: 'bg-slate-600' },
+  { id: '59', name: 'Protection', icon: Shield, count: 280, slug: 'protection', color: '#22d3ee', bgColor: 'bg-cyan-400' },
+  { id: '60', name: 'Networking', icon: Wifi, count: 190, slug: 'networking', color: '#60a5fa', bgColor: 'bg-blue-400' },
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
@@ -87,7 +125,26 @@ export const MOCK_PRODUCTS: Product[] = [
     description: 'Premium wireless headphones with active noise cancellation, 30-hour battery life, and premium sound quality.',
     stock: 45,
     sold: 3420,
-    comboAvailable: true
+    comboAvailable: true,
+    images: [
+      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
+      'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&q=80',
+      'https://images.unsplash.com/photo-1524678606370-a47ad25cb82a?w=800&q=80',
+      'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80'
+    ],
+    variants: [
+      { id: 'v1', name: 'Matte Black', type: 'color', stock: 20 },
+      { id: 'v2', name: 'Silver', type: 'color', stock: 15 },
+      { id: 'v3', name: 'Rose Gold', type: 'color', stock: 10 }
+    ],
+    specifications: {
+      'Driver Size': '40mm',
+      'Frequency Response': '20Hz - 20kHz',
+      'Battery Life': '30 hours',
+      'Charging Time': '2 hours',
+      'Bluetooth Version': '5.2',
+      'Weight': '250g'
+    }
   },
   {
     id: '2',
@@ -101,7 +158,16 @@ export const MOCK_PRODUCTS: Product[] = [
     description: 'Track your fitness goals with this advanced smartwatch featuring GPS, heart rate monitor, and sleep tracking.',
     stock: 28,
     sold: 2150,
-    comboAvailable: true
+    comboAvailable: true,
+    images: [
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
+      'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=800&q=80',
+      'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=800&q=80'
+    ],
+    variants: [
+      { id: 'v1', name: '40mm', type: 'size', stock: 15 },
+      { id: 'v2', name: '44mm', type: 'size', stock: 13 }
+    ]
   },
   {
     id: '3',
@@ -321,3 +387,132 @@ export const NOTIFICATION_MESSAGES = [
   { type: 'combo', message: 'New combo: Home Office Essentials' },
   { type: 'delivery', message: 'Order delivered successfully to Dhaka!' }
 ];
+
+export const MOCK_ORDERS = [
+  {
+    id: 'ORD-001',
+    date: '2024-12-10',
+    status: 'delivered',
+    total: 299.99,
+    items: [
+      { productId: '1', name: 'Wireless Noise Cancelling Headphones', quantity: 1, price: 299.99, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80' }
+    ],
+    shippingAddress: '123 Main St, Dhaka, Bangladesh',
+    trackingNumber: 'TRK123456789',
+    carrier: 'Express Delivery',
+    estimatedDelivery: '2024-12-12',
+    deliveredAt: '2024-12-11'
+  },
+  {
+    id: 'ORD-002',
+    date: '2024-12-08',
+    status: 'shipped',
+    total: 449.99,
+    items: [
+      { productId: '2', name: 'Smart Fitness Watch Series 7', quantity: 1, price: 399.00, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&q=80' },
+      { productId: '11', name: 'Yoga Mat Premium', quantity: 1, price: 49.99, image: 'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=200&q=80' }
+    ],
+    shippingAddress: '456 Oak Ave, Chittagong, Bangladesh',
+    trackingNumber: 'TRK987654321',
+    carrier: 'Standard Shipping',
+    estimatedDelivery: '2024-12-15'
+  },
+  {
+    id: 'ORD-003',
+    date: '2024-12-05',
+    status: 'processing',
+    total: 159.00,
+    items: [
+      { productId: '8', name: 'Designer Sunglasses', quantity: 1, price: 159.00, image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=200&q=80' }
+    ],
+    shippingAddress: '789 Pine Rd, Sylhet, Bangladesh'
+  }
+];
+
+export const MOCK_ADDRESSES = [
+  {
+    id: 'addr-1',
+    label: 'Home',
+    name: 'John Doe',
+    phone: '+880 1712-345678',
+    address: '123 Main Street, Apt 4B',
+    city: 'Dhaka',
+    state: 'Dhaka Division',
+    zipCode: '1205',
+    country: 'Bangladesh',
+    isDefault: true
+  },
+  {
+    id: 'addr-2',
+    label: 'Office',
+    name: 'John Doe',
+    phone: '+880 1712-345679',
+    address: '456 Business Park, Floor 5',
+    city: 'Dhaka',
+    state: 'Dhaka Division',
+    zipCode: '1212',
+    country: 'Bangladesh',
+    isDefault: false
+  }
+];
+
+export const MOCK_PAYMENT_METHODS = [
+  {
+    id: 'pay-1',
+    type: 'card',
+    brand: 'Visa',
+    last4: '4242',
+    expiry: '12/25',
+    isDefault: true
+  },
+  {
+    id: 'pay-2',
+    type: 'card',
+    brand: 'Mastercard',
+    last4: '8888',
+    expiry: '06/26',
+    isDefault: false
+  },
+  {
+    id: 'pay-3',
+    type: 'mobile',
+    provider: 'bKash',
+    number: '01712-XXX-XXX',
+    isDefault: false
+  }
+];
+
+export const MOCK_AFFILIATE_DATA = {
+  status: 'active',
+  code: 'JOHND20',
+  commission: 10,
+  tier: 'Gold',
+  totalEarnings: 2450.50,
+  pendingEarnings: 350.00,
+  availableForWithdrawal: 2100.50,
+  totalClicks: 1245,
+  totalConversions: 89,
+  conversionRate: 7.15,
+  stats: {
+    thisMonth: {
+      clicks: 245,
+      conversions: 18,
+      earnings: 450.00
+    },
+    lastMonth: {
+      clicks: 320,
+      conversions: 24,
+      earnings: 620.00
+    }
+  },
+  recentReferrals: [
+    { id: 'ref-1', orderId: 'ORD-456', amount: 299.99, commission: 30.00, date: '2024-12-10', status: 'paid' },
+    { id: 'ref-2', orderId: 'ORD-457', amount: 449.99, commission: 45.00, date: '2024-12-08', status: 'pending' },
+    { id: 'ref-3', orderId: 'ORD-458', amount: 129.99, commission: 13.00, date: '2024-12-05', status: 'paid' }
+  ],
+  payoutHistory: [
+    { id: 'payout-1', amount: 500.00, date: '2024-12-01', method: 'Bank Transfer', status: 'completed' },
+    { id: 'payout-2', amount: 750.00, date: '2024-11-15', method: 'bKash', status: 'completed' },
+    { id: 'payout-3', amount: 400.00, date: '2024-11-01', method: 'Bank Transfer', status: 'completed' }
+  ]
+};
