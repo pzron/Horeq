@@ -52,7 +52,63 @@ const categoryData = [
   { name: 'Other', value: 8 },
 ];
 
+const monthlyEarningsData = [
+  { name: 'Jan', earnings: 85 },
+  { name: 'Feb', earnings: 120 },
+  { name: 'Mar', earnings: 180 },
+  { name: 'Apr', earnings: 145 },
+  { name: 'May', earnings: 210 },
+  { name: 'Jun', earnings: 285 },
+];
+
+const referralSourceData = [
+  { name: 'Social Media', value: 42 },
+  { name: 'Direct Link', value: 28 },
+  { name: 'Blog Posts', value: 18 },
+  { name: 'Email', value: 12 },
+];
+
+const conversionFunnelData = [
+  { name: 'Views', value: 24500, fill: '#3b82f6' },
+  { name: 'Clicks', value: 8542, fill: '#8b5cf6' },
+  { name: 'Add to Cart', value: 1245, fill: '#ec4899' },
+  { name: 'Purchases', value: 205, fill: '#22c55e' },
+];
+
+const recentReferrals = [
+  { id: 'REF-001', product: 'Wireless Headphones', commission: 24.99, status: 'approved', date: '2024-12-14' },
+  { id: 'REF-002', product: 'Smart Watch Pro', commission: 35.50, status: 'pending', date: '2024-12-13' },
+  { id: 'REF-003', product: 'Laptop Stand', commission: 8.75, status: 'approved', date: '2024-12-12' },
+  { id: 'REF-004', product: 'USB-C Hub', commission: 12.00, status: 'rejected', date: '2024-12-11' },
+];
+
 const COLORS = ['#3b82f6', '#ec4899', '#f97316', '#a855f7', '#64748b'];
+const REFERRAL_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316'];
+
+const userGrowthData = [
+  { name: 'Jan', users: 850 },
+  { name: 'Feb', users: 1020 },
+  { name: 'Mar', users: 1350 },
+  { name: 'Apr', users: 1580 },
+  { name: 'May', users: 1890 },
+  { name: 'Jun', users: 2350 },
+];
+
+const orderStatusData = [
+  { name: 'Delivered', value: 68, fill: '#22c55e' },
+  { name: 'Shipped', value: 18, fill: '#3b82f6' },
+  { name: 'Processing', value: 10, fill: '#f59e0b' },
+  { name: 'Cancelled', value: 4, fill: '#ef4444' },
+];
+
+const dailyActivityData = [
+  { hour: '00:00', visitors: 120 },
+  { hour: '04:00', visitors: 85 },
+  { hour: '08:00', visitors: 320 },
+  { hour: '12:00', visitors: 580 },
+  { hour: '16:00', visitors: 450 },
+  { hour: '20:00', visitors: 380 },
+];
 
 const recentOrders = [
   { id: 'ORD-1234', date: '2024-12-14', status: 'delivered', total: 299.99, items: 2 },
@@ -163,6 +219,117 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2" data-testid="card-order-history-chart">
+                <CardHeader>
+                  <CardTitle>Order History</CardTitle>
+                  <CardDescription>Your orders over the last 6 months</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={userOrdersData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip />
+                        <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-spending-categories">
+                <CardHeader>
+                  <CardTitle>Spending by Category</CardTitle>
+                  <CardDescription>Where your money goes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 mt-2">
+                    {categoryData.map((entry, index) => (
+                      <div key={entry.name} className="flex items-center gap-1 text-xs">
+                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                        <span>{entry.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card data-testid="card-loyalty-program">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-yellow-500" />
+                    Loyalty Program
+                  </CardTitle>
+                  <CardDescription>Earn points with every purchase</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center p-4 bg-gradient-to-br from-yellow-400/10 to-orange-500/10 rounded-lg border border-yellow-500/20">
+                    <p className="text-sm text-muted-foreground">Current Tier</p>
+                    <p className="text-2xl font-bold text-yellow-600">Gold Member</p>
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                      {[1, 2, 3].map((i) => (
+                        <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                      {[4, 5].map((i) => (
+                        <Star key={i} className="h-4 w-4 text-muted-foreground" />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>Progress to Platinum</span>
+                      <span className="font-medium">1,250 / 2,000 pts</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full" style={{ width: '62.5%' }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">750 more points to unlock Platinum benefits</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Recent Points Activity</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Order #ORD-1234</span>
+                        <span className="text-green-600">+150 pts</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Birthday Bonus</span>
+                        <span className="text-green-600">+100 pts</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Redeemed Reward</span>
+                        <span className="text-red-500">-200 pts</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="lg:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
@@ -192,6 +359,28 @@ export default function Dashboard() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2" data-testid="card-spending-trends">
+                <CardHeader>
+                  <CardTitle>Spending Trends</CardTitle>
+                  <CardDescription>Your monthly spending over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={salesData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="total" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
@@ -333,7 +522,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle>Performance</CardTitle>
+                  <CardTitle>Weekly Performance</CardTitle>
                   <CardDescription>Clicks vs Earnings over the last 7 days</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -388,6 +577,140 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card data-testid="card-monthly-earnings">
+                <CardHeader>
+                  <CardTitle>Monthly Earnings</CardTitle>
+                  <CardDescription>Your earnings over the last 6 months</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyEarningsData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip />
+                        <Bar dataKey="earnings" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-referral-sources">
+                <CardHeader>
+                  <CardTitle>Traffic Sources</CardTitle>
+                  <CardDescription>Where your referrals come from</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[150px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={referralSourceData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={35}
+                          outerRadius={60}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {referralSourceData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={REFERRAL_COLORS[index % REFERRAL_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 mt-2">
+                    {referralSourceData.map((entry, index) => (
+                      <div key={entry.name} className="flex items-center gap-1 text-xs">
+                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: REFERRAL_COLORS[index % REFERRAL_COLORS.length] }} />
+                        <span>{entry.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-conversion-funnel">
+                <CardHeader>
+                  <CardTitle>Conversion Funnel</CardTitle>
+                  <CardDescription>From views to purchases</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {conversionFunnelData.map((step, index) => (
+                    <div key={step.name} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>{step.name}</span>
+                        <span className="font-medium">{step.value.toLocaleString()}</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all" 
+                          style={{ 
+                            width: `${(step.value / conversionFunnelData[0].value) * 100}%`,
+                            backgroundColor: step.fill 
+                          }} 
+                        />
+                      </div>
+                      {index < conversionFunnelData.length - 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          {((conversionFunnelData[index + 1].value / step.value) * 100).toFixed(1)}% conversion
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card data-testid="card-recent-referrals">
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Recent Referral Activity</CardTitle>
+                  <CardDescription>Your latest commission-generating referrals</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" data-testid="button-view-all-referrals">
+                  View All <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {recentReferrals.map((referral) => (
+                    <div key={referral.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg" data-testid={`referral-${referral.id}`}>
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <MousePointerClick className="h-5 w-5 text-purple-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{referral.product}</p>
+                          <p className="text-sm text-muted-foreground">{referral.id} - {referral.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge className={
+                          referral.status === 'approved' ? 'bg-green-500' :
+                          referral.status === 'pending' ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }>
+                          {referral.status === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {referral.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                          {referral.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
+                          {referral.status.charAt(0).toUpperCase() + referral.status.slice(1)}
+                        </Badge>
+                        <span className={`font-bold ${referral.status === 'rejected' ? 'text-muted-foreground line-through' : 'text-green-600'}`}>
+                          +{formatCurrency(referral.commission)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="admin" className="space-y-8">
@@ -454,7 +777,7 @@ export default function Dashboard() {
                       <BarChart data={salesData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `৳${value}`} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
                         <Tooltip />
                         <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
                       </BarChart>
@@ -479,7 +802,7 @@ export default function Dashboard() {
                           <p className="text-sm font-medium leading-none">{sale.name}</p>
                           <p className="text-xs text-muted-foreground">{sale.email}</p>
                         </div>
-                        <div className="ml-auto font-medium">+${sale.amount.toFixed(2)}</div>
+                        <div className="ml-auto font-medium">+{formatCurrency(sale.amount)}</div>
                       </div>
                     ))}
                   </div>
@@ -488,21 +811,86 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2" data-testid="card-user-growth">
+                <CardHeader>
+                  <CardTitle>User Growth</CardTitle>
+                  <CardDescription>New user registrations over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={userGrowthData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip />
+                        <Area type="monotone" dataKey="users" stroke="#22c55e" fill="#22c55e" fillOpacity={0.2} strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-order-status">
+                <CardHeader>
+                  <CardTitle>Order Status</CardTitle>
+                  <CardDescription>Current order distribution</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {orderStatusData.map((status) => (
+                    <div key={status.name} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>{status.name}</span>
+                        <span className="font-medium">{status.value}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full" 
+                          style={{ width: `${status.value}%`, backgroundColor: status.fill }} 
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card data-testid="card-daily-activity">
+                <CardHeader>
+                  <CardTitle>Daily Traffic</CardTitle>
+                  <CardDescription>Visitor activity throughout the day</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={dailyActivityData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="hour" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="visitors" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Sales by Category</CardTitle>
                   <CardDescription>Distribution of sales across categories</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[250px]">
+                  <div className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={categoryData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
+                          innerRadius={40}
+                          outerRadius={70}
                           fill="#8884d8"
                           paddingAngle={5}
                           dataKey="value"
@@ -515,18 +903,18 @@ export default function Dashboard() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="flex flex-wrap gap-2 justify-center mt-4">
+                  <div className="flex flex-wrap gap-2 justify-center mt-2">
                     {categoryData.map((entry, index) => (
-                      <Badge key={entry.name} variant="outline" className="gap-1">
+                      <div key={entry.name} className="flex items-center gap-1 text-xs">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index] }} />
                         {entry.name}
-                      </Badge>
+                      </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="lg:col-span-2">
+              <Card className="lg:col-span-1">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle>Product Management</CardTitle>
@@ -557,7 +945,7 @@ export default function Dashboard() {
                           <p className="text-sm text-muted-foreground">{product.category} - Stock: {product.stock}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-primary">${product.price}</p>
+                          <p className="font-bold text-primary">{formatCurrency(product.price)}</p>
                           <p className="text-xs text-muted-foreground">{product.sold} sold</p>
                         </div>
                         <div className="flex gap-1">
