@@ -123,85 +123,71 @@ function HeroSection() {
   );
 }
 
-function ScrollingCategoriesSection() {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+function CategoriesMarquee() {
   const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer || isPaused) return;
-
-    const scrollSpeed = 1;
-    let animationFrameId: number;
-
-    const scroll = () => {
-      if (scrollContainer.scrollLeft >= scrollContainer.scrollWidth / 2) {
-        scrollContainer.scrollLeft = 0;
-      } else {
-        scrollContainer.scrollLeft += scrollSpeed;
-      }
-      animationFrameId = requestAnimationFrame(scroll);
-    };
-
-    animationFrameId = requestAnimationFrame(scroll);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isPaused]);
-
+  
   const doubledCategories = [...CATEGORIES, ...CATEGORIES];
 
-  const getColorClasses = (color: string, bgColor: string) => {
-    return {
-      iconColor: color,
-      bgClass: bgColor
-    };
-  };
-
   return (
-    <div className="py-10 bg-background">
+    <div className="py-10 bg-background overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="text-center mb-6">
           <h2 className="text-3xl font-bold font-heading mb-2">Shop by Category</h2>
-          <p className="text-muted-foreground">Explore our wide range of products</p>
-        </div>
-        
-        <div 
-          ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto no-scrollbar py-4"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          style={{ scrollBehavior: 'auto' }}
-        >
-          {doubledCategories.map((cat, idx) => {
-            const { iconColor, bgClass } = getColorClasses(cat.color, cat.bgColor);
-            return (
-              <Link key={`${cat.id}-${idx}`} href={`/category/${cat.slug}`}>
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="flex-shrink-0"
-                >
-                  <div 
-                    className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-transparent hover:border-primary/30 transition-all duration-300 cursor-pointer min-w-[120px] min-h-[130px]" 
-                    style={{ backgroundColor: `${cat.color}15` }}
-                    data-testid={`card-category-${cat.slug}-${idx}`}
-                  >
-                    <div 
-                      className="h-14 w-14 rounded-full flex items-center justify-center mb-3 shadow-lg"
-                      style={{ backgroundColor: cat.color }}
-                    >
-                      <cat.icon className="h-7 w-7 text-white" />
-                    </div>
-                    <span className="font-medium text-xs text-center transition-colors leading-tight" style={{ color: cat.color }}>
-                      {cat.name}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground mt-1">{cat.count} items</span>
-                  </div>
-                </motion.div>
-              </Link>
-            );
-          })}
+          <p className="text-muted-foreground">Explore our 120+ categories</p>
         </div>
       </div>
+      
+      <div 
+        className="relative w-full"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        <div 
+          className="flex gap-4 py-4"
+          style={{
+            animation: `marquee 120s linear infinite`,
+            animationPlayState: isPaused ? 'paused' : 'running',
+            width: 'max-content'
+          }}
+        >
+          {doubledCategories.map((cat, idx) => (
+            <Link key={`${cat.id}-${idx}`} href={`/category/${cat.slug}`}>
+              <motion.div
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="flex-shrink-0"
+              >
+                <div 
+                  className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-transparent hover:border-primary/30 transition-all duration-300 cursor-pointer min-w-[110px] min-h-[120px]" 
+                  style={{ backgroundColor: `${cat.color}15` }}
+                  data-testid={`card-category-${cat.slug}-${idx}`}
+                >
+                  <div 
+                    className="h-12 w-12 rounded-full flex items-center justify-center mb-2 shadow-lg"
+                    style={{ backgroundColor: cat.color }}
+                  >
+                    <cat.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="font-medium text-xs text-center transition-colors leading-tight" style={{ color: cat.color }}>
+                    {cat.name}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground mt-1">{cat.count} items</span>
+                </div>
+              </motion.div>
+            </Link>
+          ))}
+        </div>
+      </div>
+      
+      <style>{`
+        @keyframes marquee {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -512,6 +498,7 @@ export default function Home() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
+        <CategoriesMarquee />
         <DynamicProductGrid />
         <PromoBanner />
         <div className="bg-background py-16">
