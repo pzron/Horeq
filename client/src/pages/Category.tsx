@@ -62,8 +62,8 @@ export default function CategoryPage() {
                   <h4 className="text-sm font-medium mb-3">Price Range</h4>
                   <Slider defaultValue={[50]} max={100} step={1} className="mb-2" />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>$0</span>
-                    <span>$1000+</span>
+                    <span>৳0</span>
+                    <span>৳100000+</span>
                   </div>
                 </div>
 

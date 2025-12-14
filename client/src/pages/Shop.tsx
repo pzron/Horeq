@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CATEGORIES, getAllProducts, Product } from "@/lib/mockData";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,8 +37,8 @@ function ProductCard({ product, viewMode }: { product: Product; viewMode: 'grid'
             <span className="text-xs text-muted-foreground ml-1">({product.reviews})</span>
           </div>
           <div className="flex items-center gap-2 mt-auto">
-            <span className="text-lg font-bold text-primary">${product.price}</span>
-            {product.originalPrice && <span className="text-sm text-muted-foreground line-through">${product.originalPrice}</span>}
+            <span className="text-lg font-bold text-primary">{formatCurrency(product.price)}</span>
+            {product.originalPrice && <span className="text-sm text-muted-foreground line-through">{formatCurrency(product.originalPrice)}</span>}
           </div>
           <div className="flex gap-2 mt-3">
             <Button size="sm" className="flex-1 gap-1" data-testid={`button-add-cart-${product.id}`}>
@@ -75,8 +76,8 @@ function ProductCard({ product, viewMode }: { product: Product; viewMode: 'grid'
         </div>
         <div className="flex items-center justify-between mt-auto">
           <div className="flex items-baseline gap-1">
-            <span className="font-bold text-primary">${product.price}</span>
-            {product.originalPrice && <span className="text-xs text-muted-foreground line-through">${product.originalPrice}</span>}
+            <span className="font-bold text-primary">{formatCurrency(product.price)}</span>
+            {product.originalPrice && <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.originalPrice)}</span>}
           </div>
           <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" data-testid={`button-add-cart-${product.id}`}>
             <ShoppingCart className="h-4 w-4" />
@@ -123,8 +124,8 @@ function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, se
         <h5 className="text-sm font-medium mb-3">Price Range</h5>
         <Slider value={priceRange} onValueChange={setPriceRange} max={1500} step={10} className="mb-2" />
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>${priceRange[0]}</span>
-          <span>${priceRange[1] || 1500}</span>
+          <span>৳{priceRange[0]}</span>
+          <span>৳{priceRange[1] || 1500}</span>
         </div>
       </div>
 
@@ -353,7 +354,7 @@ export default function Shop() {
                 ))}
                 {(priceRange[0] > 0 || priceRange[1] < 1500) && (
                   <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setPriceRange([0, 1500])}>
-                    ${priceRange[0]} - ${priceRange[1]} <X className="h-3 w-3" />
+                    ৳{priceRange[0]} - ৳{priceRange[1]} <X className="h-3 w-3" />
                   </Badge>
                 )}
               </div>

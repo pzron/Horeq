@@ -366,11 +366,11 @@ function DynamicProductGrid() {
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex items-baseline gap-1">
                         <span className="text-sm font-bold text-primary">
-                          ${product.price}
+                          {formatCurrency(product.price)}
                         </span>
                         {product.originalPrice && (
                           <span className="text-[10px] text-muted-foreground line-through">
-                            ${product.originalPrice}
+                            {formatCurrency(product.originalPrice)}
                           </span>
                         )}
                       </div>
@@ -457,7 +457,7 @@ function PromoBanner() {
             </h2>
             <p className="text-white/80 text-lg mb-8 max-w-md">
               Grab the best deals on electronics, fashion, and home accessories
-              before they run out. Free shipping on all orders over $100.
+              before they run out. Free shipping on all orders over ৳10000.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link href="/deals">
@@ -547,11 +547,11 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="flex items-center justify-between mt-auto">
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-primary">
-              ${product.price}
+              {formatCurrency(product.price)}
             </span>
             {product.originalPrice && (
               <span className="text-sm text-muted-foreground line-through">
-                ${product.originalPrice}
+                {formatCurrency(product.originalPrice)}
               </span>
             )}
           </div>
@@ -570,7 +570,7 @@ export function ProductCard({ product }: { product: Product }) {
 
 function FeaturesSection() {
   const features = [
-    { icon: Truck, title: "Free Shipping", desc: "On orders over $50" },
+    { icon: Truck, title: "Free Shipping", desc: "On orders over ৳5000" },
     { icon: ShieldCheck, title: "Secure Payment", desc: "100% protected" },
     { icon: RefreshCw, title: "Easy Returns", desc: "30-day returns" },
     { icon: Clock, title: "24/7 Support", desc: "Always here to help" },
