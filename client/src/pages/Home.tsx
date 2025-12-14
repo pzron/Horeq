@@ -3,7 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES, getAllProducts, Product } from "@/lib/mockData";
-import { ArrowRight, Star, ShoppingCart, Truck, ShieldCheck, RefreshCw, Clock, Heart, Zap, Play, Pause } from "lucide-react";
+import { ArrowRight, Star, ShoppingCart, Truck, ShieldCheck, RefreshCw, Clock, Heart, Zap, Play, Pause, Plus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";

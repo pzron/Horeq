@@ -1,6 +1,31 @@
-import { Plus } from "lucide-react";
+import { 
+  Plus, 
+  Menu, 
+  Search, 
+  Bell, 
+  Heart, 
+  ShoppingCart, 
+  User 
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CATEGORIES } from "@/lib/mockData";
 
 // Mock Notification System
 function NotificationSystem() {
