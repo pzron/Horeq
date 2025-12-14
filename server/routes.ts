@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import passport from "./auth";
@@ -13,7 +13,37 @@ import {
   insertCartItemSchema,
   insertAffiliateSchema,
   insertWishlistSchema,
+  insertPageSchema,
+  insertSettingSchema,
+  insertMenuSchema,
+  insertMenuItemSchema,
+  insertCouponSchema,
+  insertAffiliatePayoutSchema,
 } from "@shared/schema";
+
+// Middleware to check if user is authenticated
+function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  return res.status(401).json({ message: "Not authenticated" });
+}
+
+// Middleware to check if user has admin role
+function isAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated() && (req.user as any)?.role === "admin") {
+    return next();
+  }
+  return res.status(403).json({ message: "Admin access required" });
+}
+
+// Middleware to check if user has affiliate role
+function isAffiliate(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated() && ((req.user as any)?.role === "affiliate" || (req.user as any)?.role === "admin")) {
+    return next();
+  }
+  return res.status(403).json({ message: "Affiliate access required" });
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -427,6 +457,406 @@ export async function registerRoutes(
       res.status(201).json(userWithoutPassword);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // ============ ADMIN ROUTES ============
+  
+  // Dashboard Stats
+  app.get("/api/admin/stats", isAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin - Users Management
+  app.get("/api/admin/users", isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const user = await storage.updateUser(req.params.id, req.body);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteUser(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin - Orders Management
+  app.get("/api/admin/orders", isAdmin, async (_req, res) => {
+    try {
+      const orders = await storage.getAllOrders();
+      res.json(orders);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/orders/:id", isAdmin, async (req, res) => {
+    try {
+      const order = await storage.updateOrder(req.params.id, req.body);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json(order);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin - Categories Management
+  app.patch("/api/admin/categories/:id", isAdmin, async (req, res) => {
+    try {
+      const category = await storage.updateCategory(req.params.id, req.body);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      res.json(category);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/categories/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteCategory(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // CMS - Pages
+  app.get("/api/admin/pages", isAdmin, async (_req, res) => {
+    try {
+      const pages = await storage.getAllPages();
+      res.json(pages);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/pages/:id", isAdmin, async (req, res) => {
+    try {
+      const page = await storage.getPageById(req.params.id);
+      if (!page) {
+        return res.status(404).json({ message: "Page not found" });
+      }
+      res.json(page);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/pages", isAdmin, async (req, res) => {
+    try {
+      const pageData = insertPageSchema.parse(req.body);
+      const page = await storage.createPage(pageData);
+      res.status(201).json(page);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/pages/:id", isAdmin, async (req, res) => {
+    try {
+      const page = await storage.updatePage(req.params.id, req.body);
+      if (!page) {
+        return res.status(404).json({ message: "Page not found" });
+      }
+      res.json(page);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/pages/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deletePage(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // CMS - Settings
+  app.get("/api/admin/settings", isAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/settings/group/:group", isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getSettingsByGroup(req.params.group);
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/settings", isAdmin, async (req, res) => {
+    try {
+      const settingData = insertSettingSchema.parse(req.body);
+      const setting = await storage.upsertSetting(settingData);
+      res.json(setting);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // CMS - Menus
+  app.get("/api/admin/menus", isAdmin, async (_req, res) => {
+    try {
+      const menus = await storage.getAllMenus();
+      res.json(menus);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/menus", isAdmin, async (req, res) => {
+    try {
+      const menuData = insertMenuSchema.parse(req.body);
+      const menu = await storage.createMenu(menuData);
+      res.status(201).json(menu);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/menus/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteMenu(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/menus/:id/items", isAdmin, async (req, res) => {
+    try {
+      const items = await storage.getMenuItems(req.params.id);
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/menu-items", isAdmin, async (req, res) => {
+    try {
+      const itemData = insertMenuItemSchema.parse(req.body);
+      const item = await storage.createMenuItem(itemData);
+      res.status(201).json(item);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/menu-items/:id", isAdmin, async (req, res) => {
+    try {
+      const item = await storage.updateMenuItem(req.params.id, req.body);
+      if (!item) {
+        return res.status(404).json({ message: "Menu item not found" });
+      }
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/menu-items/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteMenuItem(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Coupons
+  app.get("/api/admin/coupons", isAdmin, async (_req, res) => {
+    try {
+      const coupons = await storage.getAllCoupons();
+      res.json(coupons);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/coupons", isAdmin, async (req, res) => {
+    try {
+      const couponData = insertCouponSchema.parse(req.body);
+      const coupon = await storage.createCoupon(couponData);
+      res.status(201).json(coupon);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const coupon = await storage.updateCoupon(req.params.id, req.body);
+      if (!coupon) {
+        return res.status(404).json({ message: "Coupon not found" });
+      }
+      res.json(coupon);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteCoupon(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Activity Logs
+  app.get("/api/admin/activity-logs", isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getActivityLogs(limit);
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Affiliate Payouts (Admin)
+  app.get("/api/admin/payouts", isAdmin, async (_req, res) => {
+    try {
+      const payouts = await storage.getAllPayouts();
+      res.json(payouts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/payouts/:id", isAdmin, async (req, res) => {
+    try {
+      const payout = await storage.updatePayout(req.params.id, req.body);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+      res.json(payout);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============ AFFILIATE ROUTES ============
+  
+  app.get("/api/affiliate/stats", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      res.json(affiliate);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/affiliate/payouts", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      const payouts = await storage.getAffiliatePayouts(affiliate.id);
+      res.json(payouts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/affiliate/request-payout", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      const payoutData = insertAffiliatePayoutSchema.parse({
+        ...req.body,
+        affiliateId: affiliate.id,
+      });
+      const payout = await storage.createPayout(payoutData);
+      res.status(201).json(payout);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Notifications
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const notifications = await storage.getUserNotifications(userId);
+      res.json(notifications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markNotificationRead(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public coupon validation
+  app.get("/api/coupons/validate/:code", async (req, res) => {
+    try {
+      const coupon = await storage.getCouponByCode(req.params.code);
+      if (!coupon || !coupon.isActive) {
+        return res.status(404).json({ message: "Invalid coupon code" });
+      }
+      if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Coupon has expired" });
+      }
+      if (coupon.maxUses && coupon.usedCount && coupon.usedCount >= coupon.maxUses) {
+        return res.status(400).json({ message: "Coupon usage limit reached" });
+      }
+      res.json(coupon);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
