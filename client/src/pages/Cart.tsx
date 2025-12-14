@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getAllProducts } from "@/lib/mockData";
@@ -52,6 +52,14 @@ export default function Cart() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <Link href="/shop">
+                  <Button variant="outline" className="gap-2" data-testid="button-continue-shopping">
+                    <ArrowLeft className="h-4 w-4" /> Continue Shopping
+                  </Button>
+                </Link>
+                <span className="text-muted-foreground text-sm">{cartItems.length} item(s)</span>
+              </div>
               {cartItems.map((item) => (
                 <Card key={item.id} className="flex flex-col sm:flex-row overflow-hidden">
                   <div className="w-full sm:w-32 h-32 bg-muted shrink-0">
