@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 interface DashboardStats {
   totalUsers: number;
@@ -219,7 +220,7 @@ function DashboardOverview() {
     { title: "Total Users", value: stats?.totalUsers || 0, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
     { title: "Total Orders", value: stats?.totalOrders || 0, icon: ShoppingCart, color: "text-green-500", bg: "bg-green-500/10" },
     { title: "Total Products", value: stats?.totalProducts || 0, icon: Package, color: "text-purple-500", bg: "bg-purple-500/10" },
-    { title: "Total Revenue", value: `$${stats?.totalRevenue?.toFixed(2) || "0.00"}`, icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10" },
+    { title: "Total Revenue", value: formatCurrency(stats?.totalRevenue || 0), icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10" },
   ];
 
   return (
@@ -314,7 +315,7 @@ function RecentOrdersList({ limit = 5 }: { limit?: number }) {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium">${order.totalAmount?.toFixed(2)}</p>
+            <p className="text-sm font-medium">{formatCurrency(order.totalAmount || 0)}</p>
             <Badge variant="outline" className="text-xs">
               {order.status}
             </Badge>
@@ -387,7 +388,7 @@ function ProductsSection() {
                       </div>
                     </TableCell>
                     <TableCell>{product.categoryId || "Uncategorized"}</TableCell>
-                    <TableCell>${product.price?.toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(product.price || 0)}</TableCell>
                     <TableCell>{product.stock || 0}</TableCell>
                     <TableCell>
                       <Badge variant={product.isActive ? "default" : "secondary"}>
@@ -479,7 +480,7 @@ function OrdersSection() {
                     <TableCell className="font-medium">#{order.id}</TableCell>
                     <TableCell>{order.customerName || "Customer"}</TableCell>
                     <TableCell>{order.items?.length || 0} items</TableCell>
-                    <TableCell>${order.totalAmount?.toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(order.totalAmount || 0)}</TableCell>
                     <TableCell>
                       <Badge variant={
                         order.status === "delivered" ? "default" :
@@ -820,7 +821,7 @@ function CouponsSection() {
                     <TableCell>
                       {coupon.discountType === "percentage" 
                         ? `${coupon.discountValue}%` 
-                        : `$${coupon.discountValue}`}
+                        : formatCurrency(coupon.discountValue)}
                     </TableCell>
                     <TableCell>
                       {coupon.usageCount || 0} / {coupon.usageLimit || "Unlimited"}

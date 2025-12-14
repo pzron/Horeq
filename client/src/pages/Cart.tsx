@@ -9,6 +9,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 export default function Cart() {
   const { items, updateQuantity, removeFromCart, getSubtotal, getTotal } = useCart();
@@ -27,7 +28,7 @@ export default function Cart() {
       setPromoApplied(true);
       toast({
         title: "Promo code applied!",
-        description: "You saved $10 on your order.",
+        description: "You saved ৳10 on your order.",
       });
     } else {
       toast({
@@ -78,7 +79,7 @@ export default function Cart() {
                         <h3 className="font-medium text-lg line-clamp-1">{item.product.name}</h3>
                         <p className="text-sm text-muted-foreground">{item.product.category}</p>
                       </div>
-                      <p className="font-bold text-lg">${(item.product.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-bold text-lg">{formatCurrency(item.product.price * item.quantity)}</p>
                     </div>
                     
                     <div className="flex justify-between items-center mt-auto">
@@ -133,26 +134,26 @@ export default function Cart() {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span>{shipping === 0 ? "Free" : `$${shipping.toFixed(2)}`}</span>
+                    <span>{shipping === 0 ? "Free" : formatCurrency(shipping)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tax Estimate</span>
-                    <span>${tax.toFixed(2)}</span>
+                    <span>{formatCurrency(tax)}</span>
                   </div>
                   {promoApplied && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount</span>
-                      <span>-${discount.toFixed(2)}</span>
+                      <span>-{formatCurrency(discount)}</span>
                     </div>
                   )}
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{formatCurrency(total)}</span>
                   </div>
                   
                   <div className="pt-4">

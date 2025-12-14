@@ -14,6 +14,7 @@ import { useLocation, Link } from "wouter";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
+import { formatCurrency } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -73,7 +74,7 @@ export default function Checkout() {
       setCouponApplied(true);
       toast({
         title: "Coupon Applied!",
-        description: "You saved $50 on your order",
+        description: "You saved ৳50 on your order",
       });
     } else {
       toast({
@@ -296,7 +297,7 @@ export default function Checkout() {
                                 </div>
                               </Label>
                             </div>
-                            <span className="font-bold">{option.price === 0 ? 'Free' : `$${option.price}`}</span>
+                            <span className="font-bold">{option.price === 0 ? 'Free' : formatCurrency(option.price)}</span>
                           </div>
                         ))}
                       </RadioGroup>
@@ -389,7 +390,7 @@ export default function Checkout() {
                     <h4 className="font-semibold mb-2">Shipping Method</h4>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">{shippingOptions.find(o => o.id === shippingOption)?.label}</span>
-                      <span className="text-sm font-medium">{shippingCost === 0 ? 'Free' : `$${shippingCost}`}</span>
+                      <span className="text-sm font-medium">{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{shippingOptions.find(o => o.id === shippingOption)?.time}</p>
                   </div>
@@ -414,7 +415,7 @@ export default function Checkout() {
                               <p className="font-medium text-sm">{item.product.name}</p>
                               <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                             </div>
-                            <p className="font-bold text-sm">${(item.product.price * item.quantity).toFixed(2)}</p>
+                            <p className="font-bold text-sm">{formatCurrency(item.product.price * item.quantity)}</p>
                           </div>
                         </div>
                       ))}
@@ -447,7 +448,7 @@ export default function Checkout() {
                     <div>
                       <p className="font-medium text-sm line-clamp-1">{item.product.name}</p>
                       <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                      <p className="font-bold text-sm">${(item.product.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-bold text-sm">{formatCurrency(item.product.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
@@ -478,7 +479,7 @@ export default function Checkout() {
                     </Button>
                   </div>
                   {couponApplied && (
-                    <Badge className="bg-green-500">SAVE50 applied - $50 off</Badge>
+                    <Badge className="bg-green-500">SAVE50 applied - ৳50 off</Badge>
                   )}
                   <p className="text-xs text-muted-foreground">Try: SAVE50</p>
                 </div>
@@ -488,21 +489,21 @@ export default function Checkout() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Shipping</span>
-                    <span>{shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
+                    <span>{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}</span>
                   </div>
                   {couponApplied && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount</span>
-                      <span>-${discount.toFixed(2)}</span>
+                      <span>-{formatCurrency(discount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-lg pt-2 border-t">
                     <span>Total</span>
-                    <span className="text-primary">${total.toFixed(2)}</span>
+                    <span className="text-primary">{formatCurrency(total)}</span>
                   </div>
                 </div>
               </CardContent>

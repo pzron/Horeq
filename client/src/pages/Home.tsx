@@ -8,6 +8,7 @@ import {
   Product,
   NOTIFICATION_MESSAGES,
 } from "@/lib/mockData";
+import { formatCurrency } from "@/lib/utils";
 import {
   ArrowRight,
   Star,

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MOCK_PRODUCTS } from "@/lib/mockData";
+import { formatCurrency } from "@/lib/utils";
 
 const salesData = [
   { name: 'Jan', total: 1200 },
@@ -133,9 +134,9 @@ export default function Dashboard() {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$2,847.50</div>
+                  <div className="text-2xl font-bold">{formatCurrency(2847.50)}</div>
                   <p className="text-xs text-green-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" /> +$459 this month
+                    <TrendingUp className="h-3 w-3" /> +{formatCurrency(459)} this month
                   </p>
                 </CardContent>
               </Card>
@@ -156,7 +157,7 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">1,250</div>
-                  <p className="text-xs text-muted-foreground">Worth $12.50</p>
+                  <p className="text-xs text-muted-foreground">Worth {formatCurrency(12.50)}</p>
                 </CardContent>
               </Card>
             </div>
@@ -187,7 +188,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-4">
                           <StatusBadge status={order.status} />
-                          <span className="font-bold">${order.total.toFixed(2)}</span>
+                          <span className="font-bold">{formatCurrency(order.total)}</span>
                         </div>
                       </div>
                     ))}
@@ -234,7 +235,7 @@ export default function Dashboard() {
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       </div>
                       <h4 className="font-medium text-sm line-clamp-1">{item.name}</h4>
-                      <p className="text-primary font-bold">${item.price}</p>
+                      <p className="text-primary font-bold">{formatCurrency(item.price)}</p>
                       <div className="flex gap-2 mt-3">
                         <Button size="sm" className="flex-1 gap-1" data-testid={`button-add-cart-${item.id}`}>
                           <ShoppingCart className="h-3 w-3" /> Add
@@ -257,7 +258,7 @@ export default function Dashboard() {
                   <CardTitle className="text-sm font-medium text-white/80">Total Earnings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">$1,245.00</div>
+                  <div className="text-3xl font-bold">{formatCurrency(1245)}</div>
                   <p className="text-xs text-white/70 mt-1">Available for withdrawal</p>
                   <Button className="mt-4 bg-white text-purple-600" size="sm" data-testid="button-withdraw">
                     Withdraw Funds
@@ -303,7 +304,7 @@ export default function Dashboard() {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$328.50</div>
+                  <div className="text-2xl font-bold">{formatCurrency(328.50)}</div>
                   <p className="text-xs text-muted-foreground">Awaiting approval</p>
                 </CardContent>
               </Card>
@@ -379,7 +380,7 @@ export default function Dashboard() {
                             <p className="text-sm font-medium truncate">{product.name}</p>
                             <p className="text-xs text-muted-foreground">{12 - i * 3} sales</p>
                           </div>
-                          <div className="text-sm font-bold text-green-600">+${((12 - i * 3) * product.price * 0.08).toFixed(2)}</div>
+                          <div className="text-sm font-bold text-green-600">+{formatCurrency((12 - i * 3) * product.price * 0.08)}</div>
                         </div>
                       ))}
                     </div>
@@ -397,7 +398,7 @@ export default function Dashboard() {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">$45,231.89</div>
+                  <div className="text-2xl font-bold">{formatCurrency(45231.89)}</div>
                   <p className="text-xs text-green-600 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" /> +20.1% from last month
                   </p>
@@ -453,7 +454,7 @@ export default function Dashboard() {
                       <BarChart data={salesData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `৳${value}`} />
                         <Tooltip />
                         <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
                       </BarChart>

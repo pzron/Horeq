@@ -27,6 +27,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 function PersonalInfoSection() {
   const [isEditing, setIsEditing] = useState(false);
@@ -96,7 +97,7 @@ function OrdersSection() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">TOTAL</p>
-                  <p className="text-sm font-bold">${order.total.toFixed(2)}</p>
+                  <p className="text-sm font-bold">{formatCurrency(order.total)}</p>
                 </div>
               </div>
               <Badge 
@@ -112,7 +113,7 @@ function OrdersSection() {
                   <img src={item.image} alt={item.name} className="h-16 w-16 rounded-lg object-cover" />
                   <div className="flex-1">
                     <h4 className="font-medium">{item.name}</h4>
-                    <p className="text-sm text-muted-foreground">Qty: {item.quantity} x ${item.price}</p>
+                    <p className="text-sm text-muted-foreground">Qty: {item.quantity} x {formatCurrency(item.price)}</p>
                   </div>
                 </div>
               ))}
@@ -457,11 +458,11 @@ function WishlistSection() {
                 <div className="flex items-center gap-2 mt-1">
                   {item.salePrice ? (
                     <>
-                      <span className="font-bold text-primary">${item.salePrice.toFixed(2)}</span>
-                      <span className="text-sm text-muted-foreground line-through">${item.price.toFixed(2)}</span>
+                      <span className="font-bold text-primary">{formatCurrency(item.salePrice)}</span>
+                      <span className="text-sm text-muted-foreground line-through">{formatCurrency(item.price)}</span>
                     </>
                   ) : (
-                    <span className="font-bold">${item.price.toFixed(2)}</span>
+                    <span className="font-bold">{formatCurrency(item.price)}</span>
                   )}
                 </div>
                 <div className="flex gap-2 mt-3">
@@ -749,7 +750,7 @@ function AffiliateDashboardSection() {
         <Card>
           <CardContent className="p-4 text-center">
             <DollarSign className="h-8 w-8 mx-auto text-primary mb-2" />
-            <p className="text-2xl font-bold">${data.totalEarnings.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(data.totalEarnings)}</p>
             <p className="text-xs text-muted-foreground">Total Earnings</p>
           </CardContent>
         </Card>
@@ -808,11 +809,11 @@ function AffiliateDashboardSection() {
             <CardTitle className="text-lg">Available Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-primary">${data.availableForWithdrawal.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-primary">{formatCurrency(data.availableForWithdrawal)}</p>
             <p className="text-sm text-muted-foreground mb-4">Available for withdrawal</p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
               <Clock className="h-4 w-4" />
-              <span>Pending: ${data.pendingEarnings.toFixed(2)}</span>
+              <span>Pending: {formatCurrency(data.pendingEarnings)}</span>
             </div>
             <Button className="w-full" data-testid="button-withdraw">Request Withdrawal</Button>
           </CardContent>
@@ -833,12 +834,12 @@ function AffiliateDashboardSection() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Earnings</span>
-              <span className="font-bold text-primary">${data.stats.thisMonth.earnings.toFixed(2)}</span>
+              <span className="font-bold text-primary">{formatCurrency(data.stats.thisMonth.earnings)}</span>
             </div>
             <Separator />
             <div className="text-xs text-muted-foreground">
               vs Last Month: {data.stats.lastMonth.earnings > data.stats.thisMonth.earnings ? '-' : '+'}
-              ${Math.abs(data.stats.thisMonth.earnings - data.stats.lastMonth.earnings).toFixed(2)}
+              {formatCurrency(Math.abs(data.stats.thisMonth.earnings - data.stats.lastMonth.earnings))}
             </div>
           </CardContent>
         </Card>
@@ -858,7 +859,7 @@ function AffiliateDashboardSection() {
                   <p className="text-sm text-muted-foreground">{ref.date}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-primary">+${ref.commission.toFixed(2)}</p>
+                  <p className="font-bold text-primary">+{formatCurrency(ref.commission)}</p>
                   <Badge variant={ref.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
                     {ref.status}
                   </Badge>

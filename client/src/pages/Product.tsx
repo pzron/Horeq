@@ -17,6 +17,7 @@ import { SideCart } from "@/components/SideCart";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { formatCurrency } from "@/lib/utils";
 
 export default function ProductPage() {
   const [match, params] = useRoute("/product/:id");
@@ -151,12 +152,12 @@ export default function ProductPage() {
             </div>
 
             <div className="flex items-baseline gap-4">
-              <span className="text-4xl font-bold text-primary" data-testid="text-product-price">${product.price}</span>
+              <span className="text-4xl font-bold text-primary" data-testid="text-product-price">{formatCurrency(product.price)}</span>
               {product.originalPrice && (
                 <>
-                  <span className="text-xl text-muted-foreground line-through">${product.originalPrice}</span>
+                  <span className="text-xl text-muted-foreground line-through">{formatCurrency(product.originalPrice)}</span>
                   <Badge variant="destructive" className="text-sm">
-                    Save ${(product.originalPrice - product.price).toFixed(2)}
+                    Save {formatCurrency(product.originalPrice - product.price)}
                   </Badge>
                 </>
               )}
@@ -260,7 +261,7 @@ export default function ProductPage() {
                 <Truck className="h-5 w-5 text-primary" />
                 <div>
                   <p className="font-medium">Free Delivery</p>
-                  <p className="text-muted-foreground text-xs">Orders over $50</p>
+                  <p className="text-muted-foreground text-xs">Orders over ৳5000</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
@@ -307,7 +308,7 @@ export default function ProductPage() {
                           className="w-full h-40 object-cover"
                         />
                         <Badge className="absolute top-2 right-2 bg-green-500">
-                          Save ${combo.savings.toFixed(2)}
+                          Save {formatCurrency(combo.savings)}
                         </Badge>
                       </div>
                       <CardContent className="p-4 space-y-3">
@@ -318,8 +319,8 @@ export default function ProductPage() {
                           ))}
                         </div>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-bold text-primary">${combo.price}</span>
-                          <span className="text-muted-foreground line-through">${combo.originalPrice}</span>
+                          <span className="text-2xl font-bold text-primary">{formatCurrency(combo.price)}</span>
+                          <span className="text-muted-foreground line-through">{formatCurrency(combo.originalPrice)}</span>
                         </div>
                         <Button className="w-full gap-2" data-testid={`button-add-combo-${combo.id}`}>
                           <ShoppingCart className="h-4 w-4" /> Add Combo to Cart

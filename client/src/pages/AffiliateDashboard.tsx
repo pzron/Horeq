@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 interface AffiliateStats {
   totalClicks: number;
@@ -253,7 +254,7 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
     },
     { 
       title: "Total Earnings", 
-      value: `$${stats?.totalEarnings?.toFixed(2) || "0.00"}`, 
+      value: formatCurrency(stats?.totalEarnings || 0), 
       icon: DollarSign, 
       color: "text-purple-500", 
       bg: "bg-purple-500/10",
@@ -261,7 +262,7 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
     },
     { 
       title: "Pending Payout", 
-      value: `$${stats?.pendingPayout?.toFixed(2) || "0.00"}`, 
+      value: formatCurrency(stats?.pendingPayout || 0), 
       icon: Wallet, 
       color: "text-orange-500", 
       bg: "bg-orange-500/10",
@@ -356,7 +357,7 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
             <Separator />
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Average Order Value</span>
-              <span className="font-medium">${stats?.avgOrderValue?.toFixed(2) || "0.00"}</span>
+              <span className="font-medium">{formatCurrency(stats?.avgOrderValue || 0)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Total Referrals</span>
@@ -397,8 +398,8 @@ function RecentReferralsList() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium">${referral.amount.toFixed(2)}</p>
-            <p className="text-xs text-green-500">+${(referral.amount * 0.1).toFixed(2)} earned</p>
+            <p className="text-sm font-medium">{formatCurrency(referral.amount)}</p>
+            <p className="text-xs text-green-500">+{formatCurrency(referral.amount * 0.1)} earned</p>
           </div>
         </div>
       ))}
@@ -509,7 +510,7 @@ function EarningsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Earned</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500" data-testid="stat-total-earned">$52.65</div>
+            <div className="text-2xl font-bold text-green-500" data-testid="stat-total-earned">{formatCurrency(52.65)}</div>
             <p className="text-xs text-muted-foreground">All time earnings</p>
           </CardContent>
         </Card>
@@ -518,7 +519,7 @@ function EarningsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-500" data-testid="stat-pending-earnings">$31.20</div>
+            <div className="text-2xl font-bold text-yellow-500" data-testid="stat-pending-earnings">{formatCurrency(31.20)}</div>
             <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
           </CardContent>
         </Card>
@@ -527,7 +528,7 @@ function EarningsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">This Month</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-monthly-earnings">$52.65</div>
+            <div className="text-2xl font-bold" data-testid="stat-monthly-earnings">{formatCurrency(52.65)}</div>
             <p className="text-xs text-muted-foreground">January 2024</p>
           </CardContent>
         </Card>
@@ -567,9 +568,9 @@ function EarningsSection() {
                   <TableRow key={earning.id} data-testid={`row-earning-${earning.id}`}>
                     <TableCell>{earning.date}</TableCell>
                     <TableCell className="font-mono">{earning.orderId}</TableCell>
-                    <TableCell>${earning.orderAmount.toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(earning.orderAmount)}</TableCell>
                     <TableCell className="text-green-500 font-medium">
-                      +${earning.commission.toFixed(2)}
+                      +{formatCurrency(earning.commission)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={earning.status === "paid" ? "default" : "secondary"}>
@@ -643,13 +644,13 @@ function PayoutsSection() {
             <DialogHeader>
               <DialogTitle>Request Payout</DialogTitle>
               <DialogDescription>
-                Request a payout for your available balance. Minimum payout is $50.
+                Request a payout for your available balance. Minimum payout is ৳50.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">Available Balance</p>
-                <p className="text-2xl font-bold">$31.20</p>
+                <p className="text-2xl font-bold">{formatCurrency(31.20)}</p>
               </div>
               <div className="space-y-2">
                 <Label>Payout Method</Label>
@@ -678,7 +679,7 @@ function PayoutsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Available Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500" data-testid="stat-available-balance">$31.20</div>
+            <div className="text-2xl font-bold text-green-500" data-testid="stat-available-balance">{formatCurrency(31.20)}</div>
             <p className="text-xs text-muted-foreground">Ready to withdraw</p>
           </CardContent>
         </Card>
@@ -687,7 +688,7 @@ function PayoutsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid Out</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-paid">$175.50</div>
+            <div className="text-2xl font-bold" data-testid="stat-total-paid">{formatCurrency(175.50)}</div>
             <p className="text-xs text-muted-foreground">All time payouts</p>
           </CardContent>
         </Card>
@@ -726,7 +727,7 @@ function PayoutsSection() {
                 displayPayouts.map((payout: any) => (
                   <TableRow key={payout.id} data-testid={`row-payout-${payout.id}`}>
                     <TableCell>{payout.requestedAt}</TableCell>
-                    <TableCell className="font-medium">${payout.amount.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(payout.amount)}</TableCell>
                     <TableCell>{payout.method}</TableCell>
                     <TableCell>
                       <Badge variant={

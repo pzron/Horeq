@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { X, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useLocation } from "wouter";
+import { formatCurrency } from "@/lib/utils";
 
 export function SideCart() {
   const { items, updateQuantity, removeFromCart, getSubtotal, getTotal, isCartOpen, setIsCartOpen } = useCart();
@@ -66,7 +67,7 @@ export function SideCart() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm line-clamp-2 mb-1">{item.product.name}</h3>
-                      <p className="text-primary font-bold">${item.product.price.toFixed(2)}</p>
+                      <p className="text-primary font-bold">{formatCurrency(item.product.price)}</p>
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center border rounded-md bg-background">
                           <Button 
@@ -111,19 +112,19 @@ export function SideCart() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                  <span className="font-medium">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span className="font-medium">{shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}</span>
+                  <span className="font-medium">{shipping === 0 ? 'Free' : formatCurrency(shipping)}</span>
                 </div>
                 {shipping > 0 && (
-                  <p className="text-xs text-muted-foreground">Add ${(50 - subtotal).toFixed(2)} more for free shipping</p>
+                  <p className="text-xs text-muted-foreground">Add {formatCurrency(50 - subtotal)} more for free shipping</p>
                 )}
                 <Separator />
                 <div className="flex justify-between text-base font-bold">
                   <span>Total</span>
-                  <span className="text-primary">${total.toFixed(2)}</span>
+                  <span className="text-primary">{formatCurrency(total)}</span>
                 </div>
               </div>
               <div className="space-y-2">
