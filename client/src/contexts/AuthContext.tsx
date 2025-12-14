@@ -8,13 +8,16 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
+  name?: string;
+  avatar?: string;
+  affiliateCode?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
@@ -52,13 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string, role?: UserRole): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await apiRequest("POST", "/api/auth/login", {
         username: email,
         password,
       });
       const userData = await response.json();
+      if (role && userData.role !== role) {
+        return { success: false, error: `Access denied. ${role} account required.` };
+      }
       setUser(userData);
       return { success: true };
     } catch (error: any) {

@@ -76,7 +76,35 @@ import {
   Clock,
   ChevronRight,
   Shield,
+  ArrowUp,
+  ArrowDown,
+  BarChart3,
+  PieChart,
+  LineChart,
+  Target,
+  Percent,
+  CreditCard,
+  Layers,
+  Globe,
+  AlertCircle,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  LineChart as RechartsLineChart,
+  Line,
+  Legend,
+} from "recharts";
 
 type AdminSection = "dashboard" | "products" | "orders" | "users" | "pages" | "menus" | "coupons" | "settings" | "activity";
 
@@ -210,6 +238,34 @@ export default function AdminDashboard() {
   );
 }
 
+const salesData = [
+  { name: "Jan", sales: 4000, orders: 24, visitors: 1200 },
+  { name: "Feb", sales: 3000, orders: 18, visitors: 980 },
+  { name: "Mar", sales: 5000, orders: 32, visitors: 1500 },
+  { name: "Apr", sales: 4500, orders: 28, visitors: 1350 },
+  { name: "May", sales: 6000, orders: 42, visitors: 1800 },
+  { name: "Jun", sales: 5500, orders: 38, visitors: 1650 },
+  { name: "Jul", sales: 7000, orders: 52, visitors: 2100 },
+];
+
+const categoryData = [
+  { name: "Fashion", value: 35, color: "#8b5cf6" },
+  { name: "Electronics", value: 25, color: "#3b82f6" },
+  { name: "Home", value: 20, color: "#10b981" },
+  { name: "Sports", value: 12, color: "#f59e0b" },
+  { name: "Other", value: 8, color: "#6b7280" },
+];
+
+const trafficData = [
+  { name: "Mon", desktop: 1200, mobile: 800, tablet: 200 },
+  { name: "Tue", desktop: 1400, mobile: 900, tablet: 250 },
+  { name: "Wed", desktop: 1100, mobile: 750, tablet: 180 },
+  { name: "Thu", desktop: 1600, mobile: 1100, tablet: 300 },
+  { name: "Fri", desktop: 1800, mobile: 1300, tablet: 350 },
+  { name: "Sat", desktop: 2000, mobile: 1500, tablet: 400 },
+  { name: "Sun", desktop: 1700, mobile: 1200, tablet: 320 },
+];
+
 function DashboardOverview() {
   const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/stats"],
@@ -217,10 +273,17 @@ function DashboardOverview() {
   const stats = data as DashboardStats | undefined;
 
   const statCards = [
-    { title: "Total Users", value: stats?.totalUsers || 0, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { title: "Total Orders", value: stats?.totalOrders || 0, icon: ShoppingCart, color: "text-green-500", bg: "bg-green-500/10" },
-    { title: "Total Products", value: stats?.totalProducts || 0, icon: Package, color: "text-purple-500", bg: "bg-purple-500/10" },
-    { title: "Total Revenue", value: formatCurrency(stats?.totalRevenue || 0), icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10" },
+    { title: "Total Users", value: stats?.totalUsers || 0, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10", trend: "+12.5%", trendUp: true },
+    { title: "Total Orders", value: stats?.totalOrders || 0, icon: ShoppingCart, color: "text-green-500", bg: "bg-green-500/10", trend: "+8.2%", trendUp: true },
+    { title: "Total Products", value: stats?.totalProducts || 0, icon: Package, color: "text-purple-500", bg: "bg-purple-500/10", trend: "+5.1%", trendUp: true },
+    { title: "Total Revenue", value: formatCurrency(stats?.totalRevenue || 0), icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10", trend: "+18.7%", trendUp: true },
+  ];
+
+  const performanceCards = [
+    { title: "Conversion Rate", value: "3.2%", icon: Target, color: "text-emerald-500", bg: "bg-emerald-500/10", trend: "+0.4%", trendUp: true },
+    { title: "Avg Order Value", value: "$125.50", icon: CreditCard, color: "text-cyan-500", bg: "bg-cyan-500/10", trend: "+$12.30", trendUp: true },
+    { title: "Cart Abandonment", value: "68.5%", icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10", trend: "-2.1%", trendUp: false },
+    { title: "Returning Customers", value: "42%", icon: UserCheck, color: "text-indigo-500", bg: "bg-indigo-500/10", trend: "+5.8%", trendUp: true },
   ];
 
   return (
@@ -240,9 +303,174 @@ function DashboardOverview() {
               <div className="text-2xl font-bold" data-testid={`stat-${stat.title.toLowerCase().replace(' ', '-')}`}>
                 {isLoading ? "..." : stat.value}
               </div>
+              <div className={`flex items-center text-xs mt-1 ${stat.trendUp ? "text-green-500" : "text-red-500"}`}>
+                {stat.trendUp ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                {stat.trend} from last month
+              </div>
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Sales Overview
+              </CardTitle>
+              <CardDescription>Monthly sales performance and trends</CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs">Last 7 months</Badge>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={salesData}>
+                <defs>
+                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Area type="monotone" dataKey="sales" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorSales)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <PieChart className="h-5 w-5 text-primary" />
+              Sales by Category
+            </CardTitle>
+            <CardDescription>Product category distribution</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <RechartsPieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {categoryData.map((item) => (
+                <div key={item.name} className="flex items-center gap-2 text-xs">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-muted-foreground">{item.name}</span>
+                  <span className="font-medium ml-auto">{item.value}%</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {performanceCards.map((stat) => (
+          <Card key={stat.title}>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+              <div className={`p-2 rounded-lg ${stat.bg}`}>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className={`flex items-center text-xs mt-1 ${stat.trendUp ? "text-green-500" : "text-red-500"}`}>
+                {stat.trendUp ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                {stat.trend}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <LineChart className="h-5 w-5 text-primary" />
+              Orders & Visitors Trend
+            </CardTitle>
+            <CardDescription>Correlation between traffic and orders</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <RechartsLineChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" className="text-xs" />
+                <YAxis yAxisId="left" className="text-xs" />
+                <YAxis yAxisId="right" orientation="right" className="text-xs" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend />
+                <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981' }} />
+                <Line yAxisId="right" type="monotone" dataKey="visitors" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
+              </RechartsLineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              Traffic by Device
+            </CardTitle>
+            <CardDescription>Weekly device breakdown</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={trafficData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend />
+                <Bar dataKey="desktop" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="mobile" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="tablet" fill="#10b981" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -258,7 +486,10 @@ function DashboardOverview() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              Quick Actions
+            </CardTitle>
             <CardDescription>Common admin tasks</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
@@ -277,6 +508,14 @@ function DashboardOverview() {
             <Button variant="outline" className="justify-start" data-testid="button-site-settings">
               <Settings className="h-4 w-4 mr-2" />
               Site Settings
+            </Button>
+            <Button variant="outline" className="justify-start" data-testid="button-manage-coupons">
+              <Tag className="h-4 w-4 mr-2" />
+              Manage Coupons
+            </Button>
+            <Button variant="outline" className="justify-start" data-testid="button-view-reports">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              View Reports
             </Button>
           </CardContent>
         </Card>
@@ -921,9 +1160,10 @@ function SettingsSection() {
 }
 
 function ActivitySection() {
-  const { data: logs, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/activity-logs"],
   });
+  const logs = data as any[] | undefined;
 
   return (
     <div className="space-y-4">
