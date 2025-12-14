@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Star, Truck, ShieldCheck, RefreshCw, ShoppingCart, Heart, Share2, Minus, Plus, Zap, Package, CheckCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { ProductCard } from "./Home";
 import { SideCart } from "@/components/SideCart";
@@ -31,6 +32,7 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
 
   const handleAddToCart = () => {
     setCartItems(prev => {
@@ -142,6 +144,25 @@ export default function ProductPage() {
               {product.description || "Experience the perfect blend of style and functionality. Meticulously designed to enhance your daily life with premium materials and superior craftsmanship."}
             </p>
 
+            {product.variants && product.variants.length > 0 && (
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-sm font-medium">Select {product.variants[0].type.charAt(0).toUpperCase() + product.variants[0].type.slice(1)}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {product.variants.map((v) => (
+                    <Button 
+                      key={v.id} 
+                      variant={selectedVariant === v.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedVariant(v.id)}
+                      data-testid={`button-variant-${v.id}`}
+                    >
+                      {v.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center gap-4">
                 <div className="flex items-center border rounded-md">
@@ -183,6 +204,21 @@ export default function ProductPage() {
                   data-testid="button-wishlist"
                 >
                   <Heart className="h-5 w-5" />
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="h-12 w-12 p-0 border-primary/20 text-primary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast({
+                      title: "Link copied",
+                      description: "Product link copied to clipboard",
+                    });
+                  }}
+                  data-testid="button-share"
+                >
+                  <Share2 className="h-5 w-5" />
                 </Button>
               </div>
               

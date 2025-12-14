@@ -382,6 +382,26 @@ function TrackingSection() {
 }
 
 function AffiliateSection() {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold font-heading">Affiliate Program</h2>
+      <Card>
+        <CardContent className="py-12 text-center space-y-4">
+          <Users className="h-16 w-16 mx-auto text-primary" />
+          <h3 className="text-xl font-bold">Join Our Affiliate Program</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Earn commissions by sharing products with your audience. Get up to 10% commission on every sale.
+          </p>
+          <Button size="lg" className="mt-4" data-testid="button-apply-affiliate">
+            Apply Now
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AffiliateDashboardSection() {
   const data = MOCK_AFFILIATE_DATA;
   const [copied, setCopied] = useState(false);
 
@@ -390,26 +410,6 @@ function AffiliateSection() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  if (data.status !== 'active') {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold font-heading">Affiliate Program</h2>
-        <Card>
-          <CardContent className="py-12 text-center space-y-4">
-            <Users className="h-16 w-16 mx-auto text-primary" />
-            <h3 className="text-xl font-bold">Join Our Affiliate Program</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Earn commissions by sharing products with your audience. Get up to 10% commission on every sale.
-            </p>
-            <Button size="lg" className="mt-4" data-testid="button-apply-affiliate">
-              Apply Now
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

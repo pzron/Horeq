@@ -210,7 +210,7 @@ export default function Shop() {
   const [selectedRatings, setSelectedRatings] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const allProducts = getAllProducts(48);
+  const allProducts = getAllProducts(1000);
   
   const filteredProducts = allProducts.filter(product => {
     if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;

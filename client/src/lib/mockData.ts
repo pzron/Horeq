@@ -7,7 +7,14 @@ import {
   Monitor, Briefcase, Umbrella, Snowflake, Sun, Moon, Key, Package, Tent, Mountain,
   Anchor, Palette, Ruler, Wrench, Plug, Lamp, Bed, Bath, Shirt as TShirt, 
   BadgePercent, Banknote, Receipt, Tag, Megaphone, Radio, Tv, Fan, Thermometer,
-  Lightbulb, Lock, Shield, Wifi, Bluetooth, Battery, Cpu, HardDrive
+  Lightbulb, Lock, Shield, Wifi, Bluetooth, Battery, Cpu, HardDrive,
+  Backpack, Cake, Calculator, Candy, Carrot, ChefHat, Cherry, Cookie, Croissant,
+  Dessert, Diamond, Drum, Egg, Factory, Feather, Film, Fish, Flag, Fuel,
+  GraduationCap, Grape, Guitar, Handshake, HardHat, Hotel, IceCream, Joystick,
+  Keyboard, Landmark, Leaf, Library, Magnet, Map, Medal, Mic, Milk, Newspaper,
+  Pizza, Podcast, Popcorn, Printer, Puzzle, Recycle, Rocket, Sailboat, Salad,
+  Sandwich, Satellite, Scale, School, Server, Shovel, ShowerHead, Snail,
+  Soup, Speaker, Sprout, FlaskConical, TestTube
 } from "lucide-react";
 
 export interface Product {
@@ -109,6 +116,66 @@ export const CATEGORIES: Category[] = [
   { id: '58', name: 'Security', icon: Lock, count: 320, slug: 'security', color: '#475569', bgColor: 'bg-slate-600' },
   { id: '59', name: 'Protection', icon: Shield, count: 280, slug: 'protection', color: '#22d3ee', bgColor: 'bg-cyan-400' },
   { id: '60', name: 'Networking', icon: Wifi, count: 190, slug: 'networking', color: '#60a5fa', bgColor: 'bg-blue-400' },
+  { id: '61', name: 'Backpacks', icon: Backpack, count: 340, slug: 'backpacks', color: '#059669', bgColor: 'bg-emerald-600' },
+  { id: '62', name: 'Bakery', icon: Cake, count: 280, slug: 'bakery', color: '#f472b6', bgColor: 'bg-pink-400' },
+  { id: '63', name: 'Calculators', icon: Calculator, count: 120, slug: 'calculators', color: '#6b7280', bgColor: 'bg-gray-500' },
+  { id: '64', name: 'Sweets', icon: Candy, count: 450, slug: 'sweets', color: '#f87171', bgColor: 'bg-red-400' },
+  { id: '65', name: 'Vegetables', icon: Carrot, count: 560, slug: 'vegetables', color: '#f97316', bgColor: 'bg-orange-500' },
+  { id: '66', name: 'Cookware', icon: ChefHat, count: 380, slug: 'cookware', color: '#fbbf24', bgColor: 'bg-amber-400' },
+  { id: '67', name: 'Fruits', icon: Cherry, count: 490, slug: 'fruits', color: '#dc2626', bgColor: 'bg-red-600' },
+  { id: '68', name: 'Snacks', icon: Cookie, count: 620, slug: 'snacks', color: '#d97706', bgColor: 'bg-amber-600' },
+  { id: '69', name: 'Breakfast', icon: Croissant, count: 310, slug: 'breakfast', color: '#ca8a04', bgColor: 'bg-yellow-600' },
+  { id: '70', name: 'Desserts', icon: Dessert, count: 420, slug: 'desserts', color: '#ec4899', bgColor: 'bg-pink-500' },
+  { id: '71', name: 'Diamonds', icon: Diamond, count: 180, slug: 'diamonds', color: '#0ea5e9', bgColor: 'bg-sky-500' },
+  { id: '72', name: 'Donuts', icon: Donut, count: 150, slug: 'donuts', color: '#f472b6', bgColor: 'bg-pink-400' },
+  { id: '73', name: 'Instruments', icon: Drum, count: 290, slug: 'instruments', color: '#a855f7', bgColor: 'bg-purple-500' },
+  { id: '74', name: 'Organic', icon: Egg, count: 340, slug: 'organic', color: '#fef08a', bgColor: 'bg-yellow-200' },
+  { id: '75', name: 'Industrial', icon: Factory, count: 180, slug: 'industrial', color: '#64748b', bgColor: 'bg-slate-500' },
+  { id: '76', name: 'Accessories', icon: Feather, count: 890, slug: 'accessories', color: '#c084fc', bgColor: 'bg-purple-400' },
+  { id: '77', name: 'Movies', icon: Film, count: 520, slug: 'movies', color: '#ef4444', bgColor: 'bg-red-500' },
+  { id: '78', name: 'Seafood', icon: Fish, count: 280, slug: 'seafood', color: '#0891b2', bgColor: 'bg-cyan-600' },
+  { id: '79', name: 'Party', icon: Flag, count: 340, slug: 'party', color: '#f43f5e', bgColor: 'bg-rose-500' },
+  { id: '80', name: 'Lab Equipment', icon: FlaskConical, count: 120, slug: 'lab-equipment', color: '#10b981', bgColor: 'bg-emerald-500' },
+  { id: '81', name: 'Gas & Fuel', icon: Fuel, count: 90, slug: 'gas-fuel', color: '#ef4444', bgColor: 'bg-red-500' },
+  { id: '82', name: 'Graduation', icon: GraduationCap, count: 180, slug: 'graduation', color: '#1e3a8a', bgColor: 'bg-blue-900' },
+  { id: '83', name: 'Wine & Grapes', icon: Grape, count: 220, slug: 'wine-grapes', color: '#7c3aed', bgColor: 'bg-violet-600' },
+  { id: '84', name: 'Music Gear', icon: Guitar, count: 340, slug: 'music-gear', color: '#b45309', bgColor: 'bg-amber-700' },
+  { id: '85', name: 'Corporate', icon: Handshake, count: 150, slug: 'corporate', color: '#334155', bgColor: 'bg-slate-700' },
+  { id: '86', name: 'Construction', icon: HardHat, count: 280, slug: 'construction', color: '#eab308', bgColor: 'bg-yellow-500' },
+  { id: '87', name: 'Hotels', icon: Hotel, count: 120, slug: 'hotels', color: '#6366f1', bgColor: 'bg-indigo-500' },
+  { id: '88', name: 'Ice Cream', icon: IceCream, count: 180, slug: 'ice-cream', color: '#f9a8d4', bgColor: 'bg-pink-300' },
+  { id: '89', name: 'Controllers', icon: Joystick, count: 420, slug: 'controllers', color: '#4f46e5', bgColor: 'bg-indigo-600' },
+  { id: '90', name: 'Keyboards', icon: Keyboard, count: 380, slug: 'keyboards', color: '#374151', bgColor: 'bg-gray-700' },
+  { id: '91', name: 'Landmarks', icon: Landmark, count: 80, slug: 'landmarks', color: '#78716c', bgColor: 'bg-stone-500' },
+  { id: '92', name: 'Natural', icon: Leaf, count: 560, slug: 'natural', color: '#22c55e', bgColor: 'bg-green-500' },
+  { id: '93', name: 'Libraries', icon: Library, count: 240, slug: 'libraries', color: '#92400e', bgColor: 'bg-amber-800' },
+  { id: '94', name: 'Magnets', icon: Magnet, count: 90, slug: 'magnets', color: '#dc2626', bgColor: 'bg-red-600' },
+  { id: '95', name: 'Maps', icon: Map, count: 150, slug: 'maps', color: '#0d9488', bgColor: 'bg-teal-600' },
+  { id: '96', name: 'Awards', icon: Medal, count: 180, slug: 'awards', color: '#f59e0b', bgColor: 'bg-amber-500' },
+  { id: '97', name: 'Microphones', icon: Mic, count: 220, slug: 'microphones', color: '#6366f1', bgColor: 'bg-indigo-500' },
+  { id: '98', name: 'Dairy', icon: Milk, count: 340, slug: 'dairy', color: '#f1f5f9', bgColor: 'bg-slate-100' },
+  { id: '99', name: 'News', icon: Newspaper, count: 120, slug: 'news', color: '#1f2937', bgColor: 'bg-gray-800' },
+  { id: '100', name: 'Pizza', icon: Pizza, count: 280, slug: 'pizza', color: '#ea580c', bgColor: 'bg-orange-600' },
+  { id: '101', name: 'Podcasts', icon: Podcast, count: 180, slug: 'podcasts', color: '#8b5cf6', bgColor: 'bg-violet-500' },
+  { id: '102', name: 'Cinema', icon: Popcorn, count: 220, slug: 'cinema', color: '#fcd34d', bgColor: 'bg-amber-300' },
+  { id: '103', name: 'Printers', icon: Printer, count: 160, slug: 'printers', color: '#525252', bgColor: 'bg-neutral-600' },
+  { id: '104', name: 'Puzzles', icon: Puzzle, count: 240, slug: 'puzzles', color: '#c084fc', bgColor: 'bg-purple-400' },
+  { id: '105', name: 'Eco Friendly', icon: Recycle, count: 320, slug: 'eco-friendly', color: '#16a34a', bgColor: 'bg-green-600' },
+  { id: '106', name: 'Space', icon: Rocket, count: 140, slug: 'space', color: '#1e40af', bgColor: 'bg-blue-800' },
+  { id: '107', name: 'Sailing', icon: Sailboat, count: 110, slug: 'sailing', color: '#0284c7', bgColor: 'bg-sky-600' },
+  { id: '108', name: 'Salads', icon: Salad, count: 180, slug: 'salads', color: '#4ade80', bgColor: 'bg-green-400' },
+  { id: '109', name: 'Sandwiches', icon: Sandwich, count: 220, slug: 'sandwiches', color: '#d97706', bgColor: 'bg-amber-600' },
+  { id: '110', name: 'Tech', icon: Satellite, count: 280, slug: 'tech', color: '#3b82f6', bgColor: 'bg-blue-500' },
+  { id: '111', name: 'Weighing', icon: Scale, count: 90, slug: 'weighing', color: '#71717a', bgColor: 'bg-zinc-500' },
+  { id: '112', name: 'Schools', icon: School, count: 180, slug: 'schools', color: '#2563eb', bgColor: 'bg-blue-600' },
+  { id: '113', name: 'Seeds', icon: Sprout, count: 240, slug: 'seeds', color: '#15803d', bgColor: 'bg-green-700' },
+  { id: '114', name: 'Servers', icon: Server, count: 160, slug: 'servers', color: '#374151', bgColor: 'bg-gray-700' },
+  { id: '115', name: 'Gardening', icon: Shovel, count: 280, slug: 'gardening', color: '#78716c', bgColor: 'bg-stone-500' },
+  { id: '116', name: 'Showers', icon: ShowerHead, count: 180, slug: 'showers', color: '#0ea5e9', bgColor: 'bg-sky-500' },
+  { id: '117', name: 'Slow Living', icon: Snail, count: 90, slug: 'slow-living', color: '#a3e635', bgColor: 'bg-lime-400' },
+  { id: '118', name: 'Soups', icon: Soup, count: 220, slug: 'soups', color: '#ea580c', bgColor: 'bg-orange-600' },
+  { id: '119', name: 'Speakers', icon: Speaker, count: 380, slug: 'speakers', color: '#1f2937', bgColor: 'bg-gray-800' },
+  { id: '120', name: 'Plants', icon: Sprout, count: 320, slug: 'plants', color: '#22c55e', bgColor: 'bg-green-500' },
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
@@ -330,16 +397,82 @@ export const COMBO_PRODUCTS = [
   }
 ];
 
-export const getAllProducts = (count: number = 20) => {
-  const products = [...MOCK_PRODUCTS];
+const PRODUCT_ADJECTIVES = ['Premium', 'Pro', 'Ultra', 'Elite', 'Classic', 'Modern', 'Deluxe', 'Essential', 'Advanced', 'Smart', 'Wireless', 'Portable', 'Compact', 'Professional', 'Limited Edition', 'Signature', 'Plus', 'Max', 'Mini', 'XL'];
+const PRODUCT_SUFFIXES = ['', 'V2', 'X', 'S', 'Plus', 'Pro', 'Max', 'SE', 'Air', 'Lite', 'Neo', 'GT', 'Sport', 'Home', 'Travel'];
+const PRODUCT_IMAGES = [
+  'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
+  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
+  'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80',
+  'https://images.unsplash.com/photo-1507473888900-52e1ad147298?w=800&q=80',
+  'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=800&q=80',
+  'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80',
+  'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80',
+  'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&q=80',
+  'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&q=80',
+  'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
+  'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=800&q=80',
+  'https://images.unsplash.com/photo-1586816879360-004f5b0c51e5?w=800&q=80',
+  'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=800&q=80',
+  'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=800&q=80',
+  'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=800&q=80',
+  'https://images.unsplash.com/photo-1491553895911-0055uj8b8a8a?w=800&q=80',
+  'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=800&q=80',
+  'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80',
+  'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800&q=80',
+  'https://images.unsplash.com/photo-1503602642458-232111445657?w=800&q=80'
+];
+
+export const getAllProducts = (count: number = 20): Product[] => {
+  const products: Product[] = [...MOCK_PRODUCTS];
+  const categoryNames = CATEGORIES.map(c => c.name);
+  
+  let genId = 1;
   while (products.length < count) {
     const base = MOCK_PRODUCTS[Math.floor(Math.random() * MOCK_PRODUCTS.length)];
+    const adj = PRODUCT_ADJECTIVES[Math.floor(Math.random() * PRODUCT_ADJECTIVES.length)];
+    const suffix = PRODUCT_SUFFIXES[Math.floor(Math.random() * PRODUCT_SUFFIXES.length)];
+    const category = categoryNames[Math.floor(Math.random() * categoryNames.length)];
+    const image = PRODUCT_IMAGES[Math.floor(Math.random() * PRODUCT_IMAGES.length)];
+    
+    const priceMultiplier = 0.5 + Math.random() * 1.5;
+    const newPrice = Number((base.price * priceMultiplier).toFixed(2));
+    const hasDiscount = Math.random() > 0.7;
+    const isNew = Math.random() > 0.8;
+    const isSale = hasDiscount && !isNew;
+    
+    const hasVariants = Math.random() > 0.6;
+    const variants: ProductVariant[] = hasVariants ? (
+      Math.random() > 0.5 
+        ? [
+            { id: `v${genId}-1`, name: 'Black', type: 'color', stock: Math.floor(Math.random() * 30) + 5 },
+            { id: `v${genId}-2`, name: 'White', type: 'color', stock: Math.floor(Math.random() * 30) + 5 },
+            { id: `v${genId}-3`, name: 'Gray', type: 'color', stock: Math.floor(Math.random() * 20) + 5 },
+          ]
+        : [
+            { id: `v${genId}-1`, name: 'Small', type: 'size', stock: Math.floor(Math.random() * 25) + 5 },
+            { id: `v${genId}-2`, name: 'Medium', type: 'size', stock: Math.floor(Math.random() * 25) + 5 },
+            { id: `v${genId}-3`, name: 'Large', type: 'size', stock: Math.floor(Math.random() * 25) + 5 },
+          ]
+    ) : undefined;
+
     products.push({
-      ...base,
-      id: `gen-${products.length + 1}`,
-      name: `${base.name} ${Math.floor(Math.random() * 100)}`,
-      price: Number((base.price * (0.8 + Math.random() * 0.4)).toFixed(2))
+      id: `gen-${genId}`,
+      name: `${adj} ${base.name.split(' ').slice(0, 2).join(' ')} ${suffix}`.trim(),
+      price: newPrice,
+      originalPrice: hasDiscount ? Number((newPrice * (1.1 + Math.random() * 0.3)).toFixed(2)) : undefined,
+      rating: Number((3.5 + Math.random() * 1.5).toFixed(1)),
+      reviews: Math.floor(Math.random() * 2000) + 50,
+      image: image,
+      category: category,
+      isNew: isNew,
+      isSale: isSale,
+      description: base.description,
+      stock: Math.floor(Math.random() * 200) + 10,
+      sold: Math.floor(Math.random() * 5000) + 100,
+      comboAvailable: Math.random() > 0.8,
+      variants: variants
     });
+    genId++;
   }
   return products;
 };
