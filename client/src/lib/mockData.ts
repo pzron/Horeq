@@ -127,7 +127,7 @@ export const CATEGORIES: Category[] = [
   { id: '69', name: 'Breakfast', icon: Croissant, count: 310, slug: 'breakfast', color: '#ca8a04', bgColor: 'bg-yellow-600' },
   { id: '70', name: 'Desserts', icon: Dessert, count: 420, slug: 'desserts', color: '#ec4899', bgColor: 'bg-pink-500' },
   { id: '71', name: 'Diamonds', icon: Diamond, count: 180, slug: 'diamonds', color: '#0ea5e9', bgColor: 'bg-sky-500' },
-  { id: '72', name: 'Donuts', icon: Donut, count: 150, slug: 'donuts', color: '#f472b6', bgColor: 'bg-pink-400' },
+  { id: '72', name: 'Donuts', icon: Cookie, count: 150, slug: 'donuts', color: '#f472b6', bgColor: 'bg-pink-400' },
   { id: '73', name: 'Instruments', icon: Drum, count: 290, slug: 'instruments', color: '#a855f7', bgColor: 'bg-purple-500' },
   { id: '74', name: 'Organic', icon: Egg, count: 340, slug: 'organic', color: '#fef08a', bgColor: 'bg-yellow-200' },
   { id: '75', name: 'Industrial', icon: Factory, count: 180, slug: 'industrial', color: '#64748b', bgColor: 'bg-slate-500' },
