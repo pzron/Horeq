@@ -41,11 +41,9 @@ export function Navbar() {
               </div>
               <nav className="flex flex-col gap-2">
                 {CATEGORIES.slice(0, 8).map((cat) => (
-                  <Link key={cat.id} href={`/category/${cat.slug}`}>
-                    <a className="flex items-center gap-3 px-4 py-2 hover:bg-muted rounded-md transition-colors">
+                  <Link key={cat.id} href={`/category/${cat.slug}`} className="flex items-center gap-3 px-4 py-2 hover:bg-muted rounded-md transition-colors">
                       <cat.icon className="h-5 w-5 text-muted-foreground" />
                       {cat.name}
-                    </a>
                   </Link>
                 ))}
               </nav>
@@ -54,11 +52,9 @@ export function Navbar() {
         </Sheet>
 
         {/* Logo */}
-        <Link href="/">
-          <a className="flex items-center gap-2 mr-4 md:mr-8 transition-opacity hover:opacity-90">
+        <Link href="/" className="flex items-center gap-2 mr-4 md:mr-8 transition-opacity hover:opacity-90">
             <img src="/attached_assets/horeq_1765703783652.jpg" alt="Horeq Logo" className="h-10 w-10 rounded-full object-cover border-2 border-primary/10" />
             <span className="text-2xl font-bold font-heading text-primary hidden sm:inline-block">Horeq</span>
-          </a>
         </Link>
 
         {/* Search Bar - Desktop */}
@@ -162,21 +158,15 @@ export function Navbar() {
             <div className="h-4 w-[1px] bg-border mx-2"></div>
 
             {CATEGORIES.slice(0, 5).map((cat) => (
-              <Link key={cat.id} href={`/category/${cat.slug}`}>
-                <a className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors whitespace-nowrap">
+              <Link key={cat.id} href={`/category/${cat.slug}`} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors whitespace-nowrap">
                   {cat.name}
-                </a>
               </Link>
             ))}
-            <Link href="/combo">
-              <a className="text-sm font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap bg-primary/5 px-3 py-1 rounded-full border border-primary/20">
+            <Link href="/combo" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap bg-primary/5 px-3 py-1 rounded-full border border-primary/20">
                 <span className="text-accent mr-1">★</span> Combo Deals
-              </a>
             </Link>
-            <Link href="/deals">
-              <a className="text-sm font-medium text-accent hover:text-accent/80 transition-colors whitespace-nowrap ml-auto">
+            <Link href="/deals" className="text-sm font-medium text-accent hover:text-accent/80 transition-colors whitespace-nowrap ml-auto">
                 Flash Deals
-              </a>
             </Link>
           </nav>
         </div>

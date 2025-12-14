@@ -75,11 +75,11 @@ function HeroSection() {
               <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 h-12 px-8 text-base shadow-lg shadow-primary/20 transition-transform hover:scale-105">
                 Shop Now
               </Button>
-              <Link href="/combo">
-                <Button size="lg" variant="outline" className="rounded-full border-primary/20 text-primary hover:bg-primary/5 h-12 px-8 text-base transition-transform hover:scale-105">
+              <Button asChild size="lg" variant="outline" className="rounded-full border-primary/20 text-primary hover:bg-primary/5 h-12 px-8 text-base transition-transform hover:scale-105">
+                <Link href="/combo">
                   View Combos
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </motion.div>
             
             <div className="flex gap-8 pt-8 text-sm font-medium text-muted-foreground">
@@ -175,15 +175,13 @@ function CategoryMarquee() {
           }}
         >
           {duplicatedCategories.map((cat, idx) => (
-            <Link key={`${cat.id}-${idx}`} href={`/category/${cat.slug}`}>
-              <a className="inline-flex flex-col items-center justify-center w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-card border hover:border-accent hover:shadow-lg transition-all duration-300 group shrink-0">
+            <Link key={`${cat.id}-${idx}`} href={`/category/${cat.slug}`} className="inline-flex flex-col items-center justify-center w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-card border hover:border-accent hover:shadow-lg transition-all duration-300 group shrink-0">
                 <div className={`h-14 w-14 rounded-full flex items-center justify-center mb-3 transition-colors duration-300
                   ${idx % 2 === 0 ? 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white' : 'bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white'}
                 `}>
                   <cat.icon className="h-7 w-7" />
                 </div>
                 <span className="font-medium text-sm group-hover:text-primary transition-colors">{cat.name}</span>
-              </a>
             </Link>
           ))}
         </motion.div>
@@ -236,8 +234,7 @@ function DynamicProductGrid() {
               transition={{ delay: idx * 0.05 }}
             >
               <div className={`group relative bg-card rounded-xl border-2 transition-all duration-1000 hover:shadow-xl overflow-hidden flex flex-col h-full ${themes[themeIndex]}`}>
-                <Link href={`/product/${product.id}`}>
-                  <a className="relative aspect-[4/3] overflow-hidden bg-muted block">
+                <Link href={`/product/${product.id}`} className="relative aspect-[4/3] overflow-hidden bg-muted block">
                     <img 
                       src={product.image} 
                       alt={product.name} 
@@ -252,7 +249,6 @@ function DynamicProductGrid() {
                         <Badge className="bg-destructive hover:bg-destructive">Sale</Badge>
                       )}
                     </div>
-                  </a>
                 </Link>
                   
                 <div className="absolute right-2 top-2 flex flex-col gap-2 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
@@ -263,10 +259,8 @@ function DynamicProductGrid() {
                 
                 <div className="p-4 flex flex-col flex-1">
                   <div className="text-xs text-muted-foreground mb-2">{product.category}</div>
-                  <Link href={`/product/${product.id}`}>
-                    <a className="font-medium text-foreground line-clamp-2 mb-2 flex-1 hover:text-primary cursor-pointer transition-colors">
+                  <Link href={`/product/${product.id}`} className="font-medium text-foreground line-clamp-2 mb-2 flex-1 hover:text-primary cursor-pointer transition-colors">
                       {product.name}
-                    </a>
                   </Link>
                   
                   <div className="flex items-center gap-1 mb-3">
@@ -344,11 +338,10 @@ function PromoBanner() {
 }
 
 // Product Card for More to Love section (simplified)
-function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product }: { product: Product }) {
    return (
     <div className="group relative bg-card rounded-xl border hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
-      <Link href={`/product/${product.id}`}>
-        <a className="relative aspect-[4/3] overflow-hidden bg-muted block">
+      <Link href={`/product/${product.id}`} className="relative aspect-[4/3] overflow-hidden bg-muted block">
           <img 
             src={product.image} 
             alt={product.name} 
@@ -363,7 +356,6 @@ function ProductCard({ product }: { product: Product }) {
               <Badge className="bg-destructive hover:bg-destructive">Sale</Badge>
             )}
           </div>
-        </a>
       </Link>
         
       <div className="absolute right-2 top-2 flex flex-col gap-2 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
@@ -374,10 +366,8 @@ function ProductCard({ product }: { product: Product }) {
       
       <div className="p-4 flex flex-col flex-1">
         <div className="text-xs text-muted-foreground mb-2">{product.category}</div>
-        <Link href={`/product/${product.id}`}>
-          <a className="font-medium text-foreground line-clamp-2 mb-2 flex-1 hover:text-primary cursor-pointer transition-colors">
+        <Link href={`/product/${product.id}`} className="font-medium text-foreground line-clamp-2 mb-2 flex-1 hover:text-primary cursor-pointer transition-colors">
             {product.name}
-          </a>
         </Link>
         
         <div className="flex items-center gap-1 mb-3">
