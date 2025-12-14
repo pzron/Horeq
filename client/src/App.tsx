@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import CategoryPage from "@/pages/Category";
 import ProductPage from "@/pages/Product";
 import Dashboard from "@/pages/Dashboard";
+import ComboPage from "@/pages/Combo";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/category/:slug" component={CategoryPage} />
       <Route path="/product/:id" component={ProductPage} />
+      <Route path="/combo" component={ComboPage} />
       <Route path="/admin" component={Dashboard} />
       <Route path="/affiliate" component={Dashboard} />
       <Route component={NotFound} />

@@ -161,13 +161,18 @@ export function Navbar() {
             
             <div className="h-4 w-[1px] bg-border mx-2"></div>
 
-            {CATEGORIES.slice(0, 6).map((cat) => (
+            {CATEGORIES.slice(0, 5).map((cat) => (
               <Link key={cat.id} href={`/category/${cat.slug}`}>
                 <a className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors whitespace-nowrap">
                   {cat.name}
                 </a>
               </Link>
             ))}
+            <Link href="/combo">
+              <a className="text-sm font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap bg-primary/5 px-3 py-1 rounded-full border border-primary/20">
+                <span className="text-accent mr-1">★</span> Combo Deals
+              </a>
+            </Link>
             <Link href="/deals">
               <a className="text-sm font-medium text-accent hover:text-accent/80 transition-colors whitespace-nowrap ml-auto">
                 Flash Deals
