@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, Truck, ShieldCheck, RefreshCw, ShoppingCart, Heart, Share2, Minus, Plus, Zap, Package, CheckCircle } from "lucide-react";
+import { Star, Truck, ShieldCheck, RefreshCw, ShoppingCart, Heart, Share2, Minus, Plus, Zap, Package, CheckCircle, Send } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { ProductCard } from "./Home";
 import { SideCart } from "@/components/SideCart";
@@ -33,6 +35,35 @@ export default function ProductPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  
+  // Review form state
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewTitle.trim() || !reviewComment.trim()) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all review fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsSubmittingReview(true);
+    setTimeout(() => {
+      setIsSubmittingReview(false);
+      setReviewTitle('');
+      setReviewComment('');
+      setReviewRating(5);
+      toast({
+        title: "Review submitted",
+        description: "Thank you for your feedback!",
+      });
+    }, 1000);
+  };
 
   const handleAddToCart = () => {
     setCartItems(prev => {
@@ -437,6 +468,67 @@ export default function ProductPage() {
                   </Button>
                 </div>
               </div>
+
+              {/* Write Review Form */}
+              <Card className="mt-8">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold mb-4">Write a Review</h3>
+                  <form onSubmit={handleSubmitReview} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Your Rating</Label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            className="p-1 focus:outline-none"
+                            data-testid={`button-rating-${star}`}
+                          >
+                            <Star 
+                              className={`h-6 w-6 transition-colors ${
+                                star <= reviewRating 
+                                  ? "text-amber-500 fill-amber-500" 
+                                  : "text-muted-foreground"
+                              }`} 
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="review-title">Review Title</Label>
+                      <Input 
+                        id="review-title"
+                        placeholder="Summarize your experience"
+                        value={reviewTitle}
+                        onChange={(e) => setReviewTitle(e.target.value)}
+                        data-testid="input-review-title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="review-comment">Your Review</Label>
+                      <Textarea 
+                        id="review-comment"
+                        placeholder="Share your experience with this product..."
+                        rows={4}
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        data-testid="textarea-review-comment"
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="gap-2"
+                      disabled={isSubmittingReview}
+                      data-testid="button-submit-review"
+                    >
+                      <Send className="h-4 w-4" />
+                      {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

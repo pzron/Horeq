@@ -212,7 +212,12 @@ export default function Shop() {
 
   const allProducts = getAllProducts(1000);
   
-  const filteredProducts = allProducts.filter(product => {
+  // Remove duplicate products by ID
+  const uniqueProducts = allProducts.filter((product, index, self) => 
+    index === self.findIndex(p => p.id === product.id)
+  );
+  
+  const filteredProducts = uniqueProducts.filter(product => {
     if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (selectedCategories.length > 0 && !selectedCategories.some(cat => product.category.toLowerCase().includes(cat.replace('-', ' ')))) return false;
     if (product.price < priceRange[0] || product.price > priceRange[1]) return false;
