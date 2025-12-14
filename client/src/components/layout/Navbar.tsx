@@ -1,18 +1,35 @@
-import { Link, useLocation } from "wouter";
-import { Search, ShoppingCart, User, Menu, Heart, Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
-import { CATEGORIES } from "@/lib/mockData";
+import { Plus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+
+// Mock Notification System
+function NotificationSystem() {
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Random notification every 30-60 seconds
+    const interval = setInterval(() => {
+      const messages = [
+        "Someone just bought a Smart Watch!",
+        "New items added to Flash Sale!",
+        "Someone in Dhaka just placed an order",
+        "Limited stock on Trending items!"
+      ];
+      const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+      
+      toast({
+        title: "Live Update",
+        description: randomMsg,
+        className: "bg-background border-l-4 border-l-accent shadow-lg",
+        duration: 3000,
+      });
+    }, 45000);
+
+    return () => clearInterval(interval);
+  }, [toast]);
+
+  return null;
+}
 
 export function Navbar() {
   const [location] = useLocation();
@@ -20,6 +37,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <NotificationSystem />
       {/* Top Bar - Promotion */}
       <div className="bg-primary text-primary-foreground px-4 py-2 text-xs font-medium text-center hidden sm:block">
         Free Shipping on Orders Over $50 | Join Horeq Plus for Exclusive Deals
@@ -40,6 +58,11 @@ export function Navbar() {
                 <span className="text-xl font-bold font-heading text-primary">Horeq</span>
               </div>
               <nav className="flex flex-col gap-2">
+                <Link href="/auth">
+                  <Button className="w-full justify-start mb-4">
+                    <User className="mr-2 h-4 w-4" /> Sign In / Join
+                  </Button>
+                </Link>
                 {CATEGORIES.slice(0, 8).map((cat) => (
                   <Link key={cat.id} href={`/category/${cat.slug}`} className="flex items-center gap-3 px-4 py-2 hover:bg-muted rounded-md transition-colors">
                       <cat.icon className="h-5 w-5 text-muted-foreground" />
@@ -88,12 +111,14 @@ export function Navbar() {
             <Heart className="h-5 w-5" />
           </Button>
 
-          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary">
-            <ShoppingCart className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-accent text-[10px] font-bold text-white flex items-center justify-center">
-              3
-            </span>
-          </Button>
+          <Link href="/cart">
+            <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary">
+              <ShoppingCart className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-accent text-[10px] font-bold text-white flex items-center justify-center">
+                3
+              </span>
+            </Button>
+          </Link>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -106,14 +131,26 @@ export function Navbar() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Orders</DropdownMenuItem>
-              <DropdownMenuItem>Wishlist</DropdownMenuItem>
+              <Link href="/profile">
+                <DropdownMenuItem className="cursor-pointer">Profile</DropdownMenuItem>
+              </Link>
+              <Link href="/profile">
+                <DropdownMenuItem className="cursor-pointer">Orders</DropdownMenuItem>
+              </Link>
+              <Link href="/profile">
+                <DropdownMenuItem className="cursor-pointer">Wishlist</DropdownMenuItem>
+              </Link>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Affiliate Dashboard</DropdownMenuItem>
-              <DropdownMenuItem>Admin Panel</DropdownMenuItem>
+              <Link href="/affiliate">
+                <DropdownMenuItem className="cursor-pointer">Affiliate Dashboard</DropdownMenuItem>
+              </Link>
+              <Link href="/admin">
+                <DropdownMenuItem className="cursor-pointer">Admin Panel</DropdownMenuItem>
+              </Link>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">Log out</DropdownMenuItem>
+              <Link href="/auth">
+                <DropdownMenuItem className="text-destructive cursor-pointer">Log out</DropdownMenuItem>
+              </Link>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -135,7 +172,7 @@ export function Navbar() {
         </div>
       )}
 
-      {/* Secondary Nav - Desktop */}
+      {/* Secondary Nav - Desktop (Menubar style) */}
       <div className="hidden md:block border-t bg-muted/30">
         <div className="container mx-auto px-4">
           <nav className="flex items-center gap-6 overflow-x-auto py-2 no-scrollbar">
@@ -146,12 +183,14 @@ export function Navbar() {
                   All Categories
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="start">
-                {CATEGORIES.map((cat) => (
-                  <DropdownMenuItem key={cat.id} className="gap-2">
-                    <cat.icon className="h-4 w-4" /> {cat.name}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent className="w-64 p-2" align="start">
+                <div className="grid grid-cols-2 gap-1">
+                  {CATEGORIES.map((cat) => (
+                    <DropdownMenuItem key={cat.id} className="gap-2 cursor-pointer">
+                      <cat.icon className="h-4 w-4 text-muted-foreground" /> {cat.name}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
             
