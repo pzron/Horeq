@@ -65,17 +65,11 @@ export function Navbar() {
     { label: 'Shop', href: '/shop' },
     { label: 'Combo Deals', href: '/combo' },
     { label: 'Flash Deals', href: '/deals' },
-    { label: 'New Arrivals', href: '/new' },
-    { label: 'Best Sellers', href: '/bestsellers' },
   ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <NotificationSystem />
-      {/* Top Bar - Promotion */}
-      <div className="bg-primary text-primary-foreground px-4 py-2 text-xs font-medium text-center hidden sm:block">
-        Free Shipping on Orders Over $50 | Join Horeq Plus for Exclusive Deals
-      </div>
 
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
         {/* Mobile Menu */}

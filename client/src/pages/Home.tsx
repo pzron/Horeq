@@ -51,9 +51,6 @@ function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="bg-accent text-white hover:bg-accent/90 px-3 py-1 text-xs rounded-full mb-3 shadow-lg shadow-accent/20">
-                New Season Arrivals
-              </Badge>
               <h1 className="text-4xl md:text-5xl font-bold font-heading text-primary leading-[1.1]">
                 Shop the <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Future</span> of Retail.
               </h1>
@@ -259,14 +256,6 @@ function DynamicProductGrid() {
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-accent animate-pulse" />
             <h2 className="text-2xl font-bold font-heading">Trending Now</h2>
-          </div>
-          <div className="hidden md:flex gap-4">
-            <Link href="/bestsellers">
-              <Button variant="outline" size="sm" className="rounded-full h-8 text-xs border-primary/20 text-primary bg-primary/5" data-testid="button-bestsellers">Best Sellers</Button>
-            </Link>
-            <Link href="/new">
-              <Button variant="ghost" size="sm" className="rounded-full h-8 text-xs text-muted-foreground" data-testid="button-newarrivals">New Arrivals</Button>
-            </Link>
           </div>
         </div>
         
@@ -536,7 +525,6 @@ export default function Home() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
-        <ScrollingCategoriesSection />
         <DynamicProductGrid />
         <PromoBanner />
         <div className="bg-background py-16">
