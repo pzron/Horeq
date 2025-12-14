@@ -1,115 +1,95 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 export type UserRole = "customer" | "affiliate" | "admin";
 
 export interface User {
   id: string;
-  name: string;
+  username: string;
   email: string;
-  phone: string;
   role: UserRole;
-  avatar?: string;
-  isAffiliate?: boolean;
-  affiliateCode?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
-  login: (email: string, password: string, role?: UserRole) => Promise<boolean>;
-  signup: (data: SignupData) => Promise<boolean>;
-  logout: () => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
 
 export interface SignupData {
-  name: string;
+  username: string;
   email: string;
-  phone: string;
   password: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = "horeq_auth";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(AUTH_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error("Session check failed:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [user]);
-
-  const login = async (email: string, password: string, role: UserRole = "customer"): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    const mockUsers: Record<string, User> = {
-      "admin@horeq.com": {
-        id: "admin-1",
-        name: "Admin User",
-        email: "admin@horeq.com",
-        phone: "+880 1700-000000",
-        role: "admin",
-        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-      },
-      "affiliate@horeq.com": {
-        id: "affiliate-1",
-        name: "Affiliate Partner",
-        email: "affiliate@horeq.com",
-        phone: "+880 1800-000000",
-        role: "affiliate",
-        isAffiliate: true,
-        affiliateCode: "AFF2024",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-      },
-    };
-
-    const existingUser = mockUsers[email];
-    if (existingUser && existingUser.role === role) {
-      setUser(existingUser);
-      return true;
-    }
-
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: email.split("@")[0],
-      email,
-      phone: "+880 1712-345678",
-      role,
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-    };
-    setUser(newUser);
-    return true;
   };
 
-  const signup = async (data: SignupData): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      role: "customer",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-    };
-    setUser(newUser);
-    return true;
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await apiRequest("POST", "/api/auth/login", {
+        username: email,
+        password,
+      });
+      const userData = await response.json();
+      setUser(userData);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Login failed" };
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  const signup = async (data: SignupData): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await apiRequest("POST", "/api/auth/register", {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        role: "customer",
+      });
+      const userData = await response.json();
+      setUser(userData);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Registration failed" };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await apiRequest("POST", "/api/auth/logout", {});
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const updateUser = (data: Partial<User>) => {
@@ -123,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoggedIn: !!user,
+        isLoading,
         login,
         signup,
         logout,

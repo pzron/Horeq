@@ -174,7 +174,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", isAdmin, async (req, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(productData);
@@ -184,7 +184,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/products/:id", async (req, res) => {
+  app.patch("/api/products/:id", isAdmin, async (req, res) => {
     try {
       const product = await storage.updateProduct(req.params.id, req.body);
       if (!product) {
@@ -196,7 +196,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", isAdmin, async (req, res) => {
     try {
       await storage.deleteProduct(req.params.id);
       res.status(204).send();
@@ -227,7 +227,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/categories", async (req, res) => {
+  app.post("/api/categories", isAdmin, async (req, res) => {
     try {
       const categoryData = insertCategorySchema.parse(req.body);
       const category = await storage.createCategory(categoryData);
@@ -257,19 +257,21 @@ export async function registerRoutes(
     }
   });
 
-  // Cart
-  app.get("/api/cart/:userId", async (req, res) => {
+  // Cart - Session-bound routes
+  app.get("/api/cart", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getCartItems(req.params.userId);
+      const userId = (req.user as any).id;
+      const items = await storage.getCartItems(userId);
       res.json(items);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.post("/api/cart", async (req, res) => {
+  app.post("/api/cart", isAuthenticated, async (req, res) => {
     try {
-      const cartData = insertCartItemSchema.parse(req.body);
+      const userId = (req.user as any).id;
+      const cartData = insertCartItemSchema.parse({ ...req.body, userId });
       const item = await storage.addToCart(cartData);
       res.status(201).json(item);
     } catch (error: any) {
@@ -277,21 +279,34 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/cart/:id", async (req, res) => {
+  app.patch("/api/cart/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const { quantity } = req.body;
-      const item = await storage.updateCartItem(req.params.id, quantity);
-      if (!item) {
+      const cartItem = await storage.getCartItemById(req.params.id);
+      if (!cartItem) {
         return res.status(404).json({ message: "Cart item not found" });
       }
+      if (cartItem.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const item = await storage.updateCartItem(req.params.id, quantity);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.delete("/api/cart/:id", async (req, res) => {
+  app.delete("/api/cart/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
+      const cartItem = await storage.getCartItemById(req.params.id);
+      if (!cartItem) {
+        return res.status(404).json({ message: "Cart item not found" });
+      }
+      if (cartItem.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       await storage.removeFromCart(req.params.id);
       res.status(204).send();
     } catch (error: any) {
@@ -299,30 +314,36 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/cart/user/:userId", async (req, res) => {
+  app.delete("/api/cart/clear", isAuthenticated, async (req, res) => {
     try {
-      await storage.clearCart(req.params.userId);
+      const userId = (req.user as any).id;
+      await storage.clearCart(userId);
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  // Orders
-  app.get("/api/orders/user/:userId", async (req, res) => {
+  // Orders - Session-bound routes
+  app.get("/api/orders", isAuthenticated, async (req, res) => {
     try {
-      const orders = await storage.getOrdersByUser(req.params.userId);
+      const userId = (req.user as any).id;
+      const orders = await storage.getOrdersByUser(userId);
       res.json(orders);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.get("/api/orders/:id", async (req, res) => {
+  app.get("/api/orders/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
       const order = await storage.getOrderById(req.params.id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
+      }
+      if (order.userId !== userId && (req.user as any).role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
       }
       res.json(order);
     } catch (error: any) {
@@ -330,8 +351,16 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/orders/:id/items", async (req, res) => {
+  app.get("/api/orders/:id/items", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).id;
+      const order = await storage.getOrderById(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      if (order.userId !== userId && (req.user as any).role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
       const items = await storage.getOrderItems(req.params.id);
       res.json(items);
     } catch (error: any) {
@@ -339,21 +368,49 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/orders", async (req, res) => {
+  app.post("/api/orders", isAuthenticated, async (req, res) => {
     try {
-      const orderData = insertOrderSchema.parse(req.body);
+      const userId = (req.user as any).id;
+      
+      // Get cart items for this user - derive from server-side data, not client
+      const cartItems = await storage.getCartItems(userId);
+      if (!cartItems || cartItems.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
+      }
+      
+      // Calculate total from cart items
+      let total = 0;
+      for (const item of cartItems) {
+        const product = await storage.getProductById(item.productId);
+        if (product) {
+          total += product.price * item.quantity;
+        }
+      }
+      
+      const orderData = insertOrderSchema.parse({ 
+        ...req.body, 
+        userId,
+        total: total.toString(),
+      });
       const order = await storage.createOrder(orderData);
+      
+      // Create order items from user's actual cart (server-side validated)
+      for (const cartItem of cartItems) {
+        const product = await storage.getProductById(cartItem.productId);
+        if (product) {
+          await storage.createOrderItem({
+            orderId: order.id,
+            productId: cartItem.productId,
+            quantity: cartItem.quantity,
+            price: product.price.toString(),
+          });
+        }
+      }
+      
+      // Clear the cart after order
+      await storage.clearCart(userId);
+      
       res.status(201).json(order);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/order-items", async (req, res) => {
-    try {
-      const itemData = insertOrderItemSchema.parse(req.body);
-      const item = await storage.createOrderItem(itemData);
-      res.status(201).json(item);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
