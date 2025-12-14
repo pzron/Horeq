@@ -59,14 +59,14 @@ export default function Checkout() {
   });
 
   const shippingOptions = [
-    { id: 'express', label: 'Express Shipping', price: 15, time: '1-2 business days', icon: Zap },
+    { id: 'express', label: 'Express Shipping', price: 200, time: '1-2 business days', icon: Zap },
     { id: 'standard', label: 'Standard Shipping', price: 0, time: '3-5 business days', icon: Truck },
     { id: 'economy', label: 'Economy Shipping', price: 0, time: '7-10 business days', icon: Clock },
   ];
 
   const subtotal = getSubtotal();
   const shippingCost = shippingOptions.find(o => o.id === shippingOption)?.price || 0;
-  const discount = couponApplied ? 50 : 0;
+  const discount = couponApplied ? 500 : 0;
   const total = subtotal + shippingCost - discount;
 
   const handleApplyCoupon = () => {
@@ -74,7 +74,7 @@ export default function Checkout() {
       setCouponApplied(true);
       toast({
         title: "Coupon Applied!",
-        description: "You saved ৳50 on your order",
+        description: "You saved ৳500 on your order",
       });
     } else {
       toast({
@@ -479,7 +479,7 @@ export default function Checkout() {
                     </Button>
                   </div>
                   {couponApplied && (
-                    <Badge className="bg-green-500">SAVE50 applied - ৳50 off</Badge>
+                    <Badge className="bg-green-500">SAVE50 applied - ৳500 off</Badge>
                   )}
                   <p className="text-xs text-muted-foreground">Try: SAVE50</p>
                 </div>

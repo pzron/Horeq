@@ -18,9 +18,9 @@ export default function Cart() {
   const [promoApplied, setPromoApplied] = useState(false);
 
   const subtotal = getSubtotal();
-  const shipping = subtotal > 50 ? 0 : 5.00;
-  const discount = promoApplied ? 10 : 0;
-  const tax = subtotal * 0.08;
+  const shipping = subtotal > 5000 ? 0 : 100;
+  const discount = promoApplied ? 500 : 0;
+  const tax = subtotal * 0.05;
   const total = subtotal + shipping + tax - discount;
 
   const handleApplyPromo = () => {
@@ -28,7 +28,7 @@ export default function Cart() {
       setPromoApplied(true);
       toast({
         title: "Promo code applied!",
-        description: "You saved ৳10 on your order.",
+        description: "You saved ৳500 on your order.",
       });
     } else {
       toast({

@@ -11,8 +11,8 @@ export function SideCart() {
   const [_, setLocation] = useLocation();
   
   const subtotal = getSubtotal();
-  const shipping = subtotal > 50 ? 0 : 5.99;
-  const total = getTotal();
+  const shipping = subtotal > 5000 ? 0 : 100;
+  const total = subtotal + shipping;
 
   const handleProceedToCheckout = () => {
     setIsCartOpen(false);
@@ -119,7 +119,7 @@ export function SideCart() {
                   <span className="font-medium">{shipping === 0 ? 'Free' : formatCurrency(shipping)}</span>
                 </div>
                 {shipping > 0 && (
-                  <p className="text-xs text-muted-foreground">Add {formatCurrency(50 - subtotal)} more for free shipping</p>
+                  <p className="text-xs text-muted-foreground">Add {formatCurrency(5000 - subtotal)} more for free shipping</p>
                 )}
                 <Separator />
                 <div className="flex justify-between text-base font-bold">
