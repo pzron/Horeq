@@ -1,4 +1,5 @@
 import { Facebook, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from "lucide-react";
+import { SiTiktok } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
@@ -8,7 +9,8 @@ export function Footer() {
     facebook: "https://facebook.com/horeqshop",
     instagram: "https://instagram.com/horeqshop",
     twitter: "https://twitter.com/horeqshop",
-    youtube: "https://youtube.com/@horeqshop"
+    youtube: "https://youtube.com/@horeqshop",
+    tiktok: "https://tiktok.com/@horeqshop"
   };
 
   return (
@@ -18,14 +20,14 @@ export function Footer() {
           {/* Brand Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <img src="/attached_assets/horeq_1765703783652.jpg" alt="Horeq" className="h-8 w-8 rounded-full object-cover" />
+              <img src="/attached_assets/horeq_1765711133478.jpg" alt="Horeq" className="h-8 w-8 rounded-full object-cover" />
               <span className="text-xl font-bold font-heading text-primary">Horeq</span>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed">
               Your one-stop destination for quality products at unbeatable prices. 
               We bring the world's best brands directly to your doorstep.
             </p>
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" data-testid="link-facebook">
                 <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
                   <Facebook className="h-4 w-4" />
@@ -46,8 +48,13 @@ export function Footer() {
                   <Youtube className="h-4 w-4" />
                 </Button>
               </a>
+              <a href={socialLinks.tiktok} target="_blank" rel="noopener noreferrer" data-testid="link-tiktok">
+                <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
+                  <SiTiktok className="h-4 w-4" />
+                </Button>
+              </a>
             </div>
-            <p className="text-xs text-muted-foreground pt-2">Follow us: @horeqshop</p>
+            <p className="text-xs text-muted-foreground pt-2">Follow us: @horeqshop on all platforms</p>
           </div>
 
           {/* Quick Links */}

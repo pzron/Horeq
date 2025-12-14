@@ -88,7 +88,7 @@ export function Navbar() {
           <SheetContent side="left" className="w-[300px] sm:w-[400px]">
             <div className="flex flex-col gap-6 py-6">
               <div className="flex items-center gap-2">
-                <img src="/attached_assets/horeq_1765703783652.jpg" alt="Horeq" className="h-8 w-8 rounded-full object-cover" />
+                <img src="/attached_assets/horeq_1765711133478.jpg" alt="Horeq" className="h-8 w-8 rounded-full object-cover" />
                 <span className="text-xl font-bold font-heading text-primary">Horeq</span>
               </div>
               <nav className="flex flex-col gap-2">
@@ -123,7 +123,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 mr-4 md:mr-8 transition-opacity hover:opacity-90" data-testid="link-logo">
             <img 
-              src="/attached_assets/horeq_1765703783652.jpg" 
+              src="/attached_assets/horeq_1765711133478.jpg" 
               alt="Horeq Logo" 
               className="h-10 w-10 rounded-full object-cover border-2 border-primary/20 shadow-sm" 
             />
