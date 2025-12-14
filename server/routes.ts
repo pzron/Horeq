@@ -12,6 +12,7 @@ import {
   insertOrderItemSchema,
   insertCartItemSchema,
   insertAffiliateSchema,
+  insertAffiliateClickSchema,
   insertWishlistSchema,
   insertPageSchema,
   insertSettingSchema,
@@ -402,6 +403,7 @@ export async function registerRoutes(
   app.post("/api/orders", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
+      const { affiliateCode, clickId, ...orderFields } = req.body;
       
       // Get cart items for this user - derive from server-side data, not client
       const cartItems = await storage.getCartItems(userId);
@@ -409,19 +411,32 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Cart is empty" });
       }
       
-      // Calculate total from cart items
-      let total = 0;
+      // Calculate total from cart items using integer cents for precision
+      let totalCents = 0;
       for (const item of cartItems) {
         const product = await storage.getProductById(item.productId);
         if (product) {
-          total += product.price * item.quantity;
+          const priceCents = Math.round(parseFloat(product.price.toString()) * 100);
+          totalCents += priceCents * item.quantity;
+        }
+      }
+      const total = (totalCents / 100).toFixed(2);
+      
+      // Verify affiliate by code (not arbitrary ID from client) if provided
+      let validAffiliateId = null;
+      let affiliate = null;
+      if (affiliateCode && typeof affiliateCode === 'string') {
+        affiliate = await storage.getAffiliateByCode(affiliateCode);
+        if (affiliate) {
+          validAffiliateId = affiliate.id;
         }
       }
       
       const orderData = insertOrderSchema.parse({ 
-        ...req.body, 
+        ...orderFields, 
         userId,
-        total: total.toString(),
+        total,
+        affiliateId: validAffiliateId,
       });
       const order = await storage.createOrder(orderData);
       
@@ -435,6 +450,27 @@ export async function registerRoutes(
             quantity: cartItem.quantity,
             price: product.price.toString(),
           });
+        }
+      }
+      
+      // Handle affiliate commission if affiliate is attached
+      if (affiliate && validAffiliateId) {
+        // Calculate commission using integer cents for precision
+        const commissionRate = parseFloat(affiliate.commission.toString()) / 100;
+        const commissionCents = Math.round(totalCents * commissionRate);
+        const commission = (commissionCents / 100).toFixed(2);
+        
+        // Update affiliate stats (increment conversions and earnings)
+        await storage.incrementAffiliateConversions(validAffiliateId, commission);
+        
+        // Mark click as converted if clickId provided and valid
+        if (clickId && typeof clickId === 'string') {
+          // Validate click belongs to this affiliate and isn't already converted
+          const clicks = await storage.getAffiliateClicks(validAffiliateId);
+          const click = clicks.find(c => c.id === clickId && !c.converted);
+          if (click) {
+            await storage.markClickConverted(clickId, order.id);
+          }
         }
       }
       
@@ -524,6 +560,100 @@ export async function registerRoutes(
     }
   });
 
+  // Affiliate Click Tracking - record when user visits with affiliate code
+  app.post("/api/affiliates/track-click", async (req, res) => {
+    try {
+      const { code, ipAddress } = req.body;
+      
+      const affiliate = await storage.getAffiliateByCode(code);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate code not found" });
+      }
+      
+      // Create click record
+      const clickData = insertAffiliateClickSchema.parse({
+        affiliateId: affiliate.id,
+        ipAddress: ipAddress || req.ip || null,
+        converted: false,
+      });
+      
+      const click = await storage.createAffiliateClick(clickData);
+      
+      // Increment affiliate click count
+      await storage.incrementAffiliateClicks(affiliate.id);
+      
+      res.status(201).json({ 
+        clickId: click.id,
+        affiliateId: affiliate.id,
+        message: "Click tracked successfully" 
+      });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get affiliate clicks (for affiliate dashboard)
+  app.get("/api/affiliates/:id/clicks", isAffiliate, async (req, res) => {
+    try {
+      const affiliate = await storage.getAffiliateById(req.params.id);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      
+      // Check if user owns this affiliate account or is admin
+      const userId = (req.user as any).id;
+      const userRole = (req.user as any).role;
+      if (affiliate.userId !== userId && userRole !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const clicks = await storage.getAffiliateClicks(req.params.id);
+      res.json(clicks);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get affiliate stats (for affiliate dashboard)
+  app.get("/api/affiliates/:id/stats", isAffiliate, async (req, res) => {
+    try {
+      const affiliate = await storage.getAffiliateById(req.params.id);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      
+      // Check if user owns this affiliate account or is admin
+      const userId = (req.user as any).id;
+      const userRole = (req.user as any).role;
+      if (affiliate.userId !== userId && userRole !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const clicks = await storage.getAffiliateClicks(req.params.id);
+      const payouts = await storage.getAffiliatePayouts(req.params.id);
+      
+      const conversionRate = affiliate.totalClicks > 0 
+        ? (affiliate.totalConversions / affiliate.totalClicks * 100).toFixed(2)
+        : "0.00";
+      
+      const pendingPayouts = payouts
+        .filter(p => p.status === "pending")
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      res.json({
+        totalClicks: affiliate.totalClicks,
+        totalConversions: affiliate.totalConversions,
+        totalEarnings: affiliate.totalEarnings,
+        commission: affiliate.commission,
+        conversionRate,
+        pendingPayouts: pendingPayouts.toFixed(2),
+        recentClicks: clicks.slice(0, 10),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Users
   app.get("/api/users/:id", async (req, res) => {
     try {
@@ -590,6 +720,16 @@ export async function registerRoutes(
     try {
       await storage.deleteUser(req.params.id);
       res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin - Affiliates Management
+  app.get("/api/admin/affiliates", isAdmin, async (_req, res) => {
+    try {
+      const affiliates = await storage.getAllAffiliates();
+      res.json(affiliates);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

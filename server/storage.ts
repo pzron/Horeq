@@ -15,6 +15,8 @@ import {
   type InsertCartItem,
   type Affiliate,
   type InsertAffiliate,
+  type AffiliateClick,
+  type InsertAffiliateClick,
   type Wishlist,
   type InsertWishlist,
   type Page,
@@ -41,6 +43,7 @@ import {
   orderItems,
   cartItems,
   affiliates,
+  affiliateClicks,
   wishlist,
   pages,
   settings,
@@ -103,8 +106,17 @@ export interface IStorage {
   // Affiliates
   getAffiliateByUserId(userId: string): Promise<Affiliate | undefined>;
   getAffiliateByCode(code: string): Promise<Affiliate | undefined>;
+  getAffiliateById(id: string): Promise<Affiliate | undefined>;
+  getAllAffiliates(): Promise<Affiliate[]>;
   createAffiliate(affiliate: InsertAffiliate): Promise<Affiliate>;
   updateAffiliate(id: string, data: Partial<InsertAffiliate>): Promise<Affiliate | undefined>;
+  
+  // Affiliate Clicks
+  createAffiliateClick(click: InsertAffiliateClick): Promise<AffiliateClick>;
+  getAffiliateClicks(affiliateId: string): Promise<AffiliateClick[]>;
+  markClickConverted(clickId: string, orderId: string): Promise<AffiliateClick | undefined>;
+  incrementAffiliateClicks(affiliateId: string): Promise<void>;
+  incrementAffiliateConversions(affiliateId: string, commission: string): Promise<void>;
   
   // Admin - Users Management
   getAllUsers(): Promise<User[]>;
@@ -357,6 +369,48 @@ export class DbStorage implements IStorage {
   async updateAffiliate(id: string, data: Partial<InsertAffiliate>): Promise<Affiliate | undefined> {
     const result = await db.update(affiliates).set(data).where(eq(affiliates.id, id)).returning();
     return result[0];
+  }
+
+  async getAffiliateById(id: string): Promise<Affiliate | undefined> {
+    const result = await db.select().from(affiliates).where(eq(affiliates.id, id));
+    return result[0];
+  }
+
+  async getAllAffiliates(): Promise<Affiliate[]> {
+    return await db.select().from(affiliates).orderBy(desc(affiliates.createdAt));
+  }
+
+  // Affiliate Clicks
+  async createAffiliateClick(click: InsertAffiliateClick): Promise<AffiliateClick> {
+    const result = await db.insert(affiliateClicks).values(click).returning();
+    return result[0];
+  }
+
+  async getAffiliateClicks(affiliateId: string): Promise<AffiliateClick[]> {
+    return await db.select().from(affiliateClicks).where(eq(affiliateClicks.affiliateId, affiliateId)).orderBy(desc(affiliateClicks.createdAt));
+  }
+
+  async markClickConverted(clickId: string, orderId: string): Promise<AffiliateClick | undefined> {
+    const result = await db.update(affiliateClicks)
+      .set({ converted: true, orderId })
+      .where(eq(affiliateClicks.id, clickId))
+      .returning();
+    return result[0];
+  }
+
+  async incrementAffiliateClicks(affiliateId: string): Promise<void> {
+    await db.update(affiliates)
+      .set({ totalClicks: sql`${affiliates.totalClicks} + 1` })
+      .where(eq(affiliates.id, affiliateId));
+  }
+
+  async incrementAffiliateConversions(affiliateId: string, commission: string): Promise<void> {
+    await db.update(affiliates)
+      .set({ 
+        totalConversions: sql`${affiliates.totalConversions} + 1`,
+        totalEarnings: sql`${affiliates.totalEarnings} + ${commission}::decimal`
+      })
+      .where(eq(affiliates.id, affiliateId));
   }
 
   // Admin - Users Management
