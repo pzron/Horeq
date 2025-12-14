@@ -1,8 +1,16 @@
 import { Facebook, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Link } from "wouter";
 
 export function Footer() {
+  const socialLinks = {
+    facebook: "https://facebook.com/horeqshop",
+    instagram: "https://instagram.com/horeqshop",
+    twitter: "https://twitter.com/horeqshop",
+    youtube: "https://youtube.com/@horeqshop"
+  };
+
   return (
     <footer className="bg-primary/5 pt-16 pb-8 border-t">
       <div className="container mx-auto px-4">
@@ -10,7 +18,7 @@ export function Footer() {
           {/* Brand Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <img src="/attached_assets/horeq_1765703783652.jpg" alt="Horeq" className="h-8 w-8 rounded-full" />
+              <img src="/attached_assets/horeq_1765703783652.jpg" alt="Horeq" className="h-8 w-8 rounded-full object-cover" />
               <span className="text-xl font-bold font-heading text-primary">Horeq</span>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed">
@@ -18,30 +26,39 @@ export function Footer() {
               We bring the world's best brands directly to your doorstep.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
-                <Facebook className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
-                <Instagram className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
-                <Twitter className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
-                <Youtube className="h-4 w-4" />
-              </Button>
+              <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" data-testid="link-facebook">
+                <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
+                  <Facebook className="h-4 w-4" />
+                </Button>
+              </a>
+              <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" data-testid="link-instagram">
+                <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
+                  <Instagram className="h-4 w-4" />
+                </Button>
+              </a>
+              <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" data-testid="link-twitter">
+                <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
+                  <Twitter className="h-4 w-4" />
+                </Button>
+              </a>
+              <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer" data-testid="link-youtube">
+                <Button variant="outline" size="icon" className="rounded-full h-8 w-8 border-primary/20 text-primary hover:bg-primary hover:text-white">
+                  <Youtube className="h-4 w-4" />
+                </Button>
+              </a>
             </div>
+            <p className="text-xs text-muted-foreground pt-2">Follow us: @horeqshop</p>
           </div>
 
           {/* Quick Links */}
           <div>
             <h3 className="font-bold text-foreground mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Contact Us</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Blog</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Affiliate Program</a></li>
+              <li><Link href="/about" className="hover:text-primary transition-colors" data-testid="link-about">About Us</Link></li>
+              <li><Link href="/contact" className="hover:text-primary transition-colors" data-testid="link-contact">Contact Us</Link></li>
+              <li><Link href="/careers" className="hover:text-primary transition-colors" data-testid="link-careers">Careers</Link></li>
+              <li><Link href="/blog" className="hover:text-primary transition-colors" data-testid="link-blog">Blog</Link></li>
+              <li><Link href="/affiliate" className="hover:text-primary transition-colors" data-testid="link-footer-affiliate">Affiliate Program</Link></li>
             </ul>
           </div>
 
@@ -49,11 +66,11 @@ export function Footer() {
           <div>
             <h3 className="font-bold text-foreground mb-4">Customer Care</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">How to Buy</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Track Your Order</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Returns & Refunds</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Terms & Conditions</a></li>
+              <li><Link href="/help" className="hover:text-primary transition-colors" data-testid="link-help">Help Center</Link></li>
+              <li><Link href="/how-to-buy" className="hover:text-primary transition-colors" data-testid="link-howtobuy">How to Buy</Link></li>
+              <li><Link href="/track-order" className="hover:text-primary transition-colors" data-testid="link-track">Track Your Order</Link></li>
+              <li><Link href="/returns" className="hover:text-primary transition-colors" data-testid="link-returns">Returns & Refunds</Link></li>
+              <li><Link href="/terms" className="hover:text-primary transition-colors" data-testid="link-terms">Terms & Conditions</Link></li>
             </ul>
           </div>
 
@@ -64,8 +81,8 @@ export function Footer() {
               Subscribe to get special offers, free giveaways, and once-in-a-lifetime deals.
             </p>
             <div className="flex gap-2">
-              <Input placeholder="Your email address" className="bg-background border-primary/20" />
-              <Button className="bg-primary text-white hover:bg-primary/90">
+              <Input placeholder="Your email address" className="bg-background border-primary/20" data-testid="input-newsletter" />
+              <Button className="bg-primary text-white hover:bg-primary/90" data-testid="button-newsletter">
                 Join
               </Button>
             </div>
@@ -73,11 +90,11 @@ export function Footer() {
             <div className="mt-6 space-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                <span>support@horeq.com</span>
+                <a href="mailto:support@horeq.com" className="hover:text-primary transition-colors">support@horeq.com</a>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
-                <span>+1 (555) 123-4567</span>
+                <a href="tel:+15551234567" className="hover:text-primary transition-colors">+1 (555) 123-4567</a>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />

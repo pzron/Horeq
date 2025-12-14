@@ -34,20 +34,17 @@ function HeroSection() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % images.length);
-    }, 4000); // Change every 4 seconds
+    }, 4000);
     return () => clearInterval(interval);
   }, [images.length]);
 
   return (
     <div className="relative overflow-hidden bg-primary/5 py-8 md:py-12">
-      {/* Decorative Background Blobs */}
       <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-accent/20 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-64 h-64 bg-primary/20 rounded-full blur-3xl animate-pulse delay-1000" />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center max-w-6xl mx-auto">
-          
-          {/* Text Content - Compact */}
           <div className="space-y-4 z-20">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -72,20 +69,18 @@ function HeroSection() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
             >
-              <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 h-10 px-6 text-sm shadow-lg shadow-primary/20 transition-transform hover:scale-105">
+              <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 h-10 px-6 text-sm shadow-lg shadow-primary/20 transition-transform hover:scale-105" data-testid="button-hero-shop">
                 Shop Now
               </Button>
               <Link href="/combo">
-                <Button size="lg" variant="outline" className="rounded-full border-primary/20 text-primary hover:bg-primary/5 h-10 px-6 text-sm transition-transform hover:scale-105">
+                <Button size="lg" variant="outline" className="rounded-full border-primary/20 text-primary hover:bg-primary/5 h-10 px-6 text-sm transition-transform hover:scale-105" data-testid="button-hero-combos">
                   View Combos
                 </Button>
               </Link>
             </motion.div>
           </div>
           
-          {/* Animated Image Carousel with 3D Float Effect */}
           <div className="relative h-[300px] hidden md:block perspective-1000">
-             {/* Floating Badge */}
             <motion.div 
               className="absolute top-4 -left-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-xl z-30 flex items-center gap-2"
               animate={{ y: [0, -10, 0] }}
@@ -108,7 +103,7 @@ function HeroSection() {
                     opacity: 1, 
                     scale: 1, 
                     rotateY: 0,
-                    y: [0, -15, 0], // Floating animation
+                    y: [0, -15, 0],
                   }}
                   exit={{ opacity: 0, scale: 0.8, rotateY: -90 }}
                   transition={{ 
@@ -126,18 +121,13 @@ function HeroSection() {
                       alt={images[currentImageIndex].alt}
                       className="w-full h-full object-cover"
                     />
-                    {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                    
-                    {/* Caption */}
                     <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                       {images[currentImageIndex].alt}
                     </div>
                   </div>
                 </motion.div>
               </AnimatePresence>
-              
-              {/* Background Glow */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-primary/30 blur-[60px] -z-10"></div>
             </div>
           </div>
@@ -147,45 +137,67 @@ function HeroSection() {
   );
 }
 
-// --- Scrolling Marquee Categories ---
-function CategoryMarquee() {
-  const duplicatedCategories = [...CATEGORIES, ...CATEGORIES]; // Duplicate for seamless loop
-
+// --- Colorful Categories Grid Section ---
+function CategoriesGrid() {
   return (
-    <div className="py-4 bg-background border-y overflow-hidden relative">
-      {/* Removed extra title and padding for compact design */}
-      
-      {/* Marquee Container */}
-      <div className="flex w-full overflow-hidden relative">
-        <motion.div 
-          className="flex gap-4 whitespace-nowrap px-4"
-          animate={{ x: [0, -1000] }} // Adjust value based on width
-          transition={{ 
-            repeat: Infinity, 
-            ease: "linear", 
-            duration: 40, // Slower speed
-          }}
-        >
-          {duplicatedCategories.map((cat, idx) => (
-            <Link key={`${cat.id}-${idx}`} href={`/category/${cat.slug}`} className="inline-flex flex-col items-center justify-center w-24 h-24 rounded-xl bg-card border hover:border-accent hover:shadow-md transition-all duration-300 group shrink-0">
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center mb-2 transition-colors duration-300
-                  ${idx % 2 === 0 ? 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white' : 'bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white'}
-                `}>
-                  <cat.icon className="h-5 w-5" />
+    <div className="py-12 bg-background">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold font-heading mb-2">Shop by Category</h2>
+          <p className="text-muted-foreground">Explore our wide range of products</p>
+        </div>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-4">
+          {CATEGORIES.map((cat, idx) => (
+            <Link key={cat.id} href={`/category/${cat.slug}`}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.02 }}
+                className="group"
+              >
+                <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border hover:border-primary/20 hover:shadow-lg transition-all duration-300 cursor-pointer h-full min-h-[120px]" data-testid={`card-category-${cat.slug}`}>
+                  <div className={`h-14 w-14 rounded-full ${cat.color} bg-opacity-15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
+                    <cat.icon className="h-7 w-7 text-white" style={{ 
+                      filter: 'brightness(0.8)',
+                      color: cat.color.includes('blue') ? '#3b82f6' : 
+                             cat.color.includes('pink') ? '#ec4899' :
+                             cat.color.includes('orange') ? '#f97316' :
+                             cat.color.includes('purple') ? '#a855f7' :
+                             cat.color.includes('red') ? '#ef4444' :
+                             cat.color.includes('green') ? '#22c55e' :
+                             cat.color.includes('amber') ? '#f59e0b' :
+                             cat.color.includes('cyan') ? '#06b6d4' :
+                             cat.color.includes('lime') ? '#84cc16' :
+                             cat.color.includes('teal') ? '#14b8a6' :
+                             cat.color.includes('emerald') ? '#10b981' :
+                             cat.color.includes('sky') ? '#0ea5e9' :
+                             cat.color.includes('indigo') ? '#6366f1' :
+                             cat.color.includes('slate') ? '#64748b' :
+                             cat.color.includes('rose') ? '#f43f5e' :
+                             cat.color.includes('fuchsia') ? '#d946ef' :
+                             cat.color.includes('violet') ? '#8b5cf6' :
+                             cat.color.includes('yellow') ? '#eab308' :
+                             cat.color.includes('gray') ? '#6b7280' :
+                             cat.color.includes('zinc') ? '#71717a' : '#3b82f6'
+                    }} />
+                  </div>
+                  <span className="font-medium text-xs text-center group-hover:text-primary transition-colors leading-tight">{cat.name}</span>
+                  <span className="text-[10px] text-muted-foreground mt-1">{cat.count} items</span>
                 </div>
-                <span className="font-medium text-xs group-hover:text-primary transition-colors">{cat.name}</span>
+              </motion.div>
             </Link>
           ))}
-        </motion.div>
+        </div>
       </div>
     </div>
   );
 }
 
-// --- Dynamic Grid with Color Changing Styles ---
+// --- Dynamic Grid with Auto-updating rows (4-6 items per row) ---
 function DynamicProductGrid() {
-  const products = getAllProducts(12); // Increased to 12 items for better grid
-  // Color themes that will cycle
+  const products = getAllProducts(24);
   const themes = [
     "border-primary/20 hover:border-primary shadow-primary/5",
     "border-accent/20 hover:border-accent shadow-accent/5",
@@ -198,7 +210,7 @@ function DynamicProductGrid() {
   useEffect(() => {
     const interval = setInterval(() => {
       setThemeIndex((prev) => (prev + 1) % themes.length);
-    }, 5000); // Change theme every 5 seconds
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -211,22 +223,22 @@ function DynamicProductGrid() {
             <h2 className="text-2xl font-bold font-heading">Trending Now</h2>
           </div>
           <div className="hidden md:flex gap-4">
-            <Button variant="outline" size="sm" className="rounded-full h-8 text-xs border-primary/20 text-primary bg-primary/5">Best Sellers</Button>
-            <Button variant="ghost" size="sm" className="rounded-full h-8 text-xs text-muted-foreground">New Arrivals</Button>
+            <Button variant="outline" size="sm" className="rounded-full h-8 text-xs border-primary/20 text-primary bg-primary/5" data-testid="button-bestsellers">Best Sellers</Button>
+            <Button variant="ghost" size="sm" className="rounded-full h-8 text-xs text-muted-foreground" data-testid="button-newarrivals">New Arrivals</Button>
           </div>
         </div>
         
-        {/* Updated Grid: 4 cols on lg, 6 cols on xl to meet "4-6 items" requirement */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
+        {/* Dynamic Grid: 4 on md, 5 on lg, 6 on xl */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {products.map((product, idx) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: idx * 0.05 }}
+              transition={{ delay: idx * 0.02 }}
             >
-              <div className={`group relative bg-card rounded-lg border transition-all duration-1000 hover:shadow-lg overflow-hidden flex flex-col h-full ${themes[themeIndex]}`}>
+              <div className={`group relative bg-card rounded-lg border transition-all duration-1000 hover:shadow-lg overflow-hidden flex flex-col h-full ${themes[themeIndex]}`} data-testid={`card-product-${product.id}`}>
                 <Link href={`/product/${product.id}`} className="relative aspect-[4/3] overflow-hidden bg-muted block">
                     <img 
                       src={product.image} 
@@ -245,7 +257,7 @@ function DynamicProductGrid() {
                 </Link>
                   
                 <div className="absolute right-1 top-1 flex flex-col gap-1 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
-                  <Button size="icon" variant="secondary" className="h-6 w-6 rounded-full shadow-sm bg-white/90 backdrop-blur hover:bg-white">
+                  <Button size="icon" variant="secondary" className="h-6 w-6 rounded-full shadow-sm bg-white/90 backdrop-blur hover:bg-white" data-testid={`button-wishlist-${product.id}`}>
                     <Heart className="h-3 w-3" />
                   </Button>
                 </div>
@@ -272,7 +284,7 @@ function DynamicProductGrid() {
                         <span className="text-[10px] text-muted-foreground line-through">${product.originalPrice}</span>
                       )}
                     </div>
-                    <Button size="icon" className="h-6 w-6 rounded-full bg-primary text-white hover:bg-primary/90 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
+                    <Button size="icon" className="h-6 w-6 rounded-full bg-primary text-white hover:bg-primary/90 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300" data-testid={`button-add-cart-${product.id}`}>
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
@@ -283,7 +295,7 @@ function DynamicProductGrid() {
         </div>
         
         <div className="mt-8 text-center">
-          <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white px-6 rounded-full transition-all hover:shadow-lg hover:shadow-primary/20">
+          <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white px-6 rounded-full transition-all hover:shadow-lg hover:shadow-primary/20" data-testid="button-load-more">
             Load More
           </Button>
         </div>
@@ -292,7 +304,6 @@ function DynamicProductGrid() {
   );
 }
 
-// Re-using PromoBanner but ensuring it fits
 function PromoBanner() {
   return (
     <div className="py-16 container mx-auto px-4">
@@ -315,7 +326,7 @@ function PromoBanner() {
               Grab the best deals on electronics, fashion, and home accessories before they run out. Free shipping on all orders over $100.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90 border-0 rounded-full px-8 font-bold">
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 border-0 rounded-full px-8 font-bold" data-testid="button-promo-shop">
                 Shop The Sale
               </Button>
               <div className="flex items-center gap-2 bg-black/20 backdrop-blur px-4 py-2 rounded-lg border border-white/10">
@@ -330,10 +341,9 @@ function PromoBanner() {
   );
 }
 
-// Product Card for More to Love section (simplified)
 export function ProductCard({ product }: { product: Product }) {
    return (
-    <div className="group relative bg-card rounded-xl border hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
+    <div className="group relative bg-card rounded-xl border hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full" data-testid={`card-product-more-${product.id}`}>
       <Link href={`/product/${product.id}`} className="relative aspect-[4/3] overflow-hidden bg-muted block">
           <img 
             src={product.image} 
@@ -395,7 +405,7 @@ export default function Home() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
-        <CategoryMarquee />
+        <CategoriesGrid />
         <DynamicProductGrid />
         <PromoBanner />
         <div className="bg-white py-16">
