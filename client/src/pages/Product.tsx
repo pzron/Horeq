@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { MOCK_PRODUCTS, MOCK_REVIEWS, COMBO_PRODUCTS, getAllProducts, Product } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +15,16 @@ import { useState } from "react";
 import { ProductCard } from "./Home";
 import { SideCart } from "@/components/SideCart";
 import { useToast } from "@/hooks/use-toast";
-
-interface CartItem {
-  product: Product;
-  quantity: number;
-}
+import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 export default function ProductPage() {
   const [match, params] = useRoute("/product/:id");
   const id = params?.id;
   const { toast } = useToast();
+  const [_, setLocation] = useLocation();
+  const { items, addToCart, updateQuantity: updateCartQuantity, removeFromCart, clearCart, isCartOpen, setIsCartOpen } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   
   const product = MOCK_PRODUCTS.find(p => p.id === id) || MOCK_PRODUCTS[0];
   const relatedProducts = getAllProducts(4);
@@ -32,11 +32,8 @@ export default function ProductPage() {
   const relevantCombos = COMBO_PRODUCTS.filter(combo => combo.products.includes(product.id));
   
   const [quantity, setQuantity] = useState(1);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   
-  // Review form state
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
@@ -66,17 +63,7 @@ export default function ProductPage() {
   };
 
   const handleAddToCart = () => {
-    setCartItems(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        return prev.map(item => 
-          item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      }
-      return [...prev, { product, quantity }];
-    });
+    addToCart(product, quantity);
     setIsCartOpen(true);
     toast({
       title: "Added to cart",
@@ -85,25 +72,29 @@ export default function ProductPage() {
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
+    clearCart();
+    addToCart(product, quantity);
     toast({
       title: "Proceeding to checkout",
       description: "Redirecting you to complete your purchase...",
     });
+    setLocation("/checkout");
   };
 
-  const handleUpdateQuantity = (productId: string, newQuantity: number) => {
-    setCartItems(prev => 
-      prev.map(item => 
-        item.product.id === productId 
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
-    );
-  };
-
-  const handleRemoveItem = (productId: string) => {
-    setCartItems(prev => prev.filter(item => item.product.id !== productId));
+  const handleToggleWishlist = () => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+      toast({
+        title: "Removed from wishlist",
+        description: `${product.name} removed from your wishlist`,
+      });
+    } else {
+      addToWishlist(product);
+      toast({
+        title: "Added to wishlist",
+        description: `${product.name} added to your wishlist`,
+      });
+    }
   };
 
   return (
@@ -231,10 +222,11 @@ export default function ProductPage() {
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="h-12 w-12 p-0 border-primary/20 text-primary"
+                  className={`h-12 w-12 p-0 border-primary/20 ${isInWishlist(product.id) ? 'text-red-500 bg-red-50' : 'text-primary'}`}
+                  onClick={handleToggleWishlist}
                   data-testid="button-wishlist"
                 >
-                  <Heart className="h-5 w-5" />
+                  <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
                 </Button>
                 <Button 
                   size="lg" 
@@ -545,13 +537,7 @@ export default function ProductPage() {
       
       <Footer />
 
-      <SideCart 
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-      />
+      <SideCart />
     </div>
   );
 }

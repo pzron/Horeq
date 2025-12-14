@@ -2,36 +2,36 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { X, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import { Product } from "@/lib/mockData";
+import { useCart } from "@/contexts/CartContext";
+import { useLocation } from "wouter";
 
-interface CartItem {
-  product: Product;
-  quantity: number;
-}
-
-interface SideCartProps {
-  isOpen: boolean;
-  onClose: () => void;
-  items: CartItem[];
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-  onRemoveItem: (productId: string) => void;
-}
-
-export function SideCart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem }: SideCartProps) {
-  const subtotal = items.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+export function SideCart() {
+  const { items, updateQuantity, removeFromCart, getSubtotal, getTotal, isCartOpen, setIsCartOpen } = useCart();
+  const [_, setLocation] = useLocation();
+  
+  const subtotal = getSubtotal();
   const shipping = subtotal > 50 ? 0 : 5.99;
-  const total = subtotal + shipping;
+  const total = getTotal();
+
+  const handleProceedToCheckout = () => {
+    setIsCartOpen(false);
+    setLocation("/checkout");
+  };
+
+  const handleContinueShopping = () => {
+    setIsCartOpen(false);
+  };
 
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
+        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setIsCartOpen(false)}
         data-testid="cart-overlay"
       />
       
       <div 
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-background border-l shadow-2xl z-50 transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-background border-l shadow-2xl z-50 transition-transform duration-300 ease-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}
         data-testid="side-cart"
       >
         <div className="flex flex-col h-full">
@@ -41,7 +41,7 @@ export function SideCart({ isOpen, onClose, items, onUpdateQuantity, onRemoveIte
               <h2 className="text-lg font-bold">Your Cart</h2>
               <Badge variant="secondary" className="ml-2">{items.length} items</Badge>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-cart">
+            <Button variant="ghost" size="icon" onClick={() => setIsCartOpen(false)} data-testid="button-close-cart">
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -73,7 +73,7 @@ export function SideCart({ isOpen, onClose, items, onUpdateQuantity, onRemoveIte
                             variant="ghost" 
                             size="icon" 
                             className="h-7 w-7"
-                            onClick={() => onUpdateQuantity(item.product.id, Math.max(1, item.quantity - 1))}
+                            onClick={() => updateQuantity(item.product.id, Math.max(1, item.quantity - 1))}
                             data-testid={`button-decrease-${item.product.id}`}
                           >
                             <Minus className="h-3 w-3" />
@@ -83,7 +83,7 @@ export function SideCart({ isOpen, onClose, items, onUpdateQuantity, onRemoveIte
                             variant="ghost" 
                             size="icon" 
                             className="h-7 w-7"
-                            onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                             data-testid={`button-increase-${item.product.id}`}
                           >
                             <Plus className="h-3 w-3" />
@@ -93,7 +93,7 @@ export function SideCart({ isOpen, onClose, items, onUpdateQuantity, onRemoveIte
                           variant="ghost" 
                           size="icon"
                           className="h-7 w-7 text-destructive"
-                          onClick={() => onRemoveItem(item.product.id)}
+                          onClick={() => removeFromCart(item.product.id)}
                           data-testid={`button-remove-${item.product.id}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -127,10 +127,10 @@ export function SideCart({ isOpen, onClose, items, onUpdateQuantity, onRemoveIte
                 </div>
               </div>
               <div className="space-y-2">
-                <Button className="w-full" size="lg" data-testid="button-checkout">
+                <Button className="w-full" size="lg" onClick={handleProceedToCheckout} data-testid="button-checkout">
                   Proceed to Checkout
                 </Button>
-                <Button variant="outline" className="w-full" onClick={onClose} data-testid="button-continue-shopping">
+                <Button variant="outline" className="w-full" onClick={handleContinueShopping} data-testid="button-continue-shopping">
                   Continue Shopping
                 </Button>
               </div>

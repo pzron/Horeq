@@ -7,19 +7,52 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CreditCard, Truck, Zap, Clock, Tag } from "lucide-react";
+import { CheckCircle2, CreditCard, Truck, Zap, Clock, Tag, ShoppingBag } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
+import { useCart } from "@/contexts/CartContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+const shippingSchema = z.object({
+  firstName: z.string().min(2, "First name is required"),
+  lastName: z.string().min(2, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number is required"),
+  address: z.string().min(5, "Address is required"),
+  city: z.string().min(2, "City is required"),
+  zip: z.string().min(4, "Zip code is required"),
+});
+
+type ShippingFormData = z.infer<typeof shippingSchema>;
 
 export default function Checkout() {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
+  const { items, getSubtotal, clearCart } = useCart();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [shippingOption, setShippingOption] = useState('standard');
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [shippingData, setShippingData] = useState<ShippingFormData | null>(null);
+
+  const form = useForm<ShippingFormData>({
+    resolver: zodResolver(shippingSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      zip: "",
+    },
+  });
 
   const shippingOptions = [
     { id: 'express', label: 'Express Shipping', price: 15, time: '1-2 business days', icon: Zap },
@@ -27,7 +60,7 @@ export default function Checkout() {
     { id: 'economy', label: 'Economy Shipping', price: 0, time: '7-10 business days', icon: Clock },
   ];
 
-  const subtotal = 698.99;
+  const subtotal = getSubtotal();
   const shippingCost = shippingOptions.find(o => o.id === shippingOption)?.price || 0;
   const discount = couponApplied ? 50 : 0;
   const total = subtotal + shippingCost - discount;
@@ -48,18 +81,43 @@ export default function Checkout() {
     }
   };
 
+  const onShippingSubmit = (data: ShippingFormData) => {
+    setShippingData(data);
+    setStep(2);
+  };
+
   const handlePlaceOrder = () => {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
+      clearCart();
       toast({
         title: "Order Placed Successfully!",
-        description: "Your order #12345 has been confirmed. Check your email for details.",
+        description: "Your order has been confirmed. Check your email for details.",
         className: "bg-green-600 text-white border-none"
       });
       setLocation("/");
     }, 2000);
   };
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="text-center py-20">
+            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+            <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+            <p className="text-muted-foreground mb-8">Add some products before checkout.</p>
+            <Link href="/shop">
+              <Button size="lg" className="rounded-full" data-testid="button-go-shopping">Go Shopping</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -71,7 +129,6 @@ export default function Checkout() {
         <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Step 1: Shipping Info */}
             <Card className={step === 1 ? "border-primary ring-1 ring-primary" : ""}>
               <CardHeader className="flex flex-row items-center gap-4">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold ${step > 1 ? "bg-green-500 text-white" : "bg-primary text-white"}`}>
@@ -79,69 +136,134 @@ export default function Checkout() {
                 </div>
                 <CardTitle>Shipping Information</CardTitle>
               </CardHeader>
-              <CardContent className={step !== 1 ? "hidden" : "space-y-4"}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="John" data-testid="input-first-name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Doe" data-testid="input-last-name" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" data-testid="input-email" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="+880 1XXX-XXXXXX" data-testid="input-phone" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input id="address" placeholder="123 Street Name" data-testid="input-address" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input id="city" placeholder="Dhaka" data-testid="input-city" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zip">Zip Code</Label>
-                    <Input id="zip" placeholder="1212" data-testid="input-zip" />
-                  </div>
-                </div>
+              <CardContent className={step !== 1 ? "hidden" : ""}>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onShippingSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="John" {...field} data-testid="input-first-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Doe" {...field} data-testid="input-last-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="john@example.com" {...field} data-testid="input-email" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input type="tel" placeholder="+880 1XXX-XXXXXX" {...field} data-testid="input-phone" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123 Street Name" {...field} data-testid="input-address" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Dhaka" {...field} data-testid="input-city" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="zip"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Zip Code</FormLabel>
+                            <FormControl>
+                              <Input placeholder="1212" {...field} data-testid="input-zip" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                {/* Shipping Options */}
-                <div className="pt-4 border-t">
-                  <Label className="text-base font-semibold mb-3 block">Shipping Method</Label>
-                  <RadioGroup value={shippingOption} onValueChange={setShippingOption} className="space-y-3">
-                    {shippingOptions.map((option) => (
-                      <div key={option.id} className={`flex items-center justify-between border p-4 rounded-lg cursor-pointer transition-colors ${shippingOption === option.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value={option.id} id={option.id} />
-                          <Label htmlFor={option.id} className="cursor-pointer flex items-center gap-2">
-                            <option.icon className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="font-medium">{option.label}</p>
-                              <p className="text-sm text-muted-foreground">{option.time}</p>
+                    <div className="pt-4 border-t">
+                      <Label className="text-base font-semibold mb-3 block">Shipping Method</Label>
+                      <RadioGroup value={shippingOption} onValueChange={setShippingOption} className="space-y-3">
+                        {shippingOptions.map((option) => (
+                          <div key={option.id} className={`flex items-center justify-between border p-4 rounded-lg cursor-pointer transition-colors ${shippingOption === option.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value={option.id} id={option.id} />
+                              <Label htmlFor={option.id} className="cursor-pointer flex items-center gap-2">
+                                <option.icon className="h-5 w-5 text-primary" />
+                                <div>
+                                  <p className="font-medium">{option.label}</p>
+                                  <p className="text-sm text-muted-foreground">{option.time}</p>
+                                </div>
+                              </Label>
                             </div>
-                          </Label>
-                        </div>
-                        <span className="font-bold">{option.price === 0 ? 'Free' : `$${option.price}`}</span>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
+                            <span className="font-bold">{option.price === 0 ? 'Free' : `$${option.price}`}</span>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
 
-                <Button className="w-full mt-4" onClick={() => setStep(2)} data-testid="button-continue-payment">
-                  Continue to Payment
-                </Button>
+                    <Button type="submit" className="w-full mt-4" data-testid="button-continue-payment">
+                      Continue to Payment
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
 
-            {/* Step 2: Payment */}
             <Card className={step === 2 ? "border-primary ring-1 ring-primary" : ""}>
               <CardHeader className="flex flex-row items-center gap-4">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold ${step > 2 ? "bg-green-500 text-white" : step === 2 ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
@@ -150,43 +272,45 @@ export default function Checkout() {
                 <CardTitle>Payment Method</CardTitle>
               </CardHeader>
               <CardContent className={step !== 2 ? "hidden" : "space-y-6"}>
-                <RadioGroup defaultValue="card">
-                  <div className="flex items-center space-x-2 border p-4 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <div className={`flex items-center space-x-2 border p-4 rounded-lg cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
                     <RadioGroupItem value="card" id="card" />
                     <Label htmlFor="card" className="flex-1 cursor-pointer flex items-center gap-2">
                       <CreditCard className="h-5 w-5" /> Credit/Debit Card
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border p-4 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className={`flex items-center space-x-2 border p-4 rounded-lg cursor-pointer transition-colors ${paymentMethod === 'cod' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
                     <RadioGroupItem value="cod" id="cod" />
                     <Label htmlFor="cod" className="flex-1 cursor-pointer flex items-center gap-2">
                       <Truck className="h-5 w-5" /> Cash on Delivery
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border p-4 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className={`flex items-center space-x-2 border p-4 rounded-lg cursor-pointer transition-colors ${paymentMethod === 'bkash' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
                     <RadioGroupItem value="bkash" id="bkash" />
                     <Label htmlFor="bkash" className="flex-1 cursor-pointer flex items-center gap-2">
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/BKash_Logo_icon.svg/50px-BKash_Logo_icon.svg.png" alt="Bkash" className="h-5 w-5 object-contain" /> Bkash / Nagad
+                      Bkash / Nagad
                     </Label>
                   </div>
                 </RadioGroup>
 
-                <div className="p-4 bg-muted/30 rounded-lg space-y-4">
-                   <div className="space-y-2">
-                    <Label htmlFor="cardNumber">Card Number</Label>
-                    <Input id="cardNumber" placeholder="0000 0000 0000 0000" data-testid="input-card-number" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                {paymentMethod === 'card' && (
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="expiry">Expiry</Label>
-                      <Input id="expiry" placeholder="MM/YY" data-testid="input-expiry" />
+                      <Label htmlFor="cardNumber">Card Number</Label>
+                      <Input id="cardNumber" placeholder="0000 0000 0000 0000" data-testid="input-card-number" />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cvc">CVC</Label>
-                      <Input id="cvc" placeholder="123" data-testid="input-cvc" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="expiry">Expiry</Label>
+                        <Input id="expiry" placeholder="MM/YY" data-testid="input-expiry" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cvc">CVC</Label>
+                        <Input id="cvc" placeholder="123" data-testid="input-cvc" />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-4">
                   <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
@@ -197,7 +321,6 @@ export default function Checkout() {
               </CardContent>
             </Card>
 
-            {/* Step 3: Order Review */}
             <Card className={step === 3 ? "border-primary ring-1 ring-primary" : ""}>
               <CardHeader className="flex flex-row items-center gap-4">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold ${step === 3 ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
@@ -207,12 +330,14 @@ export default function Checkout() {
               </CardHeader>
               <CardContent className={step !== 3 ? "hidden" : "space-y-6"}>
                 <div className="space-y-4">
-                  <div className="p-4 bg-muted/30 rounded-lg">
-                    <h4 className="font-semibold mb-2">Shipping Address</h4>
-                    <p className="text-sm text-muted-foreground">John Doe</p>
-                    <p className="text-sm text-muted-foreground">123 Street Name, Dhaka 1212</p>
-                    <p className="text-sm text-muted-foreground">+880 1XXX-XXXXXX</p>
-                  </div>
+                  {shippingData && (
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                      <h4 className="font-semibold mb-2">Shipping Address</h4>
+                      <p className="text-sm text-muted-foreground">{shippingData.firstName} {shippingData.lastName}</p>
+                      <p className="text-sm text-muted-foreground">{shippingData.address}, {shippingData.city} {shippingData.zip}</p>
+                      <p className="text-sm text-muted-foreground">{shippingData.phone}</p>
+                    </div>
+                  )}
 
                   <div className="p-4 bg-muted/30 rounded-lg">
                     <h4 className="font-semibold mb-2">Shipping Method</h4>
@@ -225,36 +350,28 @@ export default function Checkout() {
 
                   <div className="p-4 bg-muted/30 rounded-lg">
                     <h4 className="font-semibold mb-2">Payment Method</h4>
-                    <p className="text-sm text-muted-foreground">Credit Card ending in ****1234</p>
+                    <p className="text-sm text-muted-foreground">
+                      {paymentMethod === 'card' ? 'Credit/Debit Card' : paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bkash / Nagad'}
+                    </p>
                   </div>
 
                   <div className="p-4 bg-muted/30 rounded-lg">
                     <h4 className="font-semibold mb-3">Order Items</h4>
                     <div className="space-y-3">
-                      <div className="flex gap-3">
-                        <div className="h-12 w-12 bg-white rounded-md border p-1">
-                          <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&q=80" className="w-full h-full object-contain" />
-                        </div>
-                        <div className="flex-1 flex justify-between">
-                          <div>
-                            <p className="font-medium text-sm">Smart Fitness Watch</p>
-                            <p className="text-xs text-muted-foreground">Qty: 1</p>
+                      {items.map((item) => (
+                        <div key={item.product.id} className="flex gap-3">
+                          <div className="h-12 w-12 bg-white rounded-md border p-1">
+                            <img src={item.product.image} alt={item.product.name} className="w-full h-full object-contain" />
                           </div>
-                          <p className="font-bold text-sm">$399.00</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        <div className="h-12 w-12 bg-white rounded-md border p-1">
-                          <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80" className="w-full h-full object-contain" />
-                        </div>
-                        <div className="flex-1 flex justify-between">
-                          <div>
-                            <p className="font-medium text-sm">Headphones</p>
-                            <p className="text-xs text-muted-foreground">Qty: 1</p>
+                          <div className="flex-1 flex justify-between">
+                            <div>
+                              <p className="font-medium text-sm">{item.product.name}</p>
+                              <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                            </div>
+                            <p className="font-bold text-sm">${(item.product.price * item.quantity).toFixed(2)}</p>
                           </div>
-                          <p className="font-bold text-sm">$299.99</p>
                         </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -270,38 +387,27 @@ export default function Checkout() {
 
           </div>
 
-          {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
-             <Card className="sticky top-24 bg-muted/20">
+            <Card className="sticky top-24 bg-muted/20">
               <CardHeader>
                 <CardTitle>Your Order</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Mock Item */}
-                <div className="flex gap-3">
-                  <div className="h-16 w-16 bg-white rounded-md border p-1">
-                    <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&q=80" className="w-full h-full object-contain" />
+                {items.map((item) => (
+                  <div key={item.product.id} className="flex gap-3">
+                    <div className="h-16 w-16 bg-white rounded-md border p-1">
+                      <img src={item.product.image} alt={item.product.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm line-clamp-1">{item.product.name}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                      <p className="font-bold text-sm">${(item.product.price * item.quantity).toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm line-clamp-1">Smart Fitness Watch</p>
-                    <p className="text-xs text-muted-foreground">Qty: 1</p>
-                    <p className="font-bold text-sm">$399.00</p>
-                  </div>
-                </div>
-                 <div className="flex gap-3">
-                  <div className="h-16 w-16 bg-white rounded-md border p-1">
-                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80" className="w-full h-full object-contain" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm line-clamp-1">Headphones</p>
-                    <p className="text-xs text-muted-foreground">Qty: 1</p>
-                    <p className="font-bold text-sm">$299.99</p>
-                  </div>
-                </div>
+                ))}
 
                 <Separator />
 
-                {/* Coupon Code */}
                 <div className="space-y-2">
                   <Label htmlFor="coupon" className="text-sm font-medium flex items-center gap-1">
                     <Tag className="h-4 w-4" /> Coupon Code
@@ -354,7 +460,7 @@ export default function Checkout() {
                   </div>
                 </div>
               </CardContent>
-             </Card>
+            </Card>
           </div>
         </div>
       </main>

@@ -10,14 +10,23 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Package, MapPin, CreditCard, Settings, User, ShoppingBag, Truck, 
   Edit, Plus, Trash2, Copy, ExternalLink, TrendingUp, DollarSign,
-  MousePointer, Users, Check, Clock, AlertCircle, ChevronRight
+  MousePointer, Users, Check, Clock, AlertCircle, ChevronRight, Heart, ShoppingCart, X
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { MOCK_ORDERS, MOCK_ADDRESSES, MOCK_PAYMENT_METHODS, MOCK_AFFILIATE_DATA } from "@/lib/mockData";
+import { useWishlist } from "@/contexts/WishlistContext";
+import { useCart } from "@/contexts/CartContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 function PersonalInfoSection() {
   const [isEditing, setIsEditing] = useState(false);
@@ -381,22 +390,339 @@ function TrackingSection() {
   );
 }
 
+function WishlistSection() {
+  const { items, removeFromWishlist } = useWishlist();
+  const { addToCart } = useCart();
+  const { toast } = useToast();
+
+  const handleAddToCart = (item: any) => {
+    addToCart({
+      id: item.id,
+      name: item.name,
+      price: item.salePrice || item.price,
+      originalPrice: item.price,
+      quantity: 1,
+      image: item.images?.[0] || item.image,
+    });
+    toast({
+      title: "Added to cart",
+      description: `${item.name} has been added to your cart.`,
+    });
+  };
+
+  const handleRemove = (item: any) => {
+    removeFromWishlist(item.id);
+    toast({
+      title: "Removed from wishlist",
+      description: `${item.name} has been removed.`,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold font-heading">My Wishlist</h2>
+
+      {items.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Heart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground mb-4">Your wishlist is empty</p>
+            <Link href="/shop">
+              <Button data-testid="button-browse-products">Browse Products</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => (
+            <Card key={item.id} data-testid={`card-wishlist-${item.id}`}>
+              <CardContent className="p-4">
+                <div className="relative">
+                  <img 
+                    src={item.images?.[0] || item.image || "https://placehold.co/200x200"} 
+                    alt={item.name} 
+                    className="w-full h-40 object-cover rounded-lg mb-3" 
+                  />
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="absolute top-2 right-2 bg-background/80"
+                    onClick={() => handleRemove(item)}
+                    data-testid={`button-remove-wishlist-${item.id}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <h4 className="font-medium line-clamp-1">{item.name}</h4>
+                <div className="flex items-center gap-2 mt-1">
+                  {item.salePrice ? (
+                    <>
+                      <span className="font-bold text-primary">${item.salePrice.toFixed(2)}</span>
+                      <span className="text-sm text-muted-foreground line-through">${item.price.toFixed(2)}</span>
+                    </>
+                  ) : (
+                    <span className="font-bold">${item.price.toFixed(2)}</span>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button 
+                    size="sm" 
+                    className="flex-1 gap-1"
+                    onClick={() => handleAddToCart(item)}
+                    data-testid={`button-add-to-cart-${item.id}`}
+                  >
+                    <ShoppingCart className="h-4 w-4" /> Add to Cart
+                  </Button>
+                  <Link href={`/product/${item.id}`}>
+                    <Button size="sm" variant="outline" data-testid={`button-view-${item.id}`}>
+                      View
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const affiliateFormSchema = z.object({
+  fullName: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  website: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  socialMedia: z.string().min(3, "Please enter your social media handle"),
+  platform: z.string().min(1, "Please select a platform"),
+  audience: z.string().min(1, "Please enter your audience size"),
+  reason: z.string().min(20, "Please provide at least 20 characters explaining why you want to join"),
+});
+
+type AffiliateFormData = z.infer<typeof affiliateFormSchema>;
+
 function AffiliateSection() {
+  const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<AffiliateFormData>({
+    resolver: zodResolver(affiliateFormSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+      website: "",
+      socialMedia: "",
+      platform: "",
+      audience: "",
+      reason: "",
+    },
+  });
+
+  const onSubmit = async (data: AffiliateFormData) => {
+    setIsSubmitting(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSubmitting(false);
+    setIsApproved(true);
+    toast({
+      title: "Application Submitted!",
+      description: "We'll review your application and get back to you within 2-3 business days.",
+    });
+  };
+
+  if (isApproved) {
+    return <AffiliateDashboardSection />;
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold font-heading">Affiliate Program</h2>
-      <Card>
-        <CardContent className="py-12 text-center space-y-4">
-          <Users className="h-16 w-16 mx-auto text-primary" />
-          <h3 className="text-xl font-bold">Join Our Affiliate Program</h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Earn commissions by sharing products with your audience. Get up to 10% commission on every sale.
-          </p>
-          <Button size="lg" className="mt-4" data-testid="button-apply-affiliate">
-            Apply Now
-          </Button>
-        </CardContent>
-      </Card>
+      
+      {!showForm ? (
+        <Card>
+          <CardContent className="py-12 text-center space-y-4">
+            <Users className="h-16 w-16 mx-auto text-primary" />
+            <h3 className="text-xl font-bold">Join Our Affiliate Program</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Earn commissions by sharing products with your audience. Get up to 10% commission on every sale.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 mt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary">10%</p>
+                <p className="text-sm text-muted-foreground">Commission Rate</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary">30 Days</p>
+                <p className="text-sm text-muted-foreground">Cookie Duration</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary">Monthly</p>
+                <p className="text-sm text-muted-foreground">Payouts</p>
+              </div>
+            </div>
+            <Button size="lg" className="mt-4" onClick={() => setShowForm(true)} data-testid="button-apply-affiliate">
+              Apply Now
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Affiliate Application</CardTitle>
+            <CardDescription>Fill out the form below to apply for our affiliate program</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Your full name" {...field} data-testid="input-affiliate-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="your@email.com" {...field} data-testid="input-affiliate-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+880 1xxx-xxxxxx" {...field} data-testid="input-affiliate-phone" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Website (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://yourwebsite.com" {...field} data-testid="input-affiliate-website" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="platform"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Primary Platform</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-affiliate-platform">
+                              <SelectValue placeholder="Select platform" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="instagram">Instagram</SelectItem>
+                            <SelectItem value="youtube">YouTube</SelectItem>
+                            <SelectItem value="tiktok">TikTok</SelectItem>
+                            <SelectItem value="facebook">Facebook</SelectItem>
+                            <SelectItem value="blog">Blog/Website</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="socialMedia"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Social Media Handle</FormLabel>
+                        <FormControl>
+                          <Input placeholder="@yourusername" {...field} data-testid="input-affiliate-social" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="audience"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Audience Size</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-affiliate-audience">
+                              <SelectValue placeholder="Select audience size" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="1k-10k">1K - 10K followers</SelectItem>
+                            <SelectItem value="10k-50k">10K - 50K followers</SelectItem>
+                            <SelectItem value="50k-100k">50K - 100K followers</SelectItem>
+                            <SelectItem value="100k-500k">100K - 500K followers</SelectItem>
+                            <SelectItem value="500k+">500K+ followers</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="reason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Why do you want to join our affiliate program?</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Tell us about yourself and why you'd be a great affiliate partner..." 
+                          className="min-h-[100px]"
+                          {...field} 
+                          data-testid="textarea-affiliate-reason" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-affiliate">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} data-testid="button-submit-affiliate">
+                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -554,6 +880,7 @@ export default function Profile() {
   const sidebarItems = [
     { id: 'info', label: 'Personal Info', icon: User },
     { id: 'orders', label: 'My Orders', icon: ShoppingBag },
+    { id: 'wishlist', label: 'My Wishlist', icon: Heart },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
     { id: 'payments', label: 'Payment Methods', icon: CreditCard },
     { id: 'tracking', label: 'Delivery Tracking', icon: Truck },
@@ -601,6 +928,7 @@ export default function Profile() {
           <div className="flex-1 min-w-0">
             <TabsContent value="info" className="mt-0"><PersonalInfoSection /></TabsContent>
             <TabsContent value="orders" className="mt-0"><OrdersSection /></TabsContent>
+            <TabsContent value="wishlist" className="mt-0"><WishlistSection /></TabsContent>
             <TabsContent value="addresses" className="mt-0"><AddressesSection /></TabsContent>
             <TabsContent value="payments" className="mt-0"><PaymentsSection /></TabsContent>
             <TabsContent value="tracking" className="mt-0"><TrackingSection /></TabsContent>
