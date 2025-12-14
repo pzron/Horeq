@@ -13,6 +13,8 @@ import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import Auth from "@/pages/Auth";
 import Profile from "@/pages/Profile";
+import Deals from "@/pages/Deals";
+import Search from "@/pages/Search";
 
 function Router() {
   return (
@@ -25,6 +27,8 @@ function Router() {
       <Route path="/checkout" component={Checkout} />
       <Route path="/auth" component={Auth} />
       <Route path="/profile" component={Profile} />
+      <Route path="/deals" component={Deals} />
+      <Route path="/search" component={Search} />
       <Route path="/admin" component={Dashboard} />
       <Route path="/affiliate" component={Dashboard} />
       <Route component={NotFound} />
