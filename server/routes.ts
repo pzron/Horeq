@@ -20,6 +20,36 @@ import {
   insertCouponSchema,
   insertAffiliatePayoutSchema,
 } from "@shared/schema";
+import { z, ZodError } from "zod";
+
+// Partial schemas for PATCH operations
+const updateProductSchema = insertProductSchema.partial();
+const updateCategorySchema = insertCategorySchema.partial();
+const updateUserSchema = insertUserSchema.omit({ password: true }).partial();
+const updateOrderSchema = z.object({
+  status: z.enum(["pending", "processing", "shipped", "delivered", "cancelled"]).optional(),
+  shippingAddress: z.string().optional(),
+  paymentMethod: z.string().optional(),
+});
+const updateAffiliateSchema = insertAffiliateSchema.partial();
+const updatePageSchema = insertPageSchema.partial();
+const updateCartQuantitySchema = z.object({
+  quantity: z.number().int().min(1),
+});
+const updateMenuItemSchema = insertMenuItemSchema.partial();
+const updateCouponSchema = insertCouponSchema.partial();
+const updatePayoutSchema = z.object({
+  status: z.enum(["pending", "approved", "paid", "rejected"]).optional(),
+  paymentMethod: z.string().optional(),
+  transactionId: z.string().optional(),
+  notes: z.string().optional(),
+  processedBy: z.string().optional(),
+});
+
+// Helper to determine error status code
+function getErrorStatusCode(error: unknown): number {
+  return error instanceof ZodError ? 400 : 500;
+}
 
 // Middleware to check if user is authenticated
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -186,13 +216,14 @@ export async function registerRoutes(
 
   app.patch("/api/products/:id", isAdmin, async (req, res) => {
     try {
-      const product = await storage.updateProduct(req.params.id, req.body);
+      const validatedData = updateProductSchema.parse(req.body);
+      const product = await storage.updateProduct(req.params.id, validatedData);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
       res.json(product);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -282,7 +313,7 @@ export async function registerRoutes(
   app.patch("/api/cart/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { quantity } = req.body;
+      const { quantity } = updateCartQuantitySchema.parse(req.body);
       const cartItem = await storage.getCartItemById(req.params.id);
       if (!cartItem) {
         return res.status(404).json({ message: "Cart item not found" });
@@ -293,7 +324,7 @@ export async function registerRoutes(
       const item = await storage.updateCartItem(req.params.id, quantity);
       res.json(item);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -480,15 +511,16 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/affiliates/:id", async (req, res) => {
+  app.patch("/api/affiliates/:id", isAdmin, async (req, res) => {
     try {
-      const affiliate = await storage.updateAffiliate(req.params.id, req.body);
+      const validatedData = updateAffiliateSchema.parse(req.body);
+      const affiliate = await storage.updateAffiliate(req.params.id, validatedData);
       if (!affiliate) {
         return res.status(404).json({ message: "Affiliate not found" });
       }
       res.json(affiliate);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -542,14 +574,15 @@ export async function registerRoutes(
 
   app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
-      const user = await storage.updateUser(req.params.id, req.body);
+      const validatedData = updateUserSchema.parse(req.body);
+      const user = await storage.updateUser(req.params.id, validatedData);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -574,26 +607,28 @@ export async function registerRoutes(
 
   app.patch("/api/admin/orders/:id", isAdmin, async (req, res) => {
     try {
-      const order = await storage.updateOrder(req.params.id, req.body);
+      const validatedData = updateOrderSchema.parse(req.body);
+      const order = await storage.updateOrder(req.params.id, validatedData);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
       res.json(order);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
   // Admin - Categories Management
   app.patch("/api/admin/categories/:id", isAdmin, async (req, res) => {
     try {
-      const category = await storage.updateCategory(req.params.id, req.body);
+      const validatedData = updateCategorySchema.parse(req.body);
+      const category = await storage.updateCategory(req.params.id, validatedData);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
       res.json(category);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -640,13 +675,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pages/:id", isAdmin, async (req, res) => {
     try {
-      const page = await storage.updatePage(req.params.id, req.body);
+      const validatedData = updatePageSchema.parse(req.body);
+      const page = await storage.updatePage(req.params.id, validatedData);
       if (!page) {
         return res.status(404).json({ message: "Page not found" });
       }
       res.json(page);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -738,13 +774,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/menu-items/:id", isAdmin, async (req, res) => {
     try {
-      const item = await storage.updateMenuItem(req.params.id, req.body);
+      const validatedData = updateMenuItemSchema.parse(req.body);
+      const item = await storage.updateMenuItem(req.params.id, validatedData);
       if (!item) {
         return res.status(404).json({ message: "Menu item not found" });
       }
       res.json(item);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -779,13 +816,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/coupons/:id", isAdmin, async (req, res) => {
     try {
-      const coupon = await storage.updateCoupon(req.params.id, req.body);
+      const validatedData = updateCouponSchema.parse(req.body);
+      const coupon = await storage.updateCoupon(req.params.id, validatedData);
       if (!coupon) {
         return res.status(404).json({ message: "Coupon not found" });
       }
       res.json(coupon);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
@@ -821,13 +859,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/payouts/:id", isAdmin, async (req, res) => {
     try {
-      const payout = await storage.updatePayout(req.params.id, req.body);
+      const validatedData = updatePayoutSchema.parse(req.body);
+      const payout = await storage.updatePayout(req.params.id, validatedData);
       if (!payout) {
         return res.status(404).json({ message: "Payout not found" });
       }
       res.json(payout);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 
