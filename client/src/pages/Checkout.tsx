@@ -12,6 +12,8 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +35,7 @@ export default function Checkout() {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const { items, getSubtotal, clearCart } = useCart();
+  const { isLoggedIn } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [shippingOption, setShippingOption] = useState('standard');
@@ -86,10 +89,25 @@ export default function Checkout() {
     setStep(2);
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (!shippingData) {
+      toast({
+        title: "Missing Information",
+        description: "Please complete shipping information first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const shippingAddress = `${shippingData.firstName} ${shippingData.lastName}, ${shippingData.address}, ${shippingData.city} ${shippingData.zip}`;
+      
+      await apiRequest("POST", "/api/orders", {
+        shippingAddress,
+        paymentMethod,
+      });
+
       clearCart();
       toast({
         title: "Order Placed Successfully!",
@@ -97,7 +115,16 @@ export default function Checkout() {
         className: "bg-green-600 text-white border-none"
       });
       setLocation("/");
-    }, 2000);
+    } catch (error: any) {
+      const errorMessage = error?.message || "Failed to place order. Please try again.";
+      toast({
+        title: "Order Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (items.length === 0) {
@@ -111,6 +138,25 @@ export default function Checkout() {
             <p className="text-muted-foreground mb-8">Add some products before checkout.</p>
             <Link href="/shop">
               <Button size="lg" className="rounded-full" data-testid="button-go-shopping">Go Shopping</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="text-center py-20">
+            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+            <h2 className="text-2xl font-bold mb-4">Please log in to checkout</h2>
+            <p className="text-muted-foreground mb-8">You need to be logged in to complete your order.</p>
+            <Link href="/login">
+              <Button size="lg" className="rounded-full" data-testid="button-login-checkout">Log In to Continue</Button>
             </Link>
           </div>
         </main>
