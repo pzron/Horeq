@@ -80,19 +80,6 @@ function HeroSection() {
           </div>
           
           <div className="relative h-[300px] hidden md:block perspective-1000">
-            <motion.div 
-              className="absolute top-4 -left-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-xl z-30 flex items-center gap-2"
-              animate={{ y: [0, -10, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            >
-              <div className="bg-green-100 p-1.5 rounded-full">
-                <Star className="h-4 w-4 text-green-600 fill-green-600" />
-              </div>
-              <div>
-                <p className="font-bold text-xs">4.9 Rating</p>
-              </div>
-            </motion.div>
-
             <div className="relative w-full h-full flex items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
