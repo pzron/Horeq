@@ -1012,7 +1012,78 @@ export async function registerRoutes(
 
   // ============ AFFILIATE ROUTES ============
   
-  app.get("/api/affiliate/stats", isAffiliate, async (req, res) => {
+  // Affiliate Registration
+  app.post("/api/affiliate/register", async (req, res) => {
+    try {
+      const { username, email, password, code } = req.body;
+      
+      // Check if username exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Check if email exists
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      // Generate affiliate code if not provided
+      let affiliateCode = code;
+      if (!affiliateCode) {
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        affiliateCode = `AFF${randomPart}`;
+      }
+
+      // Check if affiliate code already exists
+      const existingAffiliate = await storage.getAffiliateByCode(affiliateCode);
+      if (existingAffiliate) {
+        return res.status(400).json({ message: "Affiliate code already taken. Please choose another." });
+      }
+
+      // Hash password and create user with affiliate role
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const userData = insertUserSchema.parse({
+        username,
+        email,
+        password: hashedPassword,
+        role: "affiliate",
+      });
+
+      const user = await storage.createUser(userData);
+
+      // Create affiliate profile
+      const affiliateData = insertAffiliateSchema.parse({
+        userId: user.id,
+        code: affiliateCode,
+        commission: "10.00",
+        totalEarnings: "0",
+        totalClicks: 0,
+        totalConversions: 0,
+      });
+
+      const affiliate = await storage.createAffiliate(affiliateData);
+
+      // Log in the user
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Registration successful but login failed" });
+        }
+        const { password: _, ...userWithoutPassword } = user;
+        res.status(201).json({
+          ...userWithoutPassword,
+          affiliateCode: affiliate.code,
+          affiliateId: affiliate.id,
+        });
+      });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get affiliate profile for current user
+  app.get("/api/affiliate/profile", isAffiliate, async (req, res) => {
     try {
       const userId = (req.user as any).id;
       const affiliate = await storage.getAffiliateByUserId(userId);
@@ -1020,6 +1091,56 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Affiliate profile not found" });
       }
       res.json(affiliate);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get detailed affiliate stats
+  app.get("/api/affiliate/stats", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      
+      // Get clicks and payouts for detailed stats
+      const clicks = await storage.getAffiliateClicks(affiliate.id);
+      const payouts = await storage.getAffiliatePayouts(affiliate.id);
+      
+      // Calculate pending payout (earnings minus paid payouts)
+      const paidPayouts = payouts
+        .filter(p => p.status === "paid")
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      const pendingPayout = parseFloat(affiliate.totalEarnings) - paidPayouts;
+      
+      // Calculate conversion rate
+      const conversionRate = affiliate.totalClicks > 0 
+        ? (affiliate.totalConversions / affiliate.totalClicks) * 100 
+        : 0;
+      
+      // Monthly progress (goal: $500/month)
+      const monthlyGoal = 500;
+      const monthlyProgress = Math.min((parseFloat(affiliate.totalEarnings) / monthlyGoal) * 100, 100);
+      
+      // Average order value (if we have conversions)
+      const avgOrderValue = affiliate.totalConversions > 0 
+        ? parseFloat(affiliate.totalEarnings) / (affiliate.totalConversions * 0.1) 
+        : 0;
+      
+      res.json({
+        totalClicks: affiliate.totalClicks,
+        totalConversions: affiliate.totalConversions,
+        totalEarnings: parseFloat(affiliate.totalEarnings),
+        pendingPayout: Math.max(0, pendingPayout),
+        conversionRate,
+        monthlyProgress,
+        avgOrderValue,
+        totalReferrals: affiliate.totalConversions,
+        commission: affiliate.commission,
+        code: affiliate.code,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -1034,6 +1155,122 @@ export async function registerRoutes(
       }
       const payouts = await storage.getAffiliatePayouts(affiliate.id);
       res.json(payouts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get affiliate earnings (orders with this affiliate)
+  app.get("/api/affiliate/earnings", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      
+      // Get all orders with this affiliate
+      const allOrders = await storage.getAllOrders();
+      const affiliateOrders = allOrders.filter(o => o.affiliateId === affiliate.id);
+      
+      // Map to earnings format
+      const earnings = affiliateOrders.map(order => ({
+        id: order.id,
+        date: order.createdAt,
+        orderId: order.id.substring(0, 8).toUpperCase(),
+        orderAmount: parseFloat(order.total),
+        commission: parseFloat(order.total) * (parseFloat(affiliate.commission) / 100),
+        status: order.status === "delivered" ? "paid" : "pending",
+      }));
+      
+      res.json(earnings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get affiliate clicks
+  app.get("/api/affiliate/clicks", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      const clicks = await storage.getAffiliateClicks(affiliate.id);
+      res.json(clicks);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get affiliate coupons
+  app.get("/api/affiliate/coupons", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      const allCoupons = await storage.getAllCoupons();
+      const affiliateCoupons = allCoupons.filter(c => c.affiliateId === affiliate.id);
+      res.json(affiliateCoupons);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create affiliate coupon
+  app.post("/api/affiliate/coupons", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      
+      // Check if code already exists
+      const existingCoupon = await storage.getCouponByCode(req.body.code);
+      if (existingCoupon) {
+        return res.status(400).json({ message: "Coupon code already exists" });
+      }
+      
+      const couponData = insertCouponSchema.parse({
+        ...req.body,
+        affiliateId: affiliate.id,
+        createdBy: userId,
+      });
+      
+      const coupon = await storage.createCoupon(couponData);
+      res.status(201).json(coupon);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get recent referrals for dashboard
+  app.get("/api/affiliate/referrals", isAffiliate, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateByUserId(userId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate profile not found" });
+      }
+      
+      const allOrders = await storage.getAllOrders();
+      const affiliateOrders = allOrders
+        .filter(o => o.affiliateId === affiliate.id)
+        .slice(0, 10)
+        .map(order => ({
+          id: order.id,
+          customer: `Customer #${order.userId.substring(0, 4)}`,
+          amount: parseFloat(order.total),
+          status: order.status === "delivered" ? "completed" : "pending",
+          date: order.createdAt,
+          commission: parseFloat(order.total) * (parseFloat(affiliate.commission) / 100),
+        }));
+      
+      res.json(affiliateOrders);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
