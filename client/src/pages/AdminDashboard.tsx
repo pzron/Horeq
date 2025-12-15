@@ -167,28 +167,100 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity";
+type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools";
 
-const menuItems = [
-  { id: "dashboard" as AdminSection, title: "Dashboard", icon: LayoutDashboard },
-  { id: "products" as AdminSection, title: "Products", icon: Package },
-  { id: "categories" as AdminSection, title: "Categories", icon: FolderOpen },
-  { id: "combos" as AdminSection, title: "Combo Deals", icon: Gift },
-  { id: "banners" as AdminSection, title: "Banners", icon: Image },
-  { id: "orders" as AdminSection, title: "Orders", icon: ShoppingCart },
-  { id: "users" as AdminSection, title: "Users", icon: Users },
-  { id: "affiliates" as AdminSection, title: "Affiliates", icon: UserCheck },
-  { id: "pages" as AdminSection, title: "CMS Pages", icon: FileText },
-  { id: "menus" as AdminSection, title: "Menus", icon: Menu },
-  { id: "coupons" as AdminSection, title: "Coupons", icon: Tag },
-  { id: "roles" as AdminSection, title: "Roles & Permissions", icon: Shield },
-  { id: "reports" as AdminSection, title: "Reports", icon: BarChart3 },
-  { id: "settings" as AdminSection, title: "Settings", icon: Settings },
-  { id: "activity" as AdminSection, title: "Activity Log", icon: Activity },
+interface MenuGroup {
+  id: string;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: { id: AdminSection; title: string; icon?: React.ComponentType<{ className?: string }> }[];
+}
+
+const menuGroups: MenuGroup[] = [
+  {
+    id: "dashboard-group",
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    items: [
+      { id: "dashboard", title: "Home" },
+    ],
+  },
+  {
+    id: "store-group",
+    title: "Store",
+    icon: Store,
+    items: [
+      { id: "products", title: "All Products", icon: Package },
+      { id: "categories", title: "Categories", icon: FolderOpen },
+      { id: "combos", title: "Combo Deals", icon: Gift },
+      { id: "orders", title: "Orders", icon: ShoppingCart },
+      { id: "coupons", title: "Coupons", icon: Tag },
+    ],
+  },
+  {
+    id: "media-group",
+    title: "Media",
+    icon: Image,
+    items: [
+      { id: "media", title: "Library", icon: FileImage },
+      { id: "banners", title: "Banners", icon: Image },
+    ],
+  },
+  {
+    id: "pages-group",
+    title: "Pages",
+    icon: FileText,
+    items: [
+      { id: "all-pages", title: "All Pages", icon: FileText },
+      { id: "add-page", title: "Add New", icon: Plus },
+      { id: "blocks", title: "Blocks", icon: Grid3X3 },
+      { id: "patterns", title: "Patterns", icon: Layout },
+    ],
+  },
+  {
+    id: "users-group",
+    title: "Users",
+    icon: Users,
+    items: [
+      { id: "users", title: "All Users", icon: Users },
+      { id: "roles", title: "Roles & Permissions", icon: Shield },
+      { id: "affiliates", title: "Affiliates", icon: UserCheck },
+    ],
+  },
+  {
+    id: "appearance-group",
+    title: "Appearance",
+    icon: Palette,
+    items: [
+      { id: "menus", title: "Menus", icon: Menu },
+      { id: "appearance", title: "Customize", icon: Palette },
+    ],
+  },
+  {
+    id: "tools-group",
+    title: "Tools",
+    icon: Zap,
+    items: [
+      { id: "reports", title: "Reports", icon: BarChart3 },
+      { id: "activity", title: "Activity Log", icon: Activity },
+      { id: "tools", title: "Import/Export", icon: Download },
+    ],
+  },
+  {
+    id: "settings-group",
+    title: "Settings",
+    icon: Settings,
+    items: [
+      { id: "settings", title: "General", icon: Settings },
+    ],
+  },
 ];
+
+const menuItems = menuGroups.flatMap(g => g.items.map(i => ({ id: i.id, title: i.title, icon: i.icon || g.icon })));
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState<AdminSection>("dashboard");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["dashboard-group", "store-group", "pages-group"]));
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -198,8 +270,20 @@ export default function AdminDashboard() {
     setLocation("/");
   };
 
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "18rem",
     "--sidebar-width-icon": "3rem",
   };
 
@@ -207,38 +291,61 @@ export default function AdminDashboard() {
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <Sidebar>
-          <SidebarHeader className="p-4 border-b">
+          <SidebarHeader className="p-4 border-b bg-sidebar">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-red-500 to-orange-500 w-10 h-10 rounded-lg flex items-center justify-center">
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 w-10 h-10 rounded-lg flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-lg">Admin Panel</h2>
-                <p className="text-xs text-muted-foreground">HOREQ Management</p>
+                <h2 className="font-bold text-lg">HOREQ Admin</h2>
+                <p className="text-xs text-muted-foreground">WordPress-style CMS</p>
               </div>
             </div>
           </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Management</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menuItems.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setActiveSection(item.id)}
-                        className={activeSection === item.id ? "bg-sidebar-accent" : ""}
-                        data-testid={`nav-${item.id}`}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
+          <ScrollArea className="flex-1">
+            <SidebarContent className="p-2">
+              {menuGroups.map((group) => (
+                <SidebarGroup key={group.id} className="mb-1">
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md hover-elevate"
+                    data-testid={`nav-group-${group.id}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <group.icon className="h-4 w-4" />
+                      <span>{group.title}</span>
+                    </div>
+                    {expandedGroups.has(group.id) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  {expandedGroups.has(group.id) && (
+                    <SidebarGroupContent className="ml-4 mt-1 border-l border-border/50 pl-2">
+                      <SidebarMenu>
+                        {group.items.map((item) => {
+                          const ItemIcon = item.icon || group.icon;
+                          return (
+                            <SidebarMenuItem key={item.id}>
+                              <SidebarMenuButton
+                                onClick={() => setActiveSection(item.id)}
+                                className={activeSection === item.id ? "bg-sidebar-accent font-medium" : ""}
+                                data-testid={`nav-${item.id}`}
+                              >
+                                <ItemIcon className="h-4 w-4" />
+                                <span>{item.title}</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          );
+                        })}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  )}
+                </SidebarGroup>
+              ))}
+            </SidebarContent>
+          </ScrollArea>
           <SidebarFooter className="p-4 border-t">
             <div className="flex items-center gap-3 mb-3">
               <Avatar className="h-9 w-9">
@@ -299,12 +406,19 @@ export default function AdminDashboard() {
             {activeSection === "users" && <UsersSection />}
             {activeSection === "affiliates" && <AffiliatesSection />}
             {activeSection === "pages" && <PagesSection />}
+            {activeSection === "all-pages" && <AllPagesSection />}
+            {activeSection === "add-page" && <AddPageSection />}
+            {activeSection === "blocks" && <BlocksSection />}
+            {activeSection === "patterns" && <PatternsSection />}
+            {activeSection === "media" && <MediaLibrarySection />}
             {activeSection === "menus" && <MenusSection />}
             {activeSection === "coupons" && <CouponsSection />}
             {activeSection === "roles" && <RolesPermissionsSection />}
             {activeSection === "reports" && <ReportsSection />}
             {activeSection === "settings" && <SettingsSection />}
             {activeSection === "activity" && <ActivitySection />}
+            {activeSection === "appearance" && <AppearanceSection />}
+            {activeSection === "tools" && <ToolsSection />}
           </main>
         </div>
       </div>
@@ -3896,6 +4010,7 @@ function RolesPermissionsSection() {
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDescription, setNewRoleDescription] = useState("");
+  const [activeTab, setActiveTab] = useState<"permissions" | "page-access">("permissions");
 
   const [roles, setRoles] = useState([
     { id: "admin", name: "Administrator", description: "Full system access with all permissions", usersCount: 2, color: "bg-destructive" },
@@ -3904,6 +4019,55 @@ function RolesPermissionsSection() {
     { id: "support", name: "Support Agent", description: "Can view and respond to customer inquiries", usersCount: 12, color: "bg-secondary" },
     { id: "viewer", name: "Viewer", description: "Read-only access to dashboard and reports", usersCount: 3, color: "bg-muted" },
   ]);
+
+  const [cmsPages] = useState([
+    { id: "home", title: "Home", slug: "/", status: "published" },
+    { id: "about", title: "About Us", slug: "/about", status: "published" },
+    { id: "contact", title: "Contact", slug: "/contact", status: "published" },
+    { id: "products", title: "Products", slug: "/products", status: "published" },
+    { id: "terms", title: "Terms & Conditions", slug: "/terms", status: "published" },
+    { id: "privacy", title: "Privacy Policy", slug: "/privacy", status: "published" },
+    { id: "faq", title: "FAQ", slug: "/faq", status: "draft" },
+    { id: "team", title: "Our Team", slug: "/team", status: "draft" },
+  ]);
+
+  const [pageAccessRoles, setPageAccessRoles] = useState<Record<string, string[]>>({
+    home: [],
+    about: [],
+    contact: [],
+    products: [],
+    terms: [],
+    privacy: [],
+    faq: ["admin", "editor"],
+    team: ["admin", "manager", "editor"],
+  });
+
+  const togglePageRole = (pageId: string, roleId: string) => {
+    setPageAccessRoles(prev => {
+      const currentRoles = prev[pageId] || [];
+      const hasRole = currentRoles.includes(roleId);
+      return {
+        ...prev,
+        [pageId]: hasRole 
+          ? currentRoles.filter(r => r !== roleId) 
+          : [...currentRoles, roleId],
+      };
+    });
+  };
+
+  const setPagePublic = (pageId: string) => {
+    setPageAccessRoles(prev => ({
+      ...prev,
+      [pageId]: [],
+    }));
+  };
+
+  const setPagePrivate = (pageId: string, roleIds: string[]) => {
+    setPageAccessRoles(prev => ({
+      ...prev,
+      [pageId]: roleIds,
+    }));
+  };
 
   const modules = [
     { id: "dashboard", name: "Dashboard", description: "View dashboard and statistics" },
@@ -4119,6 +4283,28 @@ function RolesPermissionsSection() {
         </div>
       </div>
 
+      <div className="flex gap-2 border-b">
+        <Button
+          variant="ghost"
+          className={`rounded-none border-b-2 ${activeTab === "permissions" ? "border-primary" : "border-transparent"}`}
+          onClick={() => setActiveTab("permissions")}
+          data-testid="tab-permissions"
+        >
+          <Shield className="h-4 w-4 mr-2" />
+          Module Permissions
+        </Button>
+        <Button
+          variant="ghost"
+          className={`rounded-none border-b-2 ${activeTab === "page-access" ? "border-primary" : "border-transparent"}`}
+          onClick={() => setActiveTab("page-access")}
+          data-testid="tab-page-access"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          Page Access Control
+        </Button>
+      </div>
+
+      {activeTab === "permissions" && (
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card className="lg:col-span-1">
           <CardHeader>
@@ -4269,6 +4455,161 @@ function RolesPermissionsSection() {
           )}
         </div>
       </div>
+      )}
+
+      {activeTab === "page-access" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Page Access Control
+              </CardTitle>
+              <CardDescription>
+                Define which user roles can access specific pages. Pages with no roles assigned are public and accessible to everyone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[200px]">Page</TableHead>
+                      <TableHead>URL</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Access</TableHead>
+                      {roles.map((role) => (
+                        <TableHead key={role.id} className="text-center w-[100px]">
+                          <div className="flex items-center justify-center gap-1">
+                            <div className={`w-2 h-2 rounded-full ${role.color}`} />
+                            <span className="text-xs">{role.name}</span>
+                          </div>
+                        </TableHead>
+                      ))}
+                      <TableHead className="w-[120px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cmsPages.map((page) => {
+                      const allowedRoles = pageAccessRoles[page.id] || [];
+                      const isPublic = allowedRoles.length === 0;
+                      
+                      return (
+                        <TableRow key={page.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{page.title}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{page.slug}</TableCell>
+                          <TableCell>
+                            <Badge variant={page.status === "published" ? "default" : "secondary"} className="text-xs">
+                              {page.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={isPublic ? "outline" : "default"} className="text-xs">
+                              {isPublic ? "Public" : "Restricted"}
+                            </Badge>
+                          </TableCell>
+                          {roles.map((role) => (
+                            <TableCell key={role.id} className="text-center">
+                              <Switch
+                                checked={allowedRoles.includes(role.id)}
+                                onCheckedChange={() => togglePageRole(page.id, role.id)}
+                                disabled={role.id === "admin"}
+                                data-testid={`switch-page-${page.id}-role-${role.id}`}
+                              />
+                            </TableCell>
+                          ))}
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPagePublic(page.id)}
+                                disabled={isPublic}
+                                data-testid={`button-make-public-${page.id}`}
+                              >
+                                <Globe className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPagePrivate(page.id, roles.map(r => r.id))}
+                                disabled={allowedRoles.length === roles.length}
+                                data-testid={`button-make-private-${page.id}`}
+                              >
+                                <Lock className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Access Summary</CardTitle>
+                <CardDescription>Overview of page visibility</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-5 w-5 text-green-500" />
+                      <span>Public Pages</span>
+                    </div>
+                    <Badge variant="outline">{cmsPages.filter(p => (pageAccessRoles[p.id] || []).length === 0).length}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-orange-500" />
+                      <span>Restricted Pages</span>
+                    </div>
+                    <Badge variant="outline">{cmsPages.filter(p => (pageAccessRoles[p.id] || []).length > 0).length}</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Role Access Overview</CardTitle>
+                <CardDescription>Pages each role can access</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {roles.map((role) => {
+                    const accessiblePages = cmsPages.filter(page => {
+                      const allowedRoles = pageAccessRoles[page.id] || [];
+                      return allowedRoles.length === 0 || allowedRoles.includes(role.id);
+                    });
+                    return (
+                      <div key={role.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${role.color}`} />
+                          <span className="text-sm font-medium">{role.name}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {accessiblePages.length} / {cmsPages.length} pages
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -7963,6 +8304,339 @@ function BannersSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function AllPagesSection() {
+  const { data, isLoading } = useQuery({ queryKey: ["/api/admin/pages"] });
+  const pages = data as any[] | undefined;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filteredPages = pages?.filter(page => {
+    const matchesSearch = page.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         page.slug?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || page.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  }) || [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className={statusFilter === "all" ? "bg-primary text-primary-foreground" : ""} onClick={() => setStatusFilter("all")} data-testid="filter-all">All ({pages?.length || 0})</Button>
+          <Button variant="outline" size="sm" className={statusFilter === "published" ? "bg-primary text-primary-foreground" : ""} onClick={() => setStatusFilter("published")} data-testid="filter-published">Published ({pages?.filter(p => p.status === "published").length || 0})</Button>
+          <Button variant="outline" size="sm" className={statusFilter === "draft" ? "bg-primary text-primary-foreground" : ""} onClick={() => setStatusFilter("draft")} data-testid="filter-draft">Draft ({pages?.filter(p => p.status === "draft").length || 0})</Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search pages..." className="pl-9 w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-pages" />
+          </div>
+          <Button data-testid="button-add-page"><Plus className="h-4 w-4 mr-2" />Add New Page</Button>
+        </div>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12"><input type="checkbox" className="rounded" /></TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Author</TableHead>
+                <TableHead>Stats</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8">Loading pages...</TableCell></TableRow>
+              ) : filteredPages.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8">No pages found</TableCell></TableRow>
+              ) : filteredPages.map((page) => (
+                <TableRow key={page.id} data-testid={`row-page-${page.id}`}>
+                  <TableCell><input type="checkbox" className="rounded" /></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center"><FileImage className="h-6 w-6 text-muted-foreground" /></div>
+                      <div>
+                        <p className="font-medium">{page.title}</p>
+                        <p className="text-xs text-muted-foreground">/{page.slug}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{page.createdBy || "Admin"}</TableCell>
+                  <TableCell><Badge variant="outline" size="sm">0 views</Badge></TableCell>
+                  <TableCell><Badge className={page.status === "published" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"}>{page.status}</Badge></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{new Date(page.createdAt).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AddPageSection() {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [status, setStatus] = useState("draft");
+  const { toast } = useToast();
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="lg:col-span-3 space-y-4">
+        <Input placeholder="Add title" className="text-2xl font-bold border-0 border-b rounded-none focus-visible:ring-0 px-0" value={title} onChange={(e) => setTitle(e.target.value)} data-testid="input-page-title" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon"><Type className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon"><ImagePlus className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon"><Grid3X3 className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon"><Code className="h-4 w-4" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Textarea placeholder="Start writing or type / to choose a block" className="min-h-[400px] resize-none border-0 focus-visible:ring-0" value={content} onChange={(e) => setContent(e.target.value)} data-testid="input-page-content" />
+          </CardContent>
+        </Card>
+      </div>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Publish</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Status:</span><Badge>{status}</Badge></div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Visibility:</span><span>Public</span></div>
+            <Separator />
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setStatus("draft"); toast({ title: "Saved as draft" }); }} data-testid="button-save-draft">Save Draft</Button>
+              <Button className="flex-1" onClick={() => { setStatus("published"); toast({ title: "Page published!" }); }} data-testid="button-publish">Publish</Button>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Page Attributes</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Template</Label>
+              <Select defaultValue="default"><SelectTrigger data-testid="select-template"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default Template</SelectItem>
+                  <SelectItem value="full-width">Full Width</SelectItem>
+                  <SelectItem value="sidebar">With Sidebar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Parent Page</Label>
+              <Select defaultValue="none"><SelectTrigger data-testid="select-parent"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="none">(no parent)</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Featured Image</CardTitle></CardHeader>
+          <CardContent>
+            <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover-elevate">
+              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Set featured image</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function BlocksSection() {
+  const blockTypes = [
+    { id: "paragraph", name: "Paragraph", icon: Type, description: "Start with plain text" },
+    { id: "heading", name: "Heading", icon: Type, description: "Add a heading (H1-H6)" },
+    { id: "image", name: "Image", icon: Image, description: "Insert an image" },
+    { id: "gallery", name: "Gallery", icon: Grid3X3, description: "Display multiple images" },
+    { id: "video", name: "Video", icon: Play, description: "Embed a video" },
+    { id: "button", name: "Button", icon: MousePointerClick, description: "Add a call-to-action" },
+    { id: "columns", name: "Columns", icon: Columns, description: "Add a multi-column layout" },
+    { id: "spacer", name: "Spacer", icon: RectangleHorizontal, description: "Add whitespace" },
+    { id: "quote", name: "Quote", icon: MessageSquareQuote, description: "Add a quote block" },
+    { id: "code", name: "Code", icon: Code, description: "Add code snippet" },
+    { id: "products", name: "Products", icon: Package, description: "Display products" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div><h2 className="text-lg font-semibold">Blocks Library</h2><p className="text-sm text-muted-foreground">Reusable content blocks for your pages</p></div>
+        <Button data-testid="button-create-block"><Plus className="h-4 w-4 mr-2" />Create Custom Block</Button>
+      </div>
+      <Tabs defaultValue="all">
+        <TabsList><TabsTrigger value="all">All Blocks</TabsTrigger><TabsTrigger value="text">Text</TabsTrigger><TabsTrigger value="media">Media</TabsTrigger><TabsTrigger value="design">Design</TabsTrigger><TabsTrigger value="widgets">Widgets</TabsTrigger></TabsList>
+        <TabsContent value="all" className="mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {blockTypes.map((block) => (
+              <Card key={block.id} className="cursor-pointer hover-elevate" data-testid={`block-${block.id}`}>
+                <CardContent className="p-4 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-primary/10 flex items-center justify-center"><block.icon className="h-6 w-6 text-primary" /></div>
+                  <h3 className="font-medium text-sm">{block.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{block.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function PatternsSection() {
+  const patterns = [
+    { id: "hero-1", name: "Hero with CTA", category: "Heroes", preview: "bg-gradient-to-r from-purple-500 to-pink-500" },
+    { id: "hero-2", name: "Hero with Image", category: "Heroes", preview: "bg-gradient-to-r from-blue-500 to-cyan-500" },
+    { id: "features-1", name: "Feature Grid", category: "Features", preview: "bg-gradient-to-r from-green-500 to-emerald-500" },
+    { id: "cta-1", name: "Call to Action", category: "CTA", preview: "bg-gradient-to-r from-orange-500 to-red-500" },
+    { id: "testimonials-1", name: "Testimonials", category: "Social Proof", preview: "bg-gradient-to-r from-indigo-500 to-purple-500" },
+    { id: "footer-1", name: "Footer", category: "Footers", preview: "bg-gradient-to-r from-gray-700 to-gray-900" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div><h2 className="text-lg font-semibold">Patterns</h2><p className="text-sm text-muted-foreground">Pre-designed layouts and sections</p></div>
+        <Button data-testid="button-create-pattern"><Plus className="h-4 w-4 mr-2" />Create Pattern</Button>
+      </div>
+      <Tabs defaultValue="all">
+        <TabsList><TabsTrigger value="all">All</TabsTrigger><TabsTrigger value="heroes">Heroes</TabsTrigger><TabsTrigger value="features">Features</TabsTrigger><TabsTrigger value="cta">CTA</TabsTrigger><TabsTrigger value="footers">Footers</TabsTrigger></TabsList>
+        <TabsContent value="all" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {patterns.map((pattern) => (
+              <Card key={pattern.id} className="overflow-hidden cursor-pointer hover-elevate" data-testid={`pattern-${pattern.id}`}>
+                <div className={`h-32 ${pattern.preview}`} />
+                <CardContent className="p-4">
+                  <Badge variant="outline" size="sm" className="mb-2">{pattern.category}</Badge>
+                  <h3 className="font-medium">{pattern.name}</h3>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function MediaLibrarySection() {
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedFolder, setSelectedFolder] = useState("all");
+  const { data, isLoading } = useQuery({ queryKey: ["/api/admin/media"] });
+  const mediaItems = data as any[] | undefined;
+
+  const folders = ["all", "uploads", "products", "banners", "avatars"];
+  const mockMedia = [
+    { id: "1", filename: "product-1.jpg", type: "image/jpeg", size: 245000, folder: "products", url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200" },
+    { id: "2", filename: "banner-hero.jpg", type: "image/jpeg", size: 512000, folder: "banners", url: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=200" },
+    { id: "3", filename: "avatar-user.png", type: "image/png", size: 85000, folder: "avatars", url: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200" },
+  ];
+
+  const displayMedia = mediaItems || mockMedia;
+  const filteredMedia = selectedFolder === "all" ? displayMedia : displayMedia.filter(m => m.folder === selectedFolder);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold">Media Library</h2>
+          <div className="flex border rounded-md">
+            <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" onClick={() => setViewMode("grid")} data-testid="button-grid-view"><Grid3X3 className="h-4 w-4" /></Button>
+            <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" onClick={() => setViewMode("list")} data-testid="button-list-view"><Menu className="h-4 w-4" /></Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search media..." className="pl-9 w-64" data-testid="input-search-media" /></div>
+          <Button data-testid="button-upload-media"><Upload className="h-4 w-4 mr-2" />Upload</Button>
+        </div>
+      </div>
+      <div className="flex gap-6">
+        <div className="w-48 space-y-1">
+          {folders.map((folder) => (
+            <Button key={folder} variant={selectedFolder === folder ? "secondary" : "ghost"} className="w-full justify-start" onClick={() => setSelectedFolder(folder)} data-testid={`folder-${folder}`}>
+              <FolderOpen className="h-4 w-4 mr-2" />{folder === "all" ? "All Files" : folder.charAt(0).toUpperCase() + folder.slice(1)}
+            </Button>
+          ))}
+          <Separator className="my-2" />
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground"><Plus className="h-4 w-4 mr-2" />New Folder</Button>
+        </div>
+        <div className="flex-1">
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {filteredMedia.map((item) => (
+                <Card key={item.id} className="overflow-hidden cursor-pointer hover-elevate" data-testid={`media-${item.id}`}>
+                  <div className="aspect-square relative"><img src={item.url} alt={item.filename} className="w-full h-full object-cover" /></div>
+                  <CardContent className="p-2"><p className="text-xs truncate">{item.filename}</p><p className="text-xs text-muted-foreground">{(item.size / 1024).toFixed(0)} KB</p></CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader><TableRow><TableHead>File</TableHead><TableHead>Folder</TableHead><TableHead>Size</TableHead><TableHead>Date</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>
+                {filteredMedia.map((item) => (
+                  <TableRow key={item.id} data-testid={`media-row-${item.id}`}>
+                    <TableCell className="flex items-center gap-3"><img src={item.url} alt="" className="w-10 h-10 object-cover rounded" /><span>{item.filename}</span></TableCell>
+                    <TableCell>{item.folder}</TableCell><TableCell>{(item.size / 1024).toFixed(0)} KB</TableCell><TableCell>Dec 15, 2025</TableCell>
+                    <TableCell><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppearanceSection() {
+  return (
+    <div className="space-y-6">
+      <Card><CardHeader><CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" />Theme Customization</CardTitle><CardDescription>Customize the look and feel of your store</CardDescription></CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4"><Label>Primary Color</Label><div className="flex gap-2">{["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"].map(color => (<button key={color} className="w-10 h-10 rounded-md border-2" style={{ backgroundColor: color }} data-testid={`color-${color}`} />))}</div></div>
+            <div className="space-y-4"><Label>Font Family</Label><Select defaultValue="inter"><SelectTrigger data-testid="select-font"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="inter">Inter</SelectItem><SelectItem value="roboto">Roboto</SelectItem><SelectItem value="poppins">Poppins</SelectItem></SelectContent></Select></div>
+          </div>
+          <Separator />
+          <div className="space-y-4"><Label>Logo</Label><div className="flex items-center gap-4"><div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center"><Upload className="h-8 w-8 text-muted-foreground" /></div><div><p className="text-sm">Upload your store logo</p><p className="text-xs text-muted-foreground">Recommended: 200x50px</p></div></div></div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ToolsSection() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Import</CardTitle><CardDescription>Import data from external sources</CardDescription></CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start" data-testid="button-import-products"><Package className="h-4 w-4 mr-2" />Import Products (CSV)</Button>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-import-users"><Users className="h-4 w-4 mr-2" />Import Users (CSV)</Button>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-import-pages"><FileText className="h-4 w-4 mr-2" />Import Pages (JSON)</Button>
+          </CardContent>
+        </Card>
+        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-5 w-5" />Export</CardTitle><CardDescription>Export your store data</CardDescription></CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start" data-testid="button-export-products"><Package className="h-4 w-4 mr-2" />Export Products (CSV)</Button>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-export-orders"><ShoppingCart className="h-4 w-4 mr-2" />Export Orders (CSV)</Button>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-export-all"><Database className="h-4 w-4 mr-2" />Export All Data (JSON)</Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
