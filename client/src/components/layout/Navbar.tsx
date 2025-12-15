@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function NotificationSystem() {
   const { toast } = useToast();
@@ -167,6 +168,8 @@ export function Navbar() {
 
         {/* Actions */}
         <div className="flex items-center gap-0.5 shrink-0">
+          <ThemeToggle />
+          
           <Button variant="ghost" size="icon" className="hidden sm:flex text-muted-foreground" data-testid="button-notifications">
             <Bell className="h-5 w-5" />
           </Button>
