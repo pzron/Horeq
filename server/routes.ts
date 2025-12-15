@@ -486,9 +486,18 @@ export async function registerRoutes(
       });
       const order = await storage.createOrder(orderData);
       
+      // Cache product lookups to avoid N+1 queries
+      const productCache = new Map();
+      for (const cartItem of cartItems) {
+        if (!productCache.has(cartItem.productId)) {
+          const product = await storage.getProductById(cartItem.productId);
+          if (product) productCache.set(cartItem.productId, product);
+        }
+      }
+      
       // Create order items from user's actual cart (server-side validated)
       for (const cartItem of cartItems) {
-        const product = await storage.getProductById(cartItem.productId);
+        const product = productCache.get(cartItem.productId);
         if (product) {
           await storage.createOrderItem({
             orderId: order.id,
@@ -501,12 +510,50 @@ export async function registerRoutes(
       
       // Handle affiliate commission if affiliate is attached
       if (affiliate && validAffiliateId) {
-        // Calculate commission using integer cents for precision
-        const commissionRate = parseFloat(affiliate.commission.toString()) / 100;
-        const commissionCents = Math.round(totalCents * commissionRate);
-        const commission = (commissionCents / 100).toFixed(2);
+        // Calculate commission per product using product-level settings
+        let totalCommissionCents = 0;
+        let totalBonusPoints = 0;
+        
+        for (const cartItem of cartItems) {
+          const product = productCache.get(cartItem.productId);
+          if (product && product.affiliateEnabled) {
+            const productPriceCents = Math.round(parseFloat(product.price.toString()) * 100);
+            const lineTotal = productPriceCents * cartItem.quantity;
+            
+            // Calculate commission based on product's commission type
+            const commissionType = product.affiliateCommissionType || 'percentage';
+            const rawValue = parseFloat(product.affiliateCommissionValue?.toString() || '0');
+            const commissionValue = isNaN(rawValue) || rawValue < 0 ? 0 : rawValue;
+            
+            if (commissionType === 'percentage' && commissionValue > 0) {
+              // Percentage-based commission (capped at 100%)
+              const rate = Math.min(commissionValue, 100) / 100;
+              totalCommissionCents += Math.round(lineTotal * rate);
+            } else if (commissionType === 'fixed' && commissionValue > 0) {
+              // Fixed dollar amount per unit sold (value is in dollars)
+              totalCommissionCents += Math.round(commissionValue * 100 * cartItem.quantity);
+            } else if (commissionType === 'points') {
+              // Points-only: use product's affiliatePoints value for points credit
+              // No monetary commission for points type
+            }
+            
+            // Add bonus points if product has them (accumulated regardless of commission type)
+            if (product.affiliatePoints && product.affiliatePoints > 0) {
+              totalBonusPoints += product.affiliatePoints * cartItem.quantity;
+            }
+          }
+        }
+        
+        // Fallback to affiliate's base commission if no product-level settings gave commission
+        if (totalCommissionCents === 0 && totalCents > 0) {
+          const commissionRate = parseFloat(affiliate.commission.toString()) / 100;
+          totalCommissionCents = Math.round(totalCents * commissionRate);
+        }
+        
+        const commission = (totalCommissionCents / 100).toFixed(2);
         
         // Update affiliate stats (increment conversions and earnings)
+        // Note: Points are tracked in totalBonusPoints for future points system implementation
         await storage.incrementAffiliateConversions(validAffiliateId, commission);
         
         // Mark click as converted if clickId provided and valid
