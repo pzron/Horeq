@@ -6,6 +6,18 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { insertAffiliateTierSchema } from "@shared/schema";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 interface DashboardStats {
   totalUsers: number;
@@ -2712,12 +2724,171 @@ interface AffiliateWithUser {
   };
 }
 
+interface AffiliateTier {
+  id: string;
+  name: string;
+  minEarnings: string;
+  commissionRate: string;
+  bonusPercentage: string | null;
+  benefits: string | null;
+  color: string | null;
+  sortOrder: number | null;
+  createdAt: string;
+}
+
+const tierFormSchema = insertAffiliateTierSchema.extend({
+  name: z.string().min(1, "Tier name is required"),
+  commissionRate: z.string().refine(val => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 100;
+  }, "Commission rate must be between 0 and 100"),
+  minEarnings: z.string().refine(val => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, "Minimum earnings must be 0 or greater"),
+  bonusPercentage: z.string().nullable().refine(val => {
+    if (!val) return true;
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 100;
+  }, "Bonus percentage must be between 0 and 100"),
+  sortOrder: z.coerce.number().int().min(0).default(0),
+});
+
+type TierFormValues = z.infer<typeof tierFormSchema>;
+
 function AffiliatesSection() {
   const { toast } = useToast();
+  const [tierDialogOpen, setTierDialogOpen] = useState(false);
+  const [editingTier, setEditingTier] = useState<AffiliateTier | null>(null);
+  const [deleteTierConfirm, setDeleteTierConfirm] = useState<string | null>(null);
+
+  const tierForm = useForm<TierFormValues>({
+    resolver: zodResolver(tierFormSchema),
+    defaultValues: {
+      name: "",
+      minEarnings: "0",
+      commissionRate: "10",
+      bonusPercentage: "0",
+      benefits: "",
+      color: "#6B7280",
+      sortOrder: 0,
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/affiliates"],
   });
   const affiliates = data as AffiliateWithUser[] | undefined;
+
+  const { data: tiersData, isLoading: tiersLoading } = useQuery({
+    queryKey: ["/api/admin/affiliate-tiers"],
+  });
+  const tiers = tiersData as AffiliateTier[] | undefined;
+
+  const resetTierForm = () => {
+    tierForm.reset({
+      name: "",
+      minEarnings: "0",
+      commissionRate: "10",
+      bonusPercentage: "0",
+      benefits: "",
+      color: "#6B7280",
+      sortOrder: 0,
+    });
+    setEditingTier(null);
+  };
+
+  const createTierMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      minEarnings: string;
+      commissionRate: string;
+      bonusPercentage: string;
+      benefits: string | null;
+      color: string;
+      sortOrder: number;
+    }) => {
+      await apiRequest("POST", "/api/admin/affiliate-tiers", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/affiliate-tiers"] });
+      setTierDialogOpen(false);
+      resetTierForm();
+      toast({ title: "Tier Created", description: "The affiliate tier has been created successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create tier", variant: "destructive" });
+    },
+  });
+
+  const updateTierMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: {
+      name: string;
+      minEarnings: string;
+      commissionRate: string;
+      bonusPercentage: string;
+      benefits: string | null;
+      color: string;
+      sortOrder: number;
+    }}) => {
+      await apiRequest("PATCH", `/api/admin/affiliate-tiers/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/affiliate-tiers"] });
+      setTierDialogOpen(false);
+      resetTierForm();
+      toast({ title: "Tier Updated", description: "The affiliate tier has been updated successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update tier", variant: "destructive" });
+    },
+  });
+
+  const deleteTierMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/affiliate-tiers/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/affiliate-tiers"] });
+      setDeleteTierConfirm(null);
+      toast({ title: "Tier Deleted", description: "The affiliate tier has been deleted." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete tier", variant: "destructive" });
+    },
+  });
+
+  const onTierSubmit = (values: TierFormValues) => {
+    const payload = {
+      name: values.name.trim(),
+      minEarnings: parseFloat(values.minEarnings || "0").toFixed(2),
+      commissionRate: parseFloat(values.commissionRate).toFixed(2),
+      bonusPercentage: parseFloat(values.bonusPercentage || "0").toFixed(2),
+      benefits: values.benefits?.trim() || null,
+      color: values.color || "#6B7280",
+      sortOrder: values.sortOrder || 0,
+    };
+    
+    if (editingTier) {
+      updateTierMutation.mutate({ id: editingTier.id, data: payload });
+    } else {
+      createTierMutation.mutate(payload);
+    }
+  };
+
+  const openEditTier = (tier: AffiliateTier) => {
+    setEditingTier(tier);
+    tierForm.reset({
+      name: tier.name,
+      minEarnings: tier.minEarnings,
+      commissionRate: tier.commissionRate,
+      bonusPercentage: tier.bonusPercentage || "0",
+      benefits: tier.benefits || "",
+      color: tier.color || "#6B7280",
+      sortOrder: tier.sortOrder || 0,
+    });
+    setTierDialogOpen(true);
+  };
 
   const approveMutation = useMutation({
     mutationFn: async (affiliateId: string) => {
@@ -2915,6 +3086,305 @@ function AffiliatesSection() {
                 ))}
               </TableBody>
             </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Affiliate Tiers
+            </CardTitle>
+            <CardDescription>Manage commission tiers and rewards</CardDescription>
+          </div>
+          <Dialog open={tierDialogOpen} onOpenChange={(open) => {
+            setTierDialogOpen(open);
+            if (!open) resetTierForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button size="sm" data-testid="button-add-tier">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Tier
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingTier ? "Edit Tier" : "Create New Tier"}</DialogTitle>
+                <DialogDescription>
+                  {editingTier ? "Update the tier details" : "Set up a new affiliate commission tier"}
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...tierForm}>
+                <form onSubmit={tierForm.handleSubmit(onTierSubmit)} className="space-y-4">
+                  <FormField
+                    control={tierForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tier Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Bronze, Silver, Gold"
+                            {...field}
+                            data-testid="input-tier-name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={tierForm.control}
+                      name="commissionRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Commission Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              {...field}
+                              data-testid="input-tier-commission"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tierForm.control}
+                      name="bonusPercentage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bonus (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              {...field}
+                              value={field.value || "0"}
+                              data-testid="input-tier-bonus"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={tierForm.control}
+                    name="minEarnings"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Min. Earnings to Qualify ($)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="10"
+                            {...field}
+                            data-testid="input-tier-min-earnings"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={tierForm.control}
+                      name="color"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Color</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="color"
+                                value={field.value || "#6B7280"}
+                                onChange={field.onChange}
+                                className="w-12 h-9 p-1 cursor-pointer"
+                                data-testid="input-tier-color"
+                              />
+                              <Input
+                                value={field.value || "#6B7280"}
+                                onChange={field.onChange}
+                                className="flex-1"
+                                placeholder="#6B7280"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tierForm.control}
+                      name="sortOrder"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sort Order</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-tier-sort-order"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={tierForm.control}
+                    name="benefits"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Benefits (one per line)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Priority support&#10;Exclusive promotions&#10;Higher payouts"
+                            {...field}
+                            value={field.value || ""}
+                            rows={3}
+                            data-testid="input-tier-benefits"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => { setTierDialogOpen(false); resetTierForm(); }}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createTierMutation.isPending || updateTierMutation.isPending}
+                      data-testid="button-save-tier"
+                    >
+                      {editingTier ? "Update Tier" : "Create Tier"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          {tiersLoading ? (
+            <div className="text-center py-8">Loading tiers...</div>
+          ) : (tiers || []).length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No affiliate tiers configured yet. Create your first tier to set up commission levels.
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {(tiers || []).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((tier) => (
+                <Card key={tier.id} className="relative overflow-visible" data-testid={`card-tier-${tier.id}`}>
+                  <div
+                    className="absolute top-0 left-0 right-0 h-1 rounded-t-md"
+                    style={{ backgroundColor: tier.color || "#6B7280" }}
+                  />
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: tier.color || "#6B7280" }}
+                        />
+                        {tier.name}
+                      </CardTitle>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => openEditTier(tier)}
+                          data-testid={`button-edit-tier-${tier.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Dialog open={deleteTierConfirm === tier.id} onOpenChange={(open) => !open && setDeleteTierConfirm(null)}>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDeleteTierConfirm(tier.id)}
+                              data-testid={`button-delete-tier-${tier.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Delete Tier</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to delete the "{tier.name}" tier? This action cannot be undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setDeleteTierConfirm(null)}>Cancel</Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => deleteTierMutation.mutate(tier.id)}
+                                disabled={deleteTierMutation.isPending}
+                                data-testid={`button-confirm-delete-tier-${tier.id}`}
+                              >
+                                Delete
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Commission</span>
+                      <Badge variant="secondary" className="font-semibold">
+                        <Percent className="h-3 w-3 mr-1" />
+                        {tier.commissionRate}%
+                      </Badge>
+                    </div>
+                    {parseFloat(tier.bonusPercentage || "0") > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Bonus</span>
+                        <Badge variant="outline" className="text-green-600">
+                          +{tier.bonusPercentage}%
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Min. Earnings</span>
+                      <span className="text-sm font-medium">${tier.minEarnings}</span>
+                    </div>
+                    {tier.benefits && (
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground mb-1">Benefits:</p>
+                        <ul className="text-xs space-y-1">
+                          {tier.benefits.split("\n").filter(Boolean).slice(0, 3).map((benefit, i) => (
+                            <li key={i} className="flex items-center gap-1">
+                              <ChevronRight className="h-3 w-3 text-primary" />
+                              {benefit}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

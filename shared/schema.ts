@@ -271,12 +271,18 @@ export const affiliates = pgTable("affiliates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),
   code: text("code").notNull().unique(),
+  tierId: varchar("tier_id"),
   commission: decimal("commission", { precision: 5, scale: 2 }).notNull().default("10.00"),
   totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
+  pendingEarnings: decimal("pending_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
+  paidEarnings: decimal("paid_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
   totalClicks: integer("total_clicks").notNull().default(0),
   totalConversions: integer("total_conversions").notNull().default(0),
+  conversionRate: decimal("conversion_rate", { precision: 5, scale: 2 }).default("0"),
   status: text("status").notNull().default("pending"),
   applicationNote: text("application_note"),
+  paymentMethod: text("payment_method"),
+  paymentDetails: text("payment_details"),
   approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -614,3 +620,110 @@ export const insertBannerSchema = createInsertSchema(banners).omit({
 
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
 export type Banner = typeof banners.$inferSelect;
+
+// Affiliate Marketing Materials Table
+export const affiliateMaterials = pgTable("affiliate_materials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // banner, link, text, email_template
+  content: text("content").notNull(), // URL for banners, text content, etc.
+  dimensions: text("dimensions"), // For banners: 728x90, 300x250, etc.
+  category: text("category").default("general"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAffiliateMaterialSchema = createInsertSchema(affiliateMaterials).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAffiliateMaterial = z.infer<typeof insertAffiliateMaterialSchema>;
+export type AffiliateMaterial = typeof affiliateMaterials.$inferSelect;
+
+// System Configuration Table
+export const systemConfig = pgTable("system_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  category: text("category").notNull(), // general, payment, email, shipping, affiliate, seo
+  configKey: text("config_key").notNull(),
+  configValue: text("config_value"),
+  configType: text("config_type").default("text"), // text, number, boolean, json, select
+  label: text("label").notNull(),
+  description: text("description"),
+  options: text("options"), // JSON array for select type
+  isRequired: boolean("is_required").default(false),
+  sortOrder: integer("sort_order").default(0),
+  updatedBy: varchar("updated_by"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+export type SystemConfig = typeof systemConfig.$inferSelect;
+
+// Reports Table for saved/scheduled reports
+export const reports = pgTable("reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // sales, orders, products, affiliates, users
+  dateRange: text("date_range"), // JSON with start/end dates
+  filters: text("filters"), // JSON with filter criteria
+  columns: text("columns"), // JSON array of columns to include
+  schedule: text("schedule"), // cron expression for scheduled reports
+  lastRun: timestamp("last_run"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertReport = z.infer<typeof insertReportSchema>;
+export type Report = typeof reports.$inferSelect;
+
+// Email Templates Table
+export const emailTemplates = pgTable("email_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  variables: text("variables"), // JSON array of available variables
+  category: text("category").default("transactional"), // transactional, marketing, affiliate
+  isActive: boolean("is_active").default(true),
+  updatedBy: varchar("updated_by"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
+// Update user schema helper
+export const updateUserSchema = createInsertSchema(users).partial().omit({
+  id: true,
+  createdAt: true,
+});
+
+export type UpdateUser = z.infer<typeof updateUserSchema>;
+
+// Update role schema helper
+export const updateRoleSchema = createInsertSchema(roles).partial().omit({
+  id: true,
+  createdAt: true,
+});
+
+export type UpdateRole = z.infer<typeof updateRoleSchema>;
