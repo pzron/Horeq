@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface DashboardStats {
   totalUsers: number;
@@ -213,6 +214,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link href="/">
                 <Button variant="outline" size="sm" data-testid="link-view-site">
                   <Eye className="h-4 w-4 mr-2" />

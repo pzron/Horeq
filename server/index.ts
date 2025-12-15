@@ -6,7 +6,27 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import passport from "./auth";
 import pkg from "pg";
+import bcrypt from "bcrypt";
+import { storage } from "./storage";
 const { Pool } = pkg;
+
+async function seedAdminUser() {
+  try {
+    const existingAdmin = await storage.getUserByUsername("ashM");
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash("ash@1140.MR", 10);
+      await storage.createUser({
+        username: "ashM",
+        email: "admin@horeq.com",
+        password: hashedPassword,
+        role: "admin",
+      });
+      console.log("Default admin user created: ashM");
+    }
+  } catch (error) {
+    console.error("Error seeding admin user:", error);
+  }
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -91,6 +111,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await seedAdminUser();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

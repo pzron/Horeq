@@ -15,23 +15,29 @@ export default function AdminAuth() {
   const { toast } = useToast();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    const success = await login(email, password, "admin");
+    const result = await login(username, password, "admin");
     
     setLoading(false);
-    if (success) {
+    if (result.success) {
       toast({
         title: "Admin Access Granted",
         description: "Welcome to the admin dashboard.",
         className: "bg-red-600 text-white border-none"
       });
-      setLocation("/dashboard");
+      setLocation("/admin");
+    } else {
+      toast({
+        title: "Access Denied",
+        description: result.error || "Invalid credentials",
+        variant: "destructive"
+      });
     }
   };
 
@@ -65,18 +71,18 @@ export default function AdminAuth() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Admin Email</Label>
+                <Label htmlFor="username">Admin Username</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    id="email" 
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@horeq.com" 
+                    id="username" 
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter admin username" 
                     className="pl-10" 
                     required 
-                    data-testid="input-admin-email"
+                    data-testid="input-admin-username"
                   />
                 </div>
               </div>
