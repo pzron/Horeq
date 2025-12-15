@@ -4079,7 +4079,7 @@ function RolesPermissionsSection() {
                       </TableHeader>
                       <TableBody>
                         {modules.map((module) => {
-                          const modulePerms = rolePermissions[selectedRole]?.[module.id] || [];
+                          const modulePerms = selectedRole ? (rolePermissions[selectedRole]?.[module.id] || []) : [];
                           const hasAll = permissions.every(p => modulePerms.includes(p));
                           
                           return (
