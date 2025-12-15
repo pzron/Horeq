@@ -579,11 +579,255 @@ function RecentOrdersList({ limit = 5 }: { limit?: number }) {
 }
 
 function ProductsSection() {
-  const { data } = useQuery({
+  const { toast } = useToast();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  const initialFormData = {
+    name: "",
+    slug: "",
+    description: "",
+    price: "",
+    originalPrice: "",
+    image: "",
+    categoryId: "",
+    stock: 0,
+    featured: false,
+    comboAvailable: false,
+  };
+  const [formData, setFormData] = useState(initialFormData);
+
+  const { data: productsData } = useQuery({
     queryKey: ["/api/products"],
   });
-  const products = data as any[] | undefined;
+  const products = productsData as any[] | undefined;
   const isLoading = !products;
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ["/api/categories"],
+  });
+  const categories = categoriesData as any[] | undefined;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const productData = {
+        ...data,
+        price: data.price,
+        originalPrice: data.originalPrice || null,
+        stock: Number(data.stock) || 0,
+      };
+      await apiRequest("POST", "/api/products", productData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setIsAddOpen(false);
+      setFormData(initialFormData);
+      toast({ title: "Product Created", description: "The product has been created successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create product", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
+      const productData = {
+        ...data,
+        price: data.price,
+        originalPrice: data.originalPrice || null,
+        stock: Number(data.stock) || 0,
+      };
+      await apiRequest("PATCH", `/api/products/${id}`, productData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setEditingProduct(null);
+      toast({ title: "Product Updated", description: "The product has been updated successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update product", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/products/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setDeleteConfirm(null);
+      toast({ title: "Product Deleted", description: "The product has been deleted." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete product", variant: "destructive" });
+    },
+  });
+
+  const handleAdd = () => {
+    if (!formData.name || !formData.slug || !formData.price || !formData.image || !formData.categoryId) {
+      toast({ title: "Validation Error", description: "Name, slug, price, image, and category are required", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(formData);
+  };
+
+  const handleEdit = () => {
+    if (!editingProduct) return;
+    updateMutation.mutate({ id: editingProduct.id, data: formData });
+  };
+
+  const openEditDialog = (product: any) => {
+    setFormData({
+      name: product.name || "",
+      slug: product.slug || "",
+      description: product.description || "",
+      price: product.price?.toString() || "",
+      originalPrice: product.originalPrice?.toString() || "",
+      image: product.image || "",
+      categoryId: product.categoryId || "",
+      stock: product.stock || 0,
+      featured: product.featured || false,
+      comboAvailable: product.comboAvailable || false,
+    });
+    setEditingProduct(product);
+  };
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories?.find((c: any) => c.id === categoryId);
+    return category?.name || "Uncategorized";
+  };
+
+  const filteredProducts = (products || []).filter((product: any) =>
+    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.slug?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const ProductFormFields = () => (
+    <div className="space-y-4 py-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="product-name">Name</Label>
+          <Input
+            id="product-name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") })}
+            placeholder="Product name"
+            data-testid="input-product-name"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-slug">Slug</Label>
+          <Input
+            id="product-slug"
+            value={formData.slug}
+            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+            placeholder="product-slug"
+            data-testid="input-product-slug"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="product-description">Description</Label>
+        <Textarea
+          id="product-description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Product description..."
+          className="min-h-[80px]"
+          data-testid="input-product-description"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="product-price">Price</Label>
+          <Input
+            id="product-price"
+            type="number"
+            step="0.01"
+            value={formData.price}
+            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            placeholder="0.00"
+            data-testid="input-product-price"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-original-price">Original Price (optional)</Label>
+          <Input
+            id="product-original-price"
+            type="number"
+            step="0.01"
+            value={formData.originalPrice}
+            onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+            placeholder="0.00"
+            data-testid="input-product-original-price"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="product-category">Category</Label>
+          <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
+            <SelectTrigger data-testid="select-product-category">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {(categories || []).map((category: any) => (
+                <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="product-stock">Stock</Label>
+          <Input
+            id="product-stock"
+            type="number"
+            value={formData.stock}
+            onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+            placeholder="0"
+            data-testid="input-product-stock"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="product-image">Image URL</Label>
+        <Input
+          id="product-image"
+          value={formData.image}
+          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+          placeholder="https://example.com/image.jpg"
+          data-testid="input-product-image"
+        />
+        {formData.image && (
+          <div className="mt-2">
+            <img src={formData.image} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <Switch
+            id="product-featured"
+            checked={formData.featured}
+            onCheckedChange={(checked) => setFormData({ ...formData, featured: checked })}
+            data-testid="switch-product-featured"
+          />
+          <Label htmlFor="product-featured">Featured Product</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="product-combo"
+            checked={formData.comboAvailable}
+            onCheckedChange={(checked) => setFormData({ ...formData, comboAvailable: checked })}
+            data-testid="switch-product-combo"
+          />
+          <Label htmlFor="product-combo">Available for Combos</Label>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -591,13 +835,39 @@ function ProductsSection() {
         <div className="flex items-center gap-2 flex-1 max-w-sm">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search products..." className="pl-10" data-testid="input-search-products" />
+            <Input 
+              placeholder="Search products..." 
+              className="pl-10" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              data-testid="input-search-products" 
+            />
           </div>
         </div>
-        <Button data-testid="button-add-product">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Product
-        </Button>
+        <Dialog open={isAddOpen} onOpenChange={(open) => {
+          setIsAddOpen(open);
+          if (!open) setFormData(initialFormData);
+        }}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-product">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add New Product</DialogTitle>
+              <DialogDescription>Create a new product for your store.</DialogDescription>
+            </DialogHeader>
+            <ProductFormFields />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleAdd} disabled={createMutation.isPending} data-testid="button-save-product">
+                {createMutation.isPending ? "Creating..." : "Create Product"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
@@ -620,39 +890,65 @@ function ProductsSection() {
                     Loading products...
                   </TableCell>
                 </TableRow>
-              ) : (products || []).length === 0 ? (
+              ) : filteredProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No products found
+                    {searchTerm ? "No products match your search" : "No products found. Create your first product."}
                   </TableCell>
                 </TableRow>
               ) : (
-                (products || []).map((product: any) => (
+                filteredProducts.map((product: any) => (
                   <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <img
-                          src={product.images?.[0] || "/placeholder.png"}
+                          src={product.image || "/placeholder.png"}
                           alt={product.name}
                           className="w-10 h-10 rounded-lg object-cover"
                         />
-                        <span className="font-medium">{product.name}</span>
+                        <div>
+                          <span className="font-medium block">{product.name}</span>
+                          {product.featured && <Badge variant="outline" className="text-xs mt-1">Featured</Badge>}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{product.categoryId || "Uncategorized"}</TableCell>
-                    <TableCell>{formatCurrency(product.price || 0)}</TableCell>
-                    <TableCell>{product.stock || 0}</TableCell>
+                    <TableCell>{getCategoryName(product.categoryId)}</TableCell>
                     <TableCell>
-                      <Badge variant={product.isActive ? "default" : "secondary"}>
-                        {product.isActive ? "Active" : "Inactive"}
+                      <div>
+                        <span className="font-medium">{formatCurrency(product.price || 0)}</span>
+                        {product.originalPrice && (
+                          <span className="text-xs text-muted-foreground line-through ml-2">
+                            {formatCurrency(product.originalPrice)}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={product.stock > 10 ? "default" : product.stock > 0 ? "secondary" : "destructive"}>
+                        {product.stock || 0} in stock
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={product.stock > 0 ? "default" : "secondary"}>
+                        {product.stock > 0 ? "Active" : "Out of Stock"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-product-${product.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => openEditDialog(product)}
+                          data-testid={`button-edit-product-${product.id}`}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-delete-product-${product.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setDeleteConfirm(product.id)}
+                          data-testid={`button-delete-product-${product.id}`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -664,6 +960,49 @@ function ProductsSection() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!editingProduct} onOpenChange={(open) => {
+        if (!open) {
+          setEditingProduct(null);
+          setFormData(initialFormData);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>Update product details.</DialogDescription>
+          </DialogHeader>
+          <ProductFormFields />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingProduct(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending} data-testid="button-update-product">
+              {updateMutation.isPending ? "Updating..." : "Update Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Product</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this product? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirm && deleteMutation.mutate(deleteConfirm)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-product"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
