@@ -138,6 +138,10 @@ export const affiliates = pgTable("affiliates", {
   totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
   totalClicks: integer("total_clicks").notNull().default(0),
   totalConversions: integer("total_conversions").notNull().default(0),
+  status: text("status").notNull().default("pending"),
+  applicationNote: text("application_note"),
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
@@ -40,9 +41,21 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/deals" component={Deals} />
       <Route path="/search" component={Search} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/affiliate" component={AffiliateDashboard} />
+      <Route path="/dashboard">
+        <ProtectedRoute redirectTo="/auth">
+          <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute requiredRole="admin" redirectTo="/cup/doo/admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/affiliate">
+        <ProtectedRoute requiredRole="affiliate" requireApprovedAffiliate redirectTo="/sweet/affiliate">
+          <AffiliateDashboard />
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

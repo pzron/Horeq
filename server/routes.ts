@@ -76,6 +76,25 @@ function isAffiliate(req: Request, res: Response, next: NextFunction) {
   return res.status(403).json({ message: "Affiliate access required" });
 }
 
+// Middleware to check if affiliate is approved (for operations that require approval)
+async function isApprovedAffiliate(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const userRole = (req.user as any)?.role;
+  if (userRole === "admin") {
+    return next();
+  }
+  if (userRole === "affiliate") {
+    const affiliate = await storage.getAffiliateByUserId((req.user as any).id);
+    if (affiliate && affiliate.status === "approved") {
+      return next();
+    }
+    return res.status(403).json({ message: "Your affiliate account is pending approval" });
+  }
+  return res.status(403).json({ message: "Affiliate access required" });
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -83,7 +102,7 @@ export async function registerRoutes(
   // Authentication
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, email, password, role } = req.body;
+      const { username, email, password } = req.body;
       
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
@@ -97,11 +116,12 @@ export async function registerRoutes(
 
       const hashedPassword = await bcrypt.hash(password, 10);
       
+      // Force role to customer - prevent privilege escalation
       const userData = insertUserSchema.parse({
         username,
         email,
         password: hashedPassword,
-        role: role || "customer",
+        role: "customer",
       });
 
       const user = await storage.createUser(userData);
@@ -987,6 +1007,63 @@ export async function registerRoutes(
     }
   });
 
+  // Admin Affiliate Management
+  app.get("/api/admin/affiliates", isAdmin, async (_req, res) => {
+    try {
+      const affiliates = await storage.getAllAffiliates();
+      // Get user info for each affiliate
+      const affiliatesWithUsers = await Promise.all(
+        affiliates.map(async (affiliate) => {
+          const user = await storage.getUser(affiliate.userId);
+          return {
+            ...affiliate,
+            username: user?.username,
+            email: user?.email,
+          };
+        })
+      );
+      res.json(affiliatesWithUsers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/affiliates/:id/approve", isAdmin, async (req, res) => {
+    try {
+      const adminId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateById(req.params.id);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      const updated = await storage.updateAffiliate(req.params.id, {
+        status: "approved",
+        approvedBy: adminId,
+        approvedAt: new Date(),
+      });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/affiliates/:id/reject", isAdmin, async (req, res) => {
+    try {
+      const adminId = (req.user as any).id;
+      const affiliate = await storage.getAffiliateById(req.params.id);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      const updated = await storage.updateAffiliate(req.params.id, {
+        status: "rejected",
+        approvedBy: adminId,
+        approvedAt: new Date(),
+      });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Affiliate Payouts (Admin)
   app.get("/api/admin/payouts", isAdmin, async (_req, res) => {
     try {
@@ -1053,7 +1130,7 @@ export async function registerRoutes(
 
       const user = await storage.createUser(userData);
 
-      // Create affiliate profile
+      // Create affiliate profile with pending status
       const affiliateData = insertAffiliateSchema.parse({
         userId: user.id,
         code: affiliateCode,
@@ -1061,6 +1138,8 @@ export async function registerRoutes(
         totalEarnings: "0",
         totalClicks: 0,
         totalConversions: 0,
+        status: "pending",
+        applicationNote: req.body.applicationNote || null,
       });
 
       const affiliate = await storage.createAffiliate(affiliateData);
@@ -1075,6 +1154,7 @@ export async function registerRoutes(
           ...userWithoutPassword,
           affiliateCode: affiliate.code,
           affiliateId: affiliate.id,
+          affiliateStatus: affiliate.status,
         });
       });
     } catch (error: any) {

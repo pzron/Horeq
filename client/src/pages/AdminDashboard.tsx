@@ -106,13 +106,14 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "orders" | "users" | "pages" | "menus" | "coupons" | "settings" | "activity";
+type AdminSection = "dashboard" | "products" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "settings" | "activity";
 
 const menuItems = [
   { id: "dashboard" as AdminSection, title: "Dashboard", icon: LayoutDashboard },
   { id: "products" as AdminSection, title: "Products", icon: Package },
   { id: "orders" as AdminSection, title: "Orders", icon: ShoppingCart },
   { id: "users" as AdminSection, title: "Users", icon: Users },
+  { id: "affiliates" as AdminSection, title: "Affiliates", icon: UserCheck },
   { id: "pages" as AdminSection, title: "CMS Pages", icon: FileText },
   { id: "menus" as AdminSection, title: "Menus", icon: Menu },
   { id: "coupons" as AdminSection, title: "Coupons", icon: Tag },
@@ -226,6 +227,7 @@ export default function AdminDashboard() {
             {activeSection === "products" && <ProductsSection />}
             {activeSection === "orders" && <OrdersSection />}
             {activeSection === "users" && <UsersSection />}
+            {activeSection === "affiliates" && <AffiliatesSection />}
             {activeSection === "pages" && <PagesSection />}
             {activeSection === "menus" && <MenusSection />}
             {activeSection === "coupons" && <CouponsSection />}
@@ -1155,6 +1157,264 @@ function SettingsSection() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+interface AffiliateWithUser {
+  id: string;
+  userId: string;
+  code: string;
+  commission: string;
+  totalEarnings: string;
+  totalClicks: number;
+  totalConversions: number;
+  status: "pending" | "approved" | "rejected";
+  applicationNote: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  };
+}
+
+function AffiliatesSection() {
+  const { toast } = useToast();
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/admin/affiliates"],
+  });
+  const affiliates = data as AffiliateWithUser[] | undefined;
+
+  const approveMutation = useMutation({
+    mutationFn: async (affiliateId: string) => {
+      await apiRequest("PATCH", `/api/admin/affiliates/${affiliateId}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/affiliates"] });
+      toast({
+        title: "Affiliate Approved",
+        description: "The affiliate has been approved and can now access their dashboard.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve affiliate",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (affiliateId: string) => {
+      await apiRequest("PATCH", `/api/admin/affiliates/${affiliateId}/reject`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/affiliates"] });
+      toast({
+        title: "Affiliate Rejected",
+        description: "The affiliate application has been rejected.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject affiliate",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return <Badge className="bg-green-500/10 text-green-600 dark:text-green-400">Approved</Badge>;
+      case "rejected":
+        return <Badge className="bg-red-500/10 text-red-600 dark:text-red-400">Rejected</Badge>;
+      default:
+        return <Badge className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">Pending</Badge>;
+    }
+  };
+
+  const pendingAffiliates = affiliates?.filter(a => a.status === "pending") || [];
+  const approvedAffiliates = affiliates?.filter(a => a.status === "approved") || [];
+  const rejectedAffiliates = affiliates?.filter(a => a.status === "rejected") || [];
+
+  return (
+    <div className="space-y-6">
+      {pendingAffiliates.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-yellow-500" />
+              Pending Applications ({pendingAffiliates.length})
+            </CardTitle>
+            <CardDescription>Review and approve affiliate applications</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Applied</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingAffiliates.map((affiliate) => (
+                  <TableRow key={affiliate.id} data-testid={`row-affiliate-pending-${affiliate.id}`}>
+                    <TableCell className="font-medium">{affiliate.user?.username || "Unknown"}</TableCell>
+                    <TableCell>{affiliate.user?.email || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{affiliate.code}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {affiliate.createdAt ? new Date(affiliate.createdAt).toLocaleDateString() : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => approveMutation.mutate(affiliate.id)}
+                          disabled={approveMutation.isPending}
+                          data-testid={`button-approve-${affiliate.id}`}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => rejectMutation.mutate(affiliate.id)}
+                          disabled={rejectMutation.isPending}
+                          data-testid={`button-reject-${affiliate.id}`}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Affiliates</CardTitle>
+          <CardDescription>Manage all affiliate accounts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">Loading affiliates...</div>
+          ) : (affiliates || []).length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No affiliates registered yet
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Commission</TableHead>
+                  <TableHead>Clicks</TableHead>
+                  <TableHead>Conversions</TableHead>
+                  <TableHead>Earnings</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(affiliates || []).map((affiliate) => (
+                  <TableRow key={affiliate.id} data-testid={`row-affiliate-${affiliate.id}`}>
+                    <TableCell className="font-medium">{affiliate.user?.username || "Unknown"}</TableCell>
+                    <TableCell>{affiliate.user?.email || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{affiliate.code}</Badge>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(affiliate.status)}</TableCell>
+                    <TableCell>{affiliate.commission}%</TableCell>
+                    <TableCell>{affiliate.totalClicks}</TableCell>
+                    <TableCell>{affiliate.totalConversions}</TableCell>
+                    <TableCell>${parseFloat(affiliate.totalEarnings).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {affiliate.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => approveMutation.mutate(affiliate.id)}
+                              disabled={approveMutation.isPending}
+                              data-testid={`button-approve-list-${affiliate.id}`}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => rejectMutation.mutate(affiliate.id)}
+                              disabled={rejectMutation.isPending}
+                              data-testid={`button-reject-list-${affiliate.id}`}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {affiliate.status === "rejected" && (
+                          <Button
+                            size="sm"
+                            onClick={() => approveMutation.mutate(affiliate.id)}
+                            disabled={approveMutation.isPending}
+                            data-testid={`button-reapprove-${affiliate.id}`}
+                          >
+                            Re-approve
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-affiliates">{affiliates?.length || 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <UserCheck className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600" data-testid="text-approved-affiliates">{approvedAffiliates.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600" data-testid="text-pending-affiliates">{pendingAffiliates.length}</div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
