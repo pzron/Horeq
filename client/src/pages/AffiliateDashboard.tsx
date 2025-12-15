@@ -370,20 +370,31 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
   );
 }
 
-function RecentReferralsList() {
-  const mockReferrals = [
-    { id: 1, customer: "John D.", amount: 125.00, status: "completed", date: "2024-01-15" },
-    { id: 2, customer: "Sarah M.", amount: 89.50, status: "completed", date: "2024-01-14" },
-    { id: 3, customer: "Mike R.", amount: 245.00, status: "pending", date: "2024-01-13" },
-  ];
+interface Referral {
+  id: number;
+  customer: string;
+  amount: number;
+  status: string;
+  date: string;
+}
 
-  if (mockReferrals.length === 0) {
+function RecentReferralsList() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/affiliate/referrals"],
+  });
+  const referrals = data as Referral[] | undefined;
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground text-center py-4">Loading referrals...</div>;
+  }
+
+  if (!referrals || referrals.length === 0) {
     return <div className="text-sm text-muted-foreground text-center py-4">No referrals yet</div>;
   }
 
   return (
     <div className="space-y-3">
-      {mockReferrals.map((referral) => (
+      {referrals.map((referral) => (
         <div key={referral.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${referral.status === "completed" ? "bg-green-500/10" : "bg-yellow-500/10"}`}>
@@ -488,19 +499,20 @@ function ReferralLinksSection({ user }: { user: any }) {
 }
 
 function EarningsSection() {
-  const { data, isLoading } = useQuery({
+  const { data: earningsData, isLoading: earningsLoading } = useQuery({
     queryKey: ["/api/affiliate/earnings"],
   });
-  const earnings = data as Earning[] | undefined;
+  const earnings = earningsData as Earning[] | undefined;
 
-  const mockEarnings: Earning[] = [
-    { id: 1, date: "2024-01-15", orderId: "ORD-001", orderAmount: 125.00, commission: 12.50, status: "paid" },
-    { id: 2, date: "2024-01-14", orderId: "ORD-002", orderAmount: 89.50, commission: 8.95, status: "paid" },
-    { id: 3, date: "2024-01-13", orderId: "ORD-003", orderAmount: 245.00, commission: 24.50, status: "pending" },
-    { id: 4, date: "2024-01-12", orderId: "ORD-004", orderAmount: 67.00, commission: 6.70, status: "pending" },
-  ];
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ["/api/affiliate/stats"],
+  });
+  const stats = statsData as AffiliateStats | undefined;
 
-  const displayEarnings: Earning[] = earnings || mockEarnings;
+  const isLoading = earningsLoading || statsLoading;
+  const displayEarnings: Earning[] = earnings || [];
+
+  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-6">
@@ -510,7 +522,9 @@ function EarningsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Earned</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500" data-testid="stat-total-earned">{formatCurrency(52.65)}</div>
+            <div className="text-2xl font-bold text-green-500" data-testid="stat-total-earned">
+              {statsLoading ? "..." : formatCurrency(stats?.totalEarnings || 0)}
+            </div>
             <p className="text-xs text-muted-foreground">All time earnings</p>
           </CardContent>
         </Card>
@@ -519,7 +533,9 @@ function EarningsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-500" data-testid="stat-pending-earnings">{formatCurrency(31.20)}</div>
+            <div className="text-2xl font-bold text-yellow-500" data-testid="stat-pending-earnings">
+              {statsLoading ? "..." : formatCurrency(stats?.pendingPayout || 0)}
+            </div>
             <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
           </CardContent>
         </Card>
@@ -528,8 +544,10 @@ function EarningsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">This Month</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-monthly-earnings">{formatCurrency(52.65)}</div>
-            <p className="text-xs text-muted-foreground">January 2024</p>
+            <div className="text-2xl font-bold" data-testid="stat-monthly-earnings">
+              {statsLoading ? "..." : formatCurrency(stats?.totalEarnings || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">{currentMonth}</p>
           </CardContent>
         </Card>
       </div>
@@ -592,10 +610,15 @@ function PayoutsSection() {
   const { toast } = useToast();
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   
-  const { data, isLoading } = useQuery({
+  const { data: payoutsData, isLoading } = useQuery({
     queryKey: ["/api/affiliate/payouts"],
   });
-  const payouts = data as Payout[] | undefined;
+  const payouts = payoutsData as Payout[] | undefined;
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ["/api/affiliate/stats"],
+  });
+  const stats = statsData as AffiliateStats | undefined;
 
   const requestPayoutMutation = useMutation({
     mutationFn: async (amount: number) => {
@@ -619,12 +642,11 @@ function PayoutsSection() {
     },
   });
 
-  const mockPayouts: Payout[] = [
-    { id: 1, requestedAt: "2024-01-10", amount: 100.00, status: "completed", paidAt: "2024-01-12", method: "PayPal" },
-    { id: 2, requestedAt: "2023-12-15", amount: 75.50, status: "completed", paidAt: "2023-12-17", method: "Bank Transfer" },
-  ];
-
-  const displayPayouts: Payout[] = payouts || mockPayouts;
+  const displayPayouts: Payout[] = payouts || [];
+  const pendingBalance = stats?.pendingPayout || 0;
+  const totalPaidOut = displayPayouts
+    .filter(p => p.status === "completed")
+    .reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -650,11 +672,13 @@ function PayoutsSection() {
             <div className="space-y-4 py-4">
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">Available Balance</p>
-                <p className="text-2xl font-bold">{formatCurrency(31.20)}</p>
+                <p className="text-2xl font-bold">
+                  {statsLoading ? "..." : formatCurrency(pendingBalance)}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Payout Method</Label>
-                <Input value="PayPal - john@example.com" disabled />
+                <Input value="PayPal / Bank Transfer" disabled />
               </div>
             </div>
             <DialogFooter>
@@ -662,8 +686,8 @@ function PayoutsSection() {
                 Cancel
               </Button>
               <Button 
-                onClick={() => requestPayoutMutation.mutate(31.20)}
-                disabled={requestPayoutMutation.isPending}
+                onClick={() => requestPayoutMutation.mutate(pendingBalance)}
+                disabled={requestPayoutMutation.isPending || pendingBalance < 50}
                 data-testid="button-confirm-payout"
               >
                 {requestPayoutMutation.isPending ? "Submitting..." : "Submit Request"}
@@ -679,7 +703,9 @@ function PayoutsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Available Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500" data-testid="stat-available-balance">{formatCurrency(31.20)}</div>
+            <div className="text-2xl font-bold text-green-500" data-testid="stat-available-balance">
+              {statsLoading ? "..." : formatCurrency(pendingBalance)}
+            </div>
             <p className="text-xs text-muted-foreground">Ready to withdraw</p>
           </CardContent>
         </Card>
@@ -688,7 +714,9 @@ function PayoutsSection() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid Out</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-paid">{formatCurrency(175.50)}</div>
+            <div className="text-2xl font-bold" data-testid="stat-total-paid">
+              {isLoading ? "..." : formatCurrency(totalPaidOut)}
+            </div>
             <p className="text-xs text-muted-foreground">All time payouts</p>
           </CardContent>
         </Card>
