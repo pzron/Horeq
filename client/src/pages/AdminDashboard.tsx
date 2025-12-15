@@ -3013,10 +3013,29 @@ function PagesSection() {
             <Input placeholder="Search pages..." className="pl-10" data-testid="input-search-pages" />
           </div>
         </div>
-        <Button onClick={handleNewPage} data-testid="button-add-page">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Page
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              try {
+                const res = await apiRequest("/api/admin/pages/seed-system", { method: "POST" });
+                const data = await res.json();
+                toast({ title: "System Pages Seeded", description: data.message });
+                queryClient.invalidateQueries({ queryKey: ["/api/admin/pages"] });
+              } catch (error: any) {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+              }
+            }}
+            data-testid="button-seed-system-pages"
+          >
+            <Database className="h-4 w-4 mr-2" />
+            Seed System Pages
+          </Button>
+          <Button onClick={handleNewPage} data-testid="button-add-page">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Page
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -3096,6 +3115,9 @@ function PagesSection() {
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{page.title}</span>
+                        {page.isSystemPage && (
+                          <Badge variant="outline" className="text-xs">System</Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">/{page.slug}</TableCell>
@@ -3126,7 +3148,23 @@ function PagesSection() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-delete-page-${page.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          disabled={page.isSystemPage}
+                          title={page.isSystemPage ? "System pages cannot be deleted" : "Delete page"}
+                          onClick={async () => {
+                            if (page.isSystemPage) return;
+                            try {
+                              await apiRequest(`/api/admin/pages/${page.id}`, { method: "DELETE" });
+                              toast({ title: "Page Deleted", description: `"${page.title}" has been deleted.` });
+                              queryClient.invalidateQueries({ queryKey: ["/api/admin/pages"] });
+                            } catch (error: any) {
+                              toast({ title: "Error", description: error.message, variant: "destructive" });
+                            }
+                          }}
+                          data-testid={`button-delete-page-${page.id}`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

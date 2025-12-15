@@ -954,8 +954,71 @@ export async function registerRoutes(
 
   app.delete("/api/admin/pages/:id", isAdmin, async (req, res) => {
     try {
+      // Check if it's a system page - prevent deletion
+      const page = await storage.getPageById(req.params.id);
+      if (page?.isSystemPage) {
+        return res.status(403).json({ message: "System pages cannot be deleted. You can edit their content instead." });
+      }
       await storage.deletePage(req.params.id);
       res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Seed system pages endpoint
+  app.post("/api/admin/pages/seed-system", isAdmin, async (req, res) => {
+    try {
+      const systemPages = [
+        // Ecommerce pages
+        { title: "Homepage", slug: "home", pageType: "ecommerce", template: "homepage", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Shop", slug: "shop", pageType: "ecommerce", template: "shop", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Product Detail", slug: "product", pageType: "ecommerce", template: "product-detail", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Cart", slug: "cart", pageType: "ecommerce", template: "cart", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Checkout", slug: "checkout", pageType: "ecommerce", template: "checkout", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Order Confirmation", slug: "order-confirmation", pageType: "ecommerce", template: "order-confirmation", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Combo Deals", slug: "combo-deals", pageType: "ecommerce", template: "combo-deals", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Flash Deals", slug: "flash-deals", pageType: "ecommerce", template: "flash-deals", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        // User pages
+        { title: "User Profile", slug: "profile", pageType: "user", template: "profile", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["customer", "affiliate", "admin"] },
+        { title: "My Orders", slug: "my-orders", pageType: "user", template: "orders", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["customer", "affiliate", "admin"] },
+        { title: "My Addresses", slug: "my-addresses", pageType: "user", template: "addresses", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["customer", "affiliate", "admin"] },
+        { title: "Wishlist", slug: "wishlist", pageType: "user", template: "wishlist", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["customer", "affiliate", "admin"] },
+        { title: "Account Settings", slug: "account-settings", pageType: "user", template: "settings", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["customer", "affiliate", "admin"] },
+        // Affiliate pages
+        { title: "Affiliate Dashboard", slug: "affiliate-dashboard", pageType: "affiliate", template: "affiliate-dashboard", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["affiliate", "admin"] },
+        { title: "Affiliate Links", slug: "affiliate-links", pageType: "affiliate", template: "affiliate-links", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["affiliate", "admin"] },
+        { title: "Affiliate Commissions", slug: "affiliate-commissions", pageType: "affiliate", template: "affiliate-commissions", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["affiliate", "admin"] },
+        { title: "Affiliate Payouts", slug: "affiliate-payouts", pageType: "affiliate", template: "affiliate-payouts", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["affiliate", "admin"] },
+        { title: "Marketing Materials", slug: "affiliate-materials", pageType: "affiliate", template: "affiliate-materials", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: ["affiliate", "admin"] },
+        // Public pages
+        { title: "About Us", slug: "about", pageType: "public", template: "about", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Contact", slug: "contact", pageType: "public", template: "contact", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Privacy Policy", slug: "privacy-policy", pageType: "public", template: "legal", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "Terms of Service", slug: "terms-of-service", pageType: "public", template: "legal", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+        { title: "FAQ", slug: "faq", pageType: "public", template: "faq", isSystemPage: true, status: "published", createdBy: "system", allowedRoles: [] },
+      ];
+
+      const created: any[] = [];
+      const skipped: string[] = [];
+
+      for (const pageData of systemPages) {
+        // Check if page already exists
+        const existing = await storage.getPageBySlug(pageData.slug);
+        if (existing) {
+          skipped.push(pageData.slug);
+          continue;
+        }
+        const page = await storage.createPage(pageData);
+        created.push(page);
+      }
+
+      res.json({ 
+        message: `Seeded ${created.length} system pages. Skipped ${skipped.length} existing pages.`,
+        created: created.length,
+        skipped: skipped.length,
+        skippedSlugs: skipped
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
