@@ -102,6 +102,18 @@ export default function Checkout() {
 
     setLoading(true);
     try {
+      // Step 1: Clear server cart
+      await apiRequest("DELETE", "/api/cart/clear");
+
+      // Step 2: Sync local cart items to server
+      for (const item of items) {
+        await apiRequest("POST", "/api/cart", {
+          productId: parseInt(item.product.id),
+          quantity: item.quantity,
+        });
+      }
+
+      // Step 3: Place the order
       const shippingAddress = `${shippingData.firstName} ${shippingData.lastName}, ${shippingData.address}, ${shippingData.city} ${shippingData.zip}`;
       
       await apiRequest("POST", "/api/orders", {

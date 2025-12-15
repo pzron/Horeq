@@ -1,6 +1,5 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { CATEGORIES, getAllProducts, Product } from "@/lib/mockData";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +11,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Filter, Grid3x3, LayoutGrid, Star, Heart, ShoppingCart, X, SlidersHorizontal } from "lucide-react";
+import { Filter, Grid3x3, LayoutGrid, Star, Heart, ShoppingCart, X, SlidersHorizontal, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { Product as DBProduct, Category as DBCategory } from "@shared/schema";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  rating: number;
+  reviews: number;
+  image: string;
+  category: string;
+  categorySlug?: string;
+  isNew?: boolean;
+  isSale?: boolean;
+}
 
 function ProductCard({ product, viewMode }: { product: Product; viewMode: 'grid' | 'list' }) {
   if (viewMode === 'list') {
@@ -88,13 +103,14 @@ function ProductCard({ product, viewMode }: { product: Product; viewMode: 'grid'
   );
 }
 
-function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, setPriceRange, selectedRatings, setSelectedRatings }: {
+function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, setPriceRange, selectedRatings, setSelectedRatings, categories }: {
   selectedCategories: string[];
   setSelectedCategories: (categories: string[]) => void;
   priceRange: number[];
   setPriceRange: (range: number[]) => void;
   selectedRatings: number[];
   setSelectedRatings: (ratings: number[]) => void;
+  categories: DBCategory[];
 }) {
   const toggleCategory = (slug: string) => {
     setSelectedCategories(
@@ -122,10 +138,10 @@ function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, se
 
       <div>
         <h5 className="text-sm font-medium mb-3">Price Range</h5>
-        <Slider value={priceRange} onValueChange={setPriceRange} max={1500} step={10} className="mb-2" />
+        <Slider value={priceRange} onValueChange={setPriceRange} max={50000} step={100} className="mb-2" />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>৳{priceRange[0]}</span>
-          <span>৳{priceRange[1] || 1500}</span>
+          <span>৳{priceRange[1] || 50000}</span>
         </div>
       </div>
 
@@ -134,7 +150,7 @@ function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, se
       <div>
         <h5 className="text-sm font-medium mb-3">Categories</h5>
         <div className="space-y-2 max-h-48 overflow-y-auto">
-          {CATEGORIES.slice(0, 15).map(cat => (
+          {categories.map(cat => (
             <div key={cat.id} className="flex items-center space-x-2">
               <Checkbox 
                 id={`cat-${cat.slug}`} 
@@ -144,7 +160,6 @@ function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, se
               <Label htmlFor={`cat-${cat.slug}`} className="text-sm font-normal cursor-pointer flex-1">
                 {cat.name}
               </Label>
-              <span className="text-xs text-muted-foreground">{cat.count}</span>
             </div>
           ))}
         </div>
@@ -196,7 +211,7 @@ function FilterPanel({ selectedCategories, setSelectedCategories, priceRange, se
       <Button className="w-full" data-testid="button-apply-filters">Apply Filters</Button>
       <Button variant="outline" className="w-full" onClick={() => {
         setSelectedCategories([]);
-        setPriceRange([0, 1500]);
+        setPriceRange([0, 50000]);
         setSelectedRatings([]);
       }} data-testid="button-clear-filters">Clear All</Button>
     </div>
@@ -207,20 +222,37 @@ export default function Shop() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('featured');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState([0, 1500]);
+  const [priceRange, setPriceRange] = useState([0, 50000]);
   const [selectedRatings, setSelectedRatings] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const allProducts = getAllProducts(1000);
+  const { data: dbProducts = [], isLoading: productsLoading } = useQuery<DBProduct[]>({
+    queryKey: ['/api/products'],
+  });
+
+  const { data: dbCategories = [], isLoading: categoriesLoading } = useQuery<DBCategory[]>({
+    queryKey: ['/api/categories'],
+  });
+
+  const categoryMap = new Map(dbCategories.map(c => [c.id, c]));
+
+  const allProducts: Product[] = dbProducts.map(p => ({
+    id: p.id,
+    name: p.name,
+    price: parseFloat(p.price?.toString() || '0'),
+    originalPrice: p.originalPrice ? parseFloat(p.originalPrice.toString()) : undefined,
+    rating: parseFloat(p.rating?.toString() || '0'),
+    reviews: p.reviewCount || 0,
+    image: p.image,
+    category: categoryMap.get(p.categoryId)?.name || 'Uncategorized',
+    categorySlug: categoryMap.get(p.categoryId)?.slug,
+    isNew: p.createdAt ? new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : false,
+    isSale: p.originalPrice ? parseFloat(p.originalPrice.toString()) > parseFloat(p.price?.toString() || '0') : false,
+  }));
   
-  // Remove duplicate products by ID
-  const uniqueProducts = allProducts.filter((product, index, self) => 
-    index === self.findIndex(p => p.id === product.id)
-  );
-  
-  const filteredProducts = uniqueProducts.filter(product => {
+  const filteredProducts = allProducts.filter(product => {
     if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (selectedCategories.length > 0 && !selectedCategories.some(cat => product.category.toLowerCase().includes(cat.replace('-', ' ')))) return false;
+    if (selectedCategories.length > 0 && !selectedCategories.includes(product.categorySlug || '')) return false;
     if (product.price < priceRange[0] || product.price > priceRange[1]) return false;
     if (selectedRatings.length > 0 && !selectedRatings.some(r => product.rating >= r)) return false;
     return true;
@@ -236,7 +268,19 @@ export default function Shop() {
     }
   });
 
-  const activeFiltersCount = selectedCategories.length + selectedRatings.length + (priceRange[0] > 0 || priceRange[1] < 1500 ? 1 : 0);
+  const activeFiltersCount = selectedCategories.length + selectedRatings.length + (priceRange[0] > 0 || priceRange[1] < 50000 ? 1 : 0);
+
+  if (productsLoading || categoriesLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -261,6 +305,7 @@ export default function Shop() {
                 setPriceRange={setPriceRange}
                 selectedRatings={selectedRatings}
                 setSelectedRatings={setSelectedRatings}
+                categories={dbCategories}
               />
             </div>
           </aside>
@@ -289,6 +334,7 @@ export default function Shop() {
                       setPriceRange={setPriceRange}
                       selectedRatings={selectedRatings}
                       setSelectedRatings={setSelectedRatings}
+                      categories={dbCategories}
                     />
                   </SheetContent>
                 </Sheet>
@@ -352,8 +398,8 @@ export default function Shop() {
                     {r}+ Stars <X className="h-3 w-3" />
                   </Badge>
                 ))}
-                {(priceRange[0] > 0 || priceRange[1] < 1500) && (
-                  <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setPriceRange([0, 1500])}>
+                {(priceRange[0] > 0 || priceRange[1] < 50000) && (
+                  <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setPriceRange([0, 50000])}>
                     ৳{priceRange[0]} - ৳{priceRange[1]} <X className="h-3 w-3" />
                   </Badge>
                 )}
@@ -375,7 +421,7 @@ export default function Shop() {
                 <p className="text-muted-foreground mb-4">No products found matching your filters.</p>
                 <Button variant="outline" onClick={() => {
                   setSelectedCategories([]);
-                  setPriceRange([0, 1500]);
+                  setPriceRange([0, 50000]);
                   setSelectedRatings([]);
                   setSearchQuery('');
                 }}>Clear All Filters</Button>

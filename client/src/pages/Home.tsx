@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   CATEGORIES,
-  getAllProducts,
-  Product,
   NOTIFICATION_MESSAGES,
 } from "@/lib/mockData";
 import { formatCurrency } from "@/lib/utils";
@@ -24,6 +22,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
@@ -34,6 +33,21 @@ import {
   useTransform,
 } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import type { Product as DBProduct, Category as DBCategory } from "@shared/schema";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  rating: number;
+  reviews: number;
+  image: string;
+  category: string;
+  isNew?: boolean;
+  isSale?: boolean;
+}
 
 function HeroSection() {
   const images = [
@@ -230,7 +244,42 @@ function CategoriesMarquee() {
 }
 
 function DynamicProductGrid() {
-  const products = getAllProducts(24);
+  const { data: dbProducts = [], isLoading: productsLoading } = useQuery<DBProduct[]>({
+    queryKey: ['/api/products'],
+  });
+
+  const { data: dbCategories = [] } = useQuery<DBCategory[]>({
+    queryKey: ['/api/categories'],
+  });
+
+  const categoryMap = dbCategories.reduce((acc, cat) => {
+    acc[cat.id] = cat.name;
+    return acc;
+  }, {} as Record<number, string>);
+
+  const products: Product[] = dbProducts.slice(0, 24).map((p) => {
+    const now = new Date();
+    const createdAt = new Date(p.createdAt);
+    const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    const isNew = daysSinceCreated < 7;
+    const originalPrice = p.originalPrice ? parseFloat(p.originalPrice) : undefined;
+    const price = parseFloat(p.price);
+    const isSale = originalPrice !== undefined && originalPrice > price;
+
+    return {
+      id: String(p.id),
+      name: p.name,
+      price,
+      originalPrice,
+      rating: parseFloat(p.rating),
+      reviews: p.reviewCount,
+      image: p.image,
+      category: categoryMap[p.categoryId] || 'Uncategorized',
+      isNew,
+      isSale,
+    };
+  });
+
   const themes = [
     {
       border: "border-blue-500/30 hover:border-blue-500",
@@ -598,6 +647,70 @@ function FeaturesSection() {
   );
 }
 
+function MoreToLoveSection() {
+  const { data: dbProducts = [], isLoading } = useQuery<DBProduct[]>({
+    queryKey: ['/api/products'],
+  });
+
+  const { data: dbCategories = [] } = useQuery<DBCategory[]>({
+    queryKey: ['/api/categories'],
+  });
+
+  const categoryMap = dbCategories.reduce((acc, cat) => {
+    acc[cat.id] = cat.name;
+    return acc;
+  }, {} as Record<number, string>);
+
+  const products: Product[] = dbProducts.slice(0, 8).map((p) => {
+    const now = new Date();
+    const createdAt = new Date(p.createdAt);
+    const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    const isNew = daysSinceCreated < 7;
+    const originalPrice = p.originalPrice ? parseFloat(p.originalPrice) : undefined;
+    const price = parseFloat(p.price);
+    const isSale = originalPrice !== undefined && originalPrice > price;
+
+    return {
+      id: String(p.id),
+      name: p.name,
+      price,
+      originalPrice,
+      rating: parseFloat(p.rating),
+      reviews: p.reviewCount,
+      image: p.image,
+      category: categoryMap[p.categoryId] || 'Uncategorized',
+      isNew,
+      isSale,
+    };
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-background py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold font-heading mb-8">More to Love</h2>
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-background py-16">
+      <div className="container mx-auto px-4">
+        <h2 className="text-3xl font-bold font-heading mb-8">More to Love</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {products.map((product) => (
+            <ProductCard key={`more-${product.id}`} product={product} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { toast } = useToast();
 
@@ -653,18 +766,7 @@ export default function Home() {
         <CategoriesMarquee />
         <DynamicProductGrid />
         <PromoBanner />
-        <div className="bg-background py-16">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold font-heading mb-8">
-              More to Love
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {getAllProducts(8).map((product) => (
-                <ProductCard key={`more-${product.id}`} product={product} />
-              ))}
-            </div>
-          </div>
-        </div>
+        <MoreToLoveSection />
         <FeaturesSection />
       </main>
       <Footer />
