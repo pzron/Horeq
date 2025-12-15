@@ -110,6 +110,26 @@ import {
   Megaphone,
   FileImage,
   Code,
+  Layout,
+  Type,
+  ImagePlus,
+  Grid3X3,
+  MessageSquareQuote,
+  Star,
+  MousePointerClick,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  Palette,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Columns,
+  Square,
+  RectangleHorizontal,
+  Play,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import {
   AreaChart,
@@ -2407,12 +2427,417 @@ function RolesManagement() {
   );
 }
 
+interface PageBlock {
+  id: string;
+  type: "hero" | "products" | "gallery" | "cta" | "text" | "features" | "testimonials" | "banner";
+  settings: Record<string, any>;
+}
+
+const blockTypes = [
+  { type: "hero", name: "Hero Section", icon: Layout, description: "Large header with image background", color: "text-purple-500", bg: "bg-purple-500/10" },
+  { type: "products", name: "Products Grid", icon: Grid3X3, description: "Display products in a grid", color: "text-blue-500", bg: "bg-blue-500/10" },
+  { type: "gallery", name: "Image Gallery", icon: ImagePlus, description: "Showcase multiple images", color: "text-green-500", bg: "bg-green-500/10" },
+  { type: "cta", name: "Call to Action", icon: MousePointerClick, description: "Conversion-focused section", color: "text-orange-500", bg: "bg-orange-500/10" },
+  { type: "text", name: "Text Content", icon: Type, description: "Rich text content block", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+  { type: "features", name: "Features List", icon: Sparkles, description: "Highlight key features", color: "text-pink-500", bg: "bg-pink-500/10" },
+  { type: "testimonials", name: "Testimonials", icon: MessageSquareQuote, description: "Customer reviews section", color: "text-yellow-500", bg: "bg-yellow-500/10" },
+  { type: "banner", name: "Promo Banner", icon: Megaphone, description: "Promotional announcement", color: "text-red-500", bg: "bg-red-500/10" },
+];
+
 function PagesSection() {
   const { data } = useQuery({
     queryKey: ["/api/admin/pages"],
   });
   const pages = data as any[] | undefined;
   const isLoading = !pages;
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [editingPage, setEditingPage] = useState<any>(null);
+  const [pageBlocks, setPageBlocks] = useState<PageBlock[]>([]);
+  const [pageTitle, setPageTitle] = useState("");
+  const [pageSlug, setPageSlug] = useState("");
+  const [pageStatus, setPageStatus] = useState<"draft" | "published">("draft");
+  const [selectedBlockType, setSelectedBlockType] = useState<string | null>(null);
+  const [editingBlock, setEditingBlock] = useState<PageBlock | null>(null);
+  const { toast } = useToast();
+
+  const handleNewPage = () => {
+    setEditingPage(null);
+    setPageTitle("");
+    setPageSlug("");
+    setPageStatus("draft");
+    setPageBlocks([]);
+    setShowBuilder(true);
+  };
+
+  const handleEditPage = (page: any) => {
+    setEditingPage(page);
+    setPageTitle(page.title);
+    setPageSlug(page.slug);
+    setPageStatus(page.status);
+    setPageBlocks(page.blocks || []);
+    setShowBuilder(true);
+  };
+
+  const addBlock = (type: string) => {
+    const newBlock: PageBlock = {
+      id: `block-${Date.now()}`,
+      type: type as PageBlock["type"],
+      settings: getDefaultBlockSettings(type),
+    };
+    setPageBlocks([...pageBlocks, newBlock]);
+    setSelectedBlockType(null);
+    toast({
+      title: "Block Added",
+      description: `${blockTypes.find(b => b.type === type)?.name} added to page.`,
+    });
+  };
+
+  const getDefaultBlockSettings = (type: string): Record<string, any> => {
+    switch (type) {
+      case "hero":
+        return { title: "Welcome to Our Store", subtitle: "Discover amazing products", buttonText: "Shop Now", buttonLink: "/shop", imageUrl: "", alignment: "center", overlay: true };
+      case "products":
+        return { title: "Featured Products", columns: 4, limit: 8, category: "", showPrice: true, showRating: true };
+      case "gallery":
+        return { title: "Gallery", columns: 3, images: [], spacing: "medium" };
+      case "cta":
+        return { title: "Ready to Get Started?", description: "Join thousands of satisfied customers", buttonText: "Sign Up Now", buttonLink: "/register", style: "gradient" };
+      case "text":
+        return { content: "", alignment: "left", maxWidth: "prose" };
+      case "features":
+        return { title: "Why Choose Us", columns: 3, features: [
+          { icon: "Zap", title: "Fast Delivery", description: "Get your orders quickly" },
+          { icon: "Shield", title: "Secure Payment", description: "100% secure checkout" },
+          { icon: "Star", title: "Quality Products", description: "Premium quality guaranteed" },
+        ]};
+      case "testimonials":
+        return { title: "What Our Customers Say", testimonials: [
+          { name: "John D.", rating: 5, text: "Amazing products and service!", avatar: "" },
+          { name: "Sarah M.", rating: 5, text: "Best shopping experience ever!", avatar: "" },
+        ], style: "cards" };
+      case "banner":
+        return { text: "Special Offer!", backgroundColor: "#ef4444", textColor: "#ffffff", link: "", dismissible: false };
+      default:
+        return {};
+    }
+  };
+
+  const moveBlock = (index: number, direction: "up" | "down") => {
+    const newBlocks = [...pageBlocks];
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex >= 0 && newIndex < newBlocks.length) {
+      [newBlocks[index], newBlocks[newIndex]] = [newBlocks[newIndex], newBlocks[index]];
+      setPageBlocks(newBlocks);
+    }
+  };
+
+  const removeBlock = (index: number) => {
+    setPageBlocks(pageBlocks.filter((_, i) => i !== index));
+    toast({
+      title: "Block Removed",
+      description: "Block has been removed from the page.",
+    });
+  };
+
+  const updateBlockSettings = (blockId: string, newSettings: Record<string, any>) => {
+    setPageBlocks(pageBlocks.map(block => 
+      block.id === blockId ? { ...block, settings: { ...block.settings, ...newSettings } } : block
+    ));
+  };
+
+  const handleSavePage = () => {
+    toast({
+      title: "Page Saved",
+      description: `"${pageTitle}" has been saved as ${pageStatus}.`,
+    });
+    setShowBuilder(false);
+  };
+
+  const generateSlug = (title: string) => {
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  };
+
+  if (showBuilder) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setShowBuilder(false)} data-testid="button-back-to-pages">
+              <ChevronRight className="h-4 w-4 rotate-180" />
+            </Button>
+            <div>
+              <h2 className="text-lg font-semibold">{editingPage ? "Edit Page" : "Create New Page"}</h2>
+              <p className="text-sm text-muted-foreground">Visual page builder</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={pageStatus} onValueChange={(v) => setPageStatus(v as "draft" | "published")}>
+              <SelectTrigger className="w-32" data-testid="select-page-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={() => setShowBuilder(false)} data-testid="button-cancel-page">Cancel</Button>
+            <Button onClick={handleSavePage} data-testid="button-save-page">
+              Save Page
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Page Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Page Title</Label>
+                    <Input 
+                      value={pageTitle} 
+                      onChange={(e) => {
+                        setPageTitle(e.target.value);
+                        if (!editingPage) setPageSlug(generateSlug(e.target.value));
+                      }}
+                      placeholder="Enter page title"
+                      data-testid="input-page-title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>URL Slug</Label>
+                    <div className="flex items-center">
+                      <span className="text-sm text-muted-foreground mr-1">/</span>
+                      <Input 
+                        value={pageSlug}
+                        onChange={(e) => setPageSlug(generateSlug(e.target.value))}
+                        placeholder="page-url-slug"
+                        data-testid="input-page-slug"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    Page Blocks ({pageBlocks.length})
+                  </CardTitle>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="button-add-block">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Block
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Add Content Block</DialogTitle>
+                        <DialogDescription>Choose a block type to add to your page</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-4">
+                        {blockTypes.map((block) => (
+                          <button
+                            key={block.type}
+                            onClick={() => addBlock(block.type)}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg border hover-elevate text-center"
+                            data-testid={`button-add-block-${block.type}`}
+                          >
+                            <div className={`p-3 rounded-lg ${block.bg}`}>
+                              <block.icon className={`h-5 w-5 ${block.color}`} />
+                            </div>
+                            <span className="text-sm font-medium">{block.name}</span>
+                            <span className="text-xs text-muted-foreground">{block.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {pageBlocks.length === 0 ? (
+                  <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                    <Layers className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground mb-2">No blocks added yet</p>
+                    <p className="text-sm text-muted-foreground">Click "Add Block" to start building your page</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pageBlocks.map((block, index) => {
+                      const blockType = blockTypes.find(b => b.type === block.type);
+                      return (
+                        <div 
+                          key={block.id} 
+                          className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                          data-testid={`block-item-${block.id}`}
+                        >
+                          <div className="flex flex-col gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6"
+                              onClick={() => moveBlock(index, "up")}
+                              disabled={index === 0}
+                              data-testid={`button-move-up-${block.id}`}
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6"
+                              onClick={() => moveBlock(index, "down")}
+                              disabled={index === pageBlocks.length - 1}
+                              data-testid={`button-move-down-${block.id}`}
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className={`p-2 rounded-lg ${blockType?.bg}`}>
+                            {blockType && <blockType.icon className={`h-4 w-4 ${blockType.color}`} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{blockType?.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {block.settings.title || block.settings.text || "Configured"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => setEditingBlock(block)}
+                                  data-testid={`button-edit-block-${block.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-lg">
+                                <DialogHeader>
+                                  <DialogTitle>Edit {blockType?.name}</DialogTitle>
+                                  <DialogDescription>Configure block settings</DialogDescription>
+                                </DialogHeader>
+                                <BlockSettingsEditor 
+                                  block={block} 
+                                  onUpdate={(settings) => updateBlockSettings(block.id, settings)} 
+                                />
+                              </DialogContent>
+                            </Dialog>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => removeBlock(index)}
+                              data-testid={`button-remove-block-${block.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Live Preview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden bg-background">
+                  <div className="aspect-[9/16] max-h-[500px] overflow-y-auto">
+                    <PagePreview blocks={pageBlocks} title={pageTitle} />
+                  </div>
+                </div>
+                <Button variant="outline" className="w-full mt-3" data-testid="button-full-preview">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Full Preview
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Quick Templates
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start" 
+                  onClick={() => {
+                    setPageBlocks([
+                      { id: "t1", type: "hero", settings: getDefaultBlockSettings("hero") },
+                      { id: "t2", type: "features", settings: getDefaultBlockSettings("features") },
+                      { id: "t3", type: "products", settings: { ...getDefaultBlockSettings("products"), title: "Best Sellers" } },
+                      { id: "t4", type: "cta", settings: getDefaultBlockSettings("cta") },
+                    ]);
+                    toast({ title: "Template Applied", description: "Landing page template loaded." });
+                  }}
+                  data-testid="button-template-landing"
+                >
+                  <Layout className="h-4 w-4 mr-2" />
+                  Landing Page
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setPageBlocks([
+                      { id: "t1", type: "text", settings: { ...getDefaultBlockSettings("text"), content: "# About Us\n\nWelcome to our company..." } },
+                      { id: "t2", type: "features", settings: { ...getDefaultBlockSettings("features"), title: "Our Values" } },
+                      { id: "t3", type: "testimonials", settings: getDefaultBlockSettings("testimonials") },
+                    ]);
+                    toast({ title: "Template Applied", description: "About page template loaded." });
+                  }}
+                  data-testid="button-template-about"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  About Page
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setPageBlocks([
+                      { id: "t1", type: "hero", settings: { ...getDefaultBlockSettings("hero"), title: "Contact Us", subtitle: "Get in touch with our team" } },
+                      { id: "t2", type: "text", settings: { ...getDefaultBlockSettings("text"), content: "## How to Reach Us\n\nFeel free to contact us..." } },
+                    ]);
+                    toast({ title: "Template Applied", description: "Contact page template loaded." });
+                  }}
+                  data-testid="button-template-contact"
+                >
+                  <MessageSquareQuote className="h-4 w-4 mr-2" />
+                  Contact Page
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -2423,10 +2848,47 @@ function PagesSection() {
             <Input placeholder="Search pages..." className="pl-10" data-testid="input-search-pages" />
           </div>
         </div>
-        <Button data-testid="button-add-page">
+        <Button onClick={handleNewPage} data-testid="button-add-page">
           <Plus className="h-4 w-4 mr-2" />
           Add Page
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Pages</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{(pages || []).length}</div>
+            <p className="text-xs text-muted-foreground">All created pages</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Published</CardTitle>
+            <Globe className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {(pages || []).filter((p: any) => p.status === "published").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Live on your site</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Drafts</CardTitle>
+            <Edit className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {(pages || []).filter((p: any) => p.status === "draft").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Work in progress</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -2436,7 +2898,7 @@ function PagesSection() {
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead>Slug</TableHead>
-                <TableHead>Template</TableHead>
+                <TableHead>Blocks</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Modified</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -2452,15 +2914,29 @@ function PagesSection() {
               ) : (pages || []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No pages found. Create your first page.
+                    <div className="flex flex-col items-center gap-2">
+                      <FileText className="h-8 w-8 text-muted-foreground" />
+                      <p>No pages found. Create your first page.</p>
+                      <Button size="sm" onClick={handleNewPage} className="mt-2" data-testid="button-create-first-page">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Page
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 (pages || []).map((page: any) => (
                   <TableRow key={page.id} data-testid={`row-page-${page.id}`}>
-                    <TableCell className="font-medium">{page.title}</TableCell>
-                    <TableCell className="text-muted-foreground">/{page.slug}</TableCell>
-                    <TableCell>{page.template || "Default"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{page.title}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-sm">/{page.slug}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{page.blocks?.length || 0} blocks</Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={
                         page.status === "published" ? "default" :
@@ -2477,7 +2953,12 @@ function PagesSection() {
                         <Button variant="ghost" size="icon" data-testid={`button-view-page-${page.id}`}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-page-${page.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEditPage(page)}
+                          data-testid={`button-edit-page-${page.id}`}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" data-testid={`button-delete-page-${page.id}`}>
@@ -2492,6 +2973,562 @@ function PagesSection() {
           </Table>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function BlockSettingsEditor({ block, onUpdate }: { block: PageBlock; onUpdate: (settings: Record<string, any>) => void }) {
+  const [settings, setSettings] = useState(block.settings);
+
+  const handleChange = (key: string, value: any) => {
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+    onUpdate(newSettings);
+  };
+
+  switch (block.type) {
+    case "hero":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input 
+              value={settings.title} 
+              onChange={(e) => handleChange("title", e.target.value)} 
+              data-testid="input-hero-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Subtitle</Label>
+            <Input 
+              value={settings.subtitle} 
+              onChange={(e) => handleChange("subtitle", e.target.value)}
+              data-testid="input-hero-subtitle"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Button Text</Label>
+              <Input 
+                value={settings.buttonText} 
+                onChange={(e) => handleChange("buttonText", e.target.value)}
+                data-testid="input-hero-button-text"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Button Link</Label>
+              <Input 
+                value={settings.buttonLink} 
+                onChange={(e) => handleChange("buttonLink", e.target.value)}
+                data-testid="input-hero-button-link"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Image URL</Label>
+            <Input 
+              value={settings.imageUrl} 
+              onChange={(e) => handleChange("imageUrl", e.target.value)}
+              placeholder="https://..."
+              data-testid="input-hero-image"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Alignment</Label>
+            <Select value={settings.alignment} onValueChange={(v) => handleChange("alignment", v)}>
+              <SelectTrigger data-testid="select-hero-alignment">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="left">Left</SelectItem>
+                <SelectItem value="center">Center</SelectItem>
+                <SelectItem value="right">Right</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Dark Overlay</Label>
+            <Switch 
+              checked={settings.overlay} 
+              onCheckedChange={(v) => handleChange("overlay", v)}
+              data-testid="switch-hero-overlay"
+            />
+          </div>
+        </div>
+      );
+    case "products":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Section Title</Label>
+            <Input 
+              value={settings.title} 
+              onChange={(e) => handleChange("title", e.target.value)}
+              data-testid="input-products-title"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Columns</Label>
+              <Select value={String(settings.columns)} onValueChange={(v) => handleChange("columns", Number(v))}>
+                <SelectTrigger data-testid="select-products-columns">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2">2 Columns</SelectItem>
+                  <SelectItem value="3">3 Columns</SelectItem>
+                  <SelectItem value="4">4 Columns</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Limit</Label>
+              <Select value={String(settings.limit)} onValueChange={(v) => handleChange("limit", Number(v))}>
+                <SelectTrigger data-testid="select-products-limit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">4 Products</SelectItem>
+                  <SelectItem value="8">8 Products</SelectItem>
+                  <SelectItem value="12">12 Products</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Show Prices</Label>
+            <Switch 
+              checked={settings.showPrice} 
+              onCheckedChange={(v) => handleChange("showPrice", v)}
+              data-testid="switch-products-price"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Show Ratings</Label>
+            <Switch 
+              checked={settings.showRating} 
+              onCheckedChange={(v) => handleChange("showRating", v)}
+              data-testid="switch-products-rating"
+            />
+          </div>
+        </div>
+      );
+    case "cta":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input 
+              value={settings.title} 
+              onChange={(e) => handleChange("title", e.target.value)}
+              data-testid="input-cta-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea 
+              value={settings.description} 
+              onChange={(e) => handleChange("description", e.target.value)}
+              data-testid="input-cta-description"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Button Text</Label>
+              <Input 
+                value={settings.buttonText} 
+                onChange={(e) => handleChange("buttonText", e.target.value)}
+                data-testid="input-cta-button-text"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Button Link</Label>
+              <Input 
+                value={settings.buttonLink} 
+                onChange={(e) => handleChange("buttonLink", e.target.value)}
+                data-testid="input-cta-button-link"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Style</Label>
+            <Select value={settings.style} onValueChange={(v) => handleChange("style", v)}>
+              <SelectTrigger data-testid="select-cta-style">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gradient">Gradient</SelectItem>
+                <SelectItem value="solid">Solid Color</SelectItem>
+                <SelectItem value="minimal">Minimal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      );
+    case "text":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Content (Markdown supported)</Label>
+            <Textarea 
+              value={settings.content} 
+              onChange={(e) => handleChange("content", e.target.value)}
+              className="min-h-[200px]"
+              data-testid="input-text-content"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Alignment</Label>
+            <Select value={settings.alignment} onValueChange={(v) => handleChange("alignment", v)}>
+              <SelectTrigger data-testid="select-text-alignment">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="left">Left</SelectItem>
+                <SelectItem value="center">Center</SelectItem>
+                <SelectItem value="right">Right</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      );
+    case "gallery":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Section Title</Label>
+            <Input 
+              value={settings.title} 
+              onChange={(e) => handleChange("title", e.target.value)}
+              data-testid="input-gallery-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Columns</Label>
+            <Select value={String(settings.columns)} onValueChange={(v) => handleChange("columns", Number(v))}>
+              <SelectTrigger data-testid="select-gallery-columns">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2">2 Columns</SelectItem>
+                <SelectItem value="3">3 Columns</SelectItem>
+                <SelectItem value="4">4 Columns</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Spacing</Label>
+            <Select value={settings.spacing} onValueChange={(v) => handleChange("spacing", v)}>
+              <SelectTrigger data-testid="select-gallery-spacing">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="small">Small</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="large">Large</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Image URLs (one per line)</Label>
+            <Textarea 
+              value={(settings.images || []).join("\n")} 
+              onChange={(e) => handleChange("images", e.target.value.split("\n").filter(Boolean))}
+              placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+              className="min-h-[100px]"
+              data-testid="input-gallery-images"
+            />
+          </div>
+        </div>
+      );
+    case "features":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Section Title</Label>
+            <Input 
+              value={settings.title} 
+              onChange={(e) => handleChange("title", e.target.value)}
+              data-testid="input-features-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Columns</Label>
+            <Select value={String(settings.columns)} onValueChange={(v) => handleChange("columns", Number(v))}>
+              <SelectTrigger data-testid="select-features-columns">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2">2 Columns</SelectItem>
+                <SelectItem value="3">3 Columns</SelectItem>
+                <SelectItem value="4">4 Columns</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-3">
+            <Label>Features (up to 6)</Label>
+            {(settings.features || []).slice(0, 6).map((feature: any, idx: number) => (
+              <div key={idx} className="p-3 border rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Feature {idx + 1}</span>
+                </div>
+                <Input 
+                  value={feature.title} 
+                  onChange={(e) => {
+                    const newFeatures = [...(settings.features || [])];
+                    newFeatures[idx] = { ...newFeatures[idx], title: e.target.value };
+                    handleChange("features", newFeatures);
+                  }}
+                  placeholder="Feature title"
+                  data-testid={`input-feature-title-${idx}`}
+                />
+                <Input 
+                  value={feature.description} 
+                  onChange={(e) => {
+                    const newFeatures = [...(settings.features || [])];
+                    newFeatures[idx] = { ...newFeatures[idx], description: e.target.value };
+                    handleChange("features", newFeatures);
+                  }}
+                  placeholder="Feature description"
+                  data-testid={`input-feature-desc-${idx}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    case "testimonials":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Section Title</Label>
+            <Input 
+              value={settings.title} 
+              onChange={(e) => handleChange("title", e.target.value)}
+              data-testid="input-testimonials-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Style</Label>
+            <Select value={settings.style} onValueChange={(v) => handleChange("style", v)}>
+              <SelectTrigger data-testid="select-testimonials-style">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cards">Cards</SelectItem>
+                <SelectItem value="carousel">Carousel</SelectItem>
+                <SelectItem value="minimal">Minimal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-3">
+            <Label>Testimonials</Label>
+            {(settings.testimonials || []).map((testimonial: any, idx: number) => (
+              <div key={idx} className="p-3 border rounded-lg space-y-2">
+                <Input 
+                  value={testimonial.name} 
+                  onChange={(e) => {
+                    const newTestimonials = [...(settings.testimonials || [])];
+                    newTestimonials[idx] = { ...newTestimonials[idx], name: e.target.value };
+                    handleChange("testimonials", newTestimonials);
+                  }}
+                  placeholder="Customer name"
+                  data-testid={`input-testimonial-name-${idx}`}
+                />
+                <Textarea 
+                  value={testimonial.text} 
+                  onChange={(e) => {
+                    const newTestimonials = [...(settings.testimonials || [])];
+                    newTestimonials[idx] = { ...newTestimonials[idx], text: e.target.value };
+                    handleChange("testimonials", newTestimonials);
+                  }}
+                  placeholder="Testimonial text"
+                  data-testid={`input-testimonial-text-${idx}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    case "banner":
+      return (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Banner Text</Label>
+            <Input 
+              value={settings.text} 
+              onChange={(e) => handleChange("text", e.target.value)}
+              data-testid="input-banner-text"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Background Color</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="color"
+                  value={settings.backgroundColor} 
+                  onChange={(e) => handleChange("backgroundColor", e.target.value)}
+                  className="w-12 h-9 p-1"
+                  data-testid="input-banner-bg-color"
+                />
+                <Input 
+                  value={settings.backgroundColor} 
+                  onChange={(e) => handleChange("backgroundColor", e.target.value)}
+                  placeholder="#ef4444"
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Text Color</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="color"
+                  value={settings.textColor} 
+                  onChange={(e) => handleChange("textColor", e.target.value)}
+                  className="w-12 h-9 p-1"
+                  data-testid="input-banner-text-color"
+                />
+                <Input 
+                  value={settings.textColor} 
+                  onChange={(e) => handleChange("textColor", e.target.value)}
+                  placeholder="#ffffff"
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Link (optional)</Label>
+            <Input 
+              value={settings.link} 
+              onChange={(e) => handleChange("link", e.target.value)}
+              placeholder="https://..."
+              data-testid="input-banner-link"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Dismissible</Label>
+            <Switch 
+              checked={settings.dismissible} 
+              onCheckedChange={(v) => handleChange("dismissible", v)}
+              data-testid="switch-banner-dismissible"
+            />
+          </div>
+        </div>
+      );
+    default:
+      return (
+        <div className="py-4 text-center text-muted-foreground">
+          <p>Settings for {block.type} block</p>
+          <p className="text-sm">Additional configuration options available</p>
+        </div>
+      );
+  }
+}
+
+function PagePreview({ blocks, title }: { blocks: PageBlock[]; title: string }) {
+  if (blocks.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground p-4 text-center">
+        <div>
+          <Layout className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Add blocks to see preview</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-xs">
+      {blocks.map((block) => (
+        <div key={block.id} className="border-b last:border-b-0">
+          {block.type === "hero" && (
+            <div className="bg-gradient-to-br from-purple-600 to-blue-600 text-white p-4 text-center">
+              <h3 className="font-bold text-sm">{block.settings.title}</h3>
+              <p className="text-xs opacity-80">{block.settings.subtitle}</p>
+              <div className="mt-2 bg-white text-purple-600 px-2 py-1 rounded text-xs inline-block">
+                {block.settings.buttonText}
+              </div>
+            </div>
+          )}
+          {block.type === "products" && (
+            <div className="p-3">
+              <p className="font-semibold text-center mb-2">{block.settings.title}</p>
+              <div className="grid grid-cols-2 gap-1">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-muted rounded p-2 text-center">
+                    <div className="bg-muted-foreground/20 h-8 rounded mb-1" />
+                    <div className="h-2 bg-muted-foreground/20 rounded w-3/4 mx-auto" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {block.type === "cta" && (
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 text-center">
+              <p className="font-bold">{block.settings.title}</p>
+              <p className="text-xs opacity-80">{block.settings.description}</p>
+              <div className="mt-2 bg-white text-orange-600 px-2 py-1 rounded text-xs inline-block">
+                {block.settings.buttonText}
+              </div>
+            </div>
+          )}
+          {block.type === "features" && (
+            <div className="p-3">
+              <p className="font-semibold text-center mb-2">{block.settings.title}</p>
+              <div className="grid grid-cols-3 gap-1">
+                {(block.settings.features || []).slice(0, 3).map((f: any, i: number) => (
+                  <div key={i} className="text-center p-1">
+                    <Zap className="h-3 w-3 mx-auto mb-1 text-primary" />
+                    <p className="text-xs font-medium truncate">{f.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {block.type === "testimonials" && (
+            <div className="p-3 bg-muted/50">
+              <p className="font-semibold text-center mb-2">{block.settings.title}</p>
+              <div className="flex gap-1">
+                {(block.settings.testimonials || []).slice(0, 2).map((t: any, i: number) => (
+                  <div key={i} className="flex-1 bg-card p-2 rounded">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Star className="h-2 w-2 text-yellow-500 fill-yellow-500" />
+                      <span className="text-xs">{t.name}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{t.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {block.type === "text" && (
+            <div className="p-3">
+              <p className="text-xs whitespace-pre-wrap">{block.settings.content?.slice(0, 100)}...</p>
+            </div>
+          )}
+          {block.type === "gallery" && (
+            <div className="p-3">
+              <p className="font-semibold text-center mb-2">{block.settings.title}</p>
+              <div className="grid grid-cols-3 gap-1">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-muted aspect-square rounded" />
+                ))}
+              </div>
+            </div>
+          )}
+          {block.type === "banner" && (
+            <div 
+              className="p-2 text-center text-xs"
+              style={{ backgroundColor: block.settings.backgroundColor, color: block.settings.textColor }}
+            >
+              {block.settings.text}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
