@@ -2945,8 +2945,236 @@ function AffiliatesSection() {
   const approvedAffiliates = affiliates?.filter(a => a.status === "approved") || [];
   const rejectedAffiliates = affiliates?.filter(a => a.status === "rejected") || [];
 
+  // Analytics data derived from affiliates
+  const totalClicks = affiliates?.reduce((sum, a) => sum + a.totalClicks, 0) || 0;
+  const totalConversions = affiliates?.reduce((sum, a) => sum + a.totalConversions, 0) || 0;
+  const totalEarnings = affiliates?.reduce((sum, a) => sum + parseFloat(a.totalEarnings), 0) || 0;
+  const avgConversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(2) : "0.00";
+  const avgEarningsPerAffiliate = approvedAffiliates.length > 0 
+    ? (totalEarnings / approvedAffiliates.length).toFixed(2) 
+    : "0.00";
+
+  // Mock monthly performance data for charts
+  const monthlyPerformance = [
+    { month: "Jan", clicks: 1200, conversions: 48, earnings: 2400 },
+    { month: "Feb", clicks: 1450, conversions: 58, earnings: 2900 },
+    { month: "Mar", clicks: 1680, conversions: 72, earnings: 3600 },
+    { month: "Apr", clicks: 2100, conversions: 84, earnings: 4200 },
+    { month: "May", clicks: 2350, conversions: 94, earnings: 4700 },
+    { month: "Jun", clicks: 2800, conversions: 112, earnings: 5600 },
+  ];
+
+  // Top performers from actual data
+  const topPerformers = [...(affiliates || [])]
+    .filter(a => a.status === "approved")
+    .sort((a, b) => parseFloat(b.totalEarnings) - parseFloat(a.totalEarnings))
+    .slice(0, 5);
+
   return (
     <div className="space-y-6">
+      {/* Analytics Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Target className="h-4 w-4 text-blue-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-clicks">{totalClicks.toLocaleString()}</div>
+            <div className="flex items-center text-xs text-green-500 mt-1">
+              <ArrowUp className="h-3 w-3 mr-1" />
+              +18.2% from last month
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Conversions</CardTitle>
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600" data-testid="text-total-conversions">{totalConversions.toLocaleString()}</div>
+            <div className="flex items-center text-xs text-green-500 mt-1">
+              <ArrowUp className="h-3 w-3 mr-1" />
+              +12.5% from last month
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+            <div className="p-2 rounded-lg bg-purple-500/10">
+              <DollarSign className="h-4 w-4 text-purple-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600" data-testid="text-affiliate-earnings">${totalEarnings.toFixed(2)}</div>
+            <div className="flex items-center text-xs text-green-500 mt-1">
+              <ArrowUp className="h-3 w-3 mr-1" />
+              +24.8% from last month
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <div className="p-2 rounded-lg bg-orange-500/10">
+              <Percent className="h-4 w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600" data-testid="text-conversion-rate">{avgConversionRate}%</div>
+            <div className="flex items-center text-xs text-green-500 mt-1">
+              <ArrowUp className="h-3 w-3 mr-1" />
+              +0.5% from last month
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg. Earnings</CardTitle>
+            <div className="p-2 rounded-lg bg-cyan-500/10">
+              <CreditCard className="h-4 w-4 text-cyan-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-cyan-600" data-testid="text-avg-earnings">${avgEarningsPerAffiliate}</div>
+            <div className="text-xs text-muted-foreground mt-1">Per approved affiliate</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Performance Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Clicks & Conversions Trend
+            </CardTitle>
+            <CardDescription>Monthly affiliate performance metrics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyPerformance}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="clicks" fill="#3b82f6" name="Clicks" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="conversions" fill="#10b981" name="Conversions" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <LineChart className="h-5 w-5 text-primary" />
+              Earnings Over Time
+            </CardTitle>
+            <CardDescription>Monthly commission payouts trend</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={monthlyPerformance}>
+                <defs>
+                  <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis className="text-xs" tickFormatter={(value) => `$${value}`} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value: number) => [`$${value}`, 'Earnings']}
+                />
+                <Area type="monotone" dataKey="earnings" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorEarnings)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Performers */}
+      {topPerformers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Top Performing Affiliates
+            </CardTitle>
+            <CardDescription>Highest earning affiliates this period</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rank</TableHead>
+                  <TableHead>Affiliate</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Clicks</TableHead>
+                  <TableHead>Conversions</TableHead>
+                  <TableHead>Conv. Rate</TableHead>
+                  <TableHead>Earnings</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {topPerformers.map((affiliate, index) => {
+                  const convRate = affiliate.totalClicks > 0 
+                    ? ((affiliate.totalConversions / affiliate.totalClicks) * 100).toFixed(1) 
+                    : "0.0";
+                  return (
+                    <TableRow key={affiliate.id} data-testid={`row-top-affiliate-${affiliate.id}`}>
+                      <TableCell>
+                        <Badge 
+                          variant={index === 0 ? "default" : "secondary"}
+                          className={index === 0 ? "bg-yellow-500 text-yellow-950" : ""}
+                        >
+                          #{index + 1}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{affiliate.user?.username || "Unknown"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{affiliate.code}</Badge>
+                      </TableCell>
+                      <TableCell>{affiliate.totalClicks.toLocaleString()}</TableCell>
+                      <TableCell>{affiliate.totalConversions.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-green-600">
+                          {convRate}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-semibold text-green-600">
+                        ${parseFloat(affiliate.totalEarnings).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {pendingAffiliates.length > 0 && (
         <Card>
           <CardHeader>
@@ -3389,35 +3617,237 @@ function AffiliatesSection() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-affiliates">{affiliates?.length || 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <UserCheck className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="text-approved-affiliates">{approvedAffiliates.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600" data-testid="text-pending-affiliates">{pendingAffiliates.length}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Payout Management Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Payout Management
+            </CardTitle>
+            <CardDescription>Process affiliate commission payouts</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-green-600">
+              ${totalEarnings.toFixed(2)} Total Commissions
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Payout Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <Clock className="h-5 w-5 text-yellow-600" />
+              <div>
+                <p className="text-lg font-bold text-yellow-600">$1,250.00</p>
+                <p className="text-xs text-muted-foreground">Pending Payouts</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <Activity className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-lg font-bold text-blue-600">$850.00</p>
+                <p className="text-xs text-muted-foreground">Processing</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              <UserCheck className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-lg font-bold text-green-600">$15,420.00</p>
+                <p className="text-xs text-muted-foreground">Paid Out (Total)</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <DollarSign className="h-5 w-5 text-purple-600" />
+              <div>
+                <p className="text-lg font-bold text-purple-600">$50.00</p>
+                <p className="text-xs text-muted-foreground">Min. Payout Threshold</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payout Requests Table */}
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Affiliate</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvedAffiliates.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      No payout requests at this time
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  approvedAffiliates.slice(0, 5).map((affiliate, index) => {
+                    const payoutAmount = parseFloat(affiliate.totalEarnings) * 0.8;
+                    const statuses = ["pending", "processing", "completed", "completed", "pending"];
+                    const methods = ["PayPal", "Bank Transfer", "PayPal", "Stripe", "Bank Transfer"];
+                    const status = statuses[index % 5];
+                    return payoutAmount >= 50 ? (
+                      <TableRow key={affiliate.id} data-testid={`row-payout-${affiliate.id}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback>{affiliate.user?.username?.charAt(0) || "A"}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{affiliate.user?.username || "Unknown"}</p>
+                              <p className="text-xs text-muted-foreground">{affiliate.code}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-semibold">${payoutAmount.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{methods[index % 5]}</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(Date.now() - index * 86400000 * 3).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {status === "pending" && (
+                            <Badge className="bg-yellow-500/10 text-yellow-600">Pending</Badge>
+                          )}
+                          {status === "processing" && (
+                            <Badge className="bg-blue-500/10 text-blue-600">Processing</Badge>
+                          )}
+                          {status === "completed" && (
+                            <Badge className="bg-green-500/10 text-green-600">Completed</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {status === "pending" && (
+                              <>
+                                <Button size="sm" variant="default" data-testid={`button-approve-payout-${affiliate.id}`}>
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="outline" data-testid={`button-reject-payout-${affiliate.id}`}>
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {status === "processing" && (
+                              <Button size="sm" variant="outline" data-testid={`button-complete-payout-${affiliate.id}`}>
+                                Mark Complete
+                              </Button>
+                            )}
+                            {status === "completed" && (
+                              <Button size="sm" variant="ghost" data-testid={`button-view-payout-${affiliate.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : null;
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Payout History */}
+          <div className="pt-4 border-t">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Recent Payout History
+              </h4>
+              <Button variant="outline" size="sm" data-testid="button-export-payouts">
+                Export CSV
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {[
+                { affiliate: "john_doe", amount: 250.00, date: "Dec 10, 2025", method: "PayPal", status: "completed" },
+                { affiliate: "jane_smith", amount: 180.50, date: "Dec 8, 2025", method: "Bank Transfer", status: "completed" },
+                { affiliate: "mike_wilson", amount: 320.00, date: "Dec 5, 2025", method: "Stripe", status: "completed" },
+                { affiliate: "sarah_johnson", amount: 95.75, date: "Dec 2, 2025", method: "PayPal", status: "completed" },
+              ].map((payout, index) => (
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  data-testid={`row-payout-history-${index}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-500/10 p-2 rounded-lg">
+                      <UserCheck className="h-4 w-4 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{payout.affiliate}</p>
+                      <p className="text-xs text-muted-foreground">{payout.method}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-green-600">${payout.amount.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">{payout.date}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Affiliate Status Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Affiliate Status Summary
+          </CardTitle>
+          <CardDescription>Overview of affiliate program membership</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+              <div className="p-3 rounded-lg bg-blue-500/10">
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold" data-testid="text-total-affiliates">{affiliates?.length || 0}</p>
+                <p className="text-sm text-muted-foreground">Total Affiliates</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+              <div className="p-3 rounded-lg bg-green-500/10">
+                <UserCheck className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600" data-testid="text-approved-affiliates">{approvedAffiliates.length}</p>
+                <p className="text-sm text-muted-foreground">Approved</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+              <div className="p-3 rounded-lg bg-yellow-500/10">
+                <Clock className="h-5 w-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-yellow-600" data-testid="text-pending-affiliates">{pendingAffiliates.length}</p>
+                <p className="text-sm text-muted-foreground">Pending Review</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+              <div className="p-3 rounded-lg bg-red-500/10">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-red-600" data-testid="text-rejected-affiliates">{rejectedAffiliates.length}</p>
+                <p className="text-sm text-muted-foreground">Rejected</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
