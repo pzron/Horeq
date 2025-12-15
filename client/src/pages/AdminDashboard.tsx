@@ -2553,15 +2553,39 @@ function PagesSection() {
   const [pageTitle, setPageTitle] = useState("");
   const [pageSlug, setPageSlug] = useState("");
   const [pageStatus, setPageStatus] = useState<"draft" | "published">("draft");
+  const [pageType, setPageType] = useState<string>("public");
+  const [allowedRoles, setAllowedRoles] = useState<string[]>([]);
   const [selectedBlockType, setSelectedBlockType] = useState<string | null>(null);
   const [editingBlock, setEditingBlock] = useState<PageBlock | null>(null);
   const { toast } = useToast();
+
+  const pageTypes = [
+    { value: "public", label: "Public", description: "Visible to everyone" },
+    { value: "ecommerce", label: "E-commerce", description: "Shop and product pages" },
+    { value: "user", label: "User Dashboard", description: "Customer account pages" },
+    { value: "affiliate", label: "Affiliate", description: "Affiliate partner pages" },
+    { value: "admin", label: "Admin", description: "Admin panel pages" },
+  ];
+
+  const availableRoles = [
+    { value: "customer", label: "Customer" },
+    { value: "affiliate", label: "Affiliate" },
+    { value: "admin", label: "Admin" },
+  ];
+
+  const toggleRole = (role: string) => {
+    setAllowedRoles(prev => 
+      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+    );
+  };
 
   const handleNewPage = () => {
     setEditingPage(null);
     setPageTitle("");
     setPageSlug("");
     setPageStatus("draft");
+    setPageType("public");
+    setAllowedRoles([]);
     setPageBlocks([]);
     setShowBuilder(true);
   };
@@ -2571,6 +2595,8 @@ function PagesSection() {
     setPageTitle(page.title);
     setPageSlug(page.slug);
     setPageStatus(page.status);
+    setPageType(page.pageType || "public");
+    setAllowedRoles(page.allowedRoles || []);
     setPageBlocks(page.blocks || []);
     setShowBuilder(true);
   };
@@ -2718,6 +2744,48 @@ function PagesSection() {
                         data-testid="input-page-slug"
                       />
                     </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Page Type</Label>
+                    <Select value={pageType} onValueChange={setPageType}>
+                      <SelectTrigger data-testid="select-page-type">
+                        <SelectValue placeholder="Select page type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pageTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            <div className="flex flex-col">
+                              <span>{type.label}</span>
+                              <span className="text-xs text-muted-foreground">{type.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Allowed Roles</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {availableRoles.map((role) => (
+                        <Badge
+                          key={role.value}
+                          variant={allowedRoles.includes(role.value) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => toggleRole(role.value)}
+                          data-testid={`badge-role-${role.value}`}
+                        >
+                          {role.label}
+                          {allowedRoles.includes(role.value) && (
+                            <Check className="h-3 w-3 ml-1" />
+                          )}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {allowedRoles.length === 0 ? "All roles can access (public)" : `Restricted to: ${allowedRoles.join(", ")}`}
+                    </p>
                   </div>
                 </div>
               </CardContent>

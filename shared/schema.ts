@@ -342,6 +342,9 @@ export const pages = pgTable("pages", {
   metaDescription: text("meta_description"),
   status: text("status").notNull().default("draft"), // draft, published, archived
   template: text("template").default("default"),
+  pageType: text("page_type").notNull().default("public"), // public, ecommerce, user, affiliate, admin
+  allowedRoles: text("allowed_roles").array().default([]), // roles that can access this page
+  isSystemPage: boolean("is_system_page").notNull().default(false), // system pages like dashboard templates
   sortOrder: integer("sort_order").default(0),
   parentId: varchar("parent_id"),
   createdBy: varchar("created_by").notNull(),
