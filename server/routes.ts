@@ -613,7 +613,7 @@ export async function registerRoutes(
   });
 
   // Get affiliate clicks (for affiliate dashboard)
-  app.get("/api/affiliates/:id/clicks", isAffiliate, async (req, res) => {
+  app.get("/api/affiliates/:id/clicks", isApprovedAffiliate, async (req, res) => {
     try {
       const affiliate = await storage.getAffiliateById(req.params.id);
       if (!affiliate) {
@@ -635,7 +635,7 @@ export async function registerRoutes(
   });
 
   // Get affiliate stats (for affiliate dashboard)
-  app.get("/api/affiliates/:id/stats", isAffiliate, async (req, res) => {
+  app.get("/api/affiliates/:id/stats", isApprovedAffiliate, async (req, res) => {
     try {
       const affiliate = await storage.getAffiliateById(req.params.id);
       if (!affiliate) {
