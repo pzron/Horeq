@@ -91,13 +91,25 @@ import {
   Calendar,
   Download,
   Share2,
+  Tag,
+  Plus,
+  Percent,
+  Trash2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-type AffiliateSection = "dashboard" | "links" | "earnings" | "payouts" | "resources";
+type AffiliateSection = "dashboard" | "links" | "coupons" | "earnings" | "payouts" | "resources";
 
 const menuItems = [
   { id: "dashboard" as AffiliateSection, title: "Dashboard", icon: LayoutDashboard },
   { id: "links" as AffiliateSection, title: "Referral Links", icon: Link2 },
+  { id: "coupons" as AffiliateSection, title: "Coupons", icon: Tag },
   { id: "earnings" as AffiliateSection, title: "Earnings", icon: DollarSign },
   { id: "payouts" as AffiliateSection, title: "Payouts", icon: Wallet },
   { id: "resources" as AffiliateSection, title: "Resources", icon: Share2 },
@@ -207,6 +219,7 @@ export default function AffiliateDashboard() {
           <main className="flex-1 overflow-auto p-6 bg-muted/30">
             {activeSection === "dashboard" && <AffiliateDashboardOverview user={user} />}
             {activeSection === "links" && <ReferralLinksSection user={user} />}
+            {activeSection === "coupons" && <CouponsSection />}
             {activeSection === "earnings" && <EarningsSection />}
             {activeSection === "payouts" && <PayoutsSection />}
             {activeSection === "resources" && <ResourcesSection />}
@@ -766,6 +779,268 @@ function PayoutsSection() {
                       </Badge>
                     </TableCell>
                     <TableCell>{payout.paidAt || "-"}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface Coupon {
+  id: number;
+  code: string;
+  discountType: string;
+  discountValue: number;
+  minPurchase: number | null;
+  maxUses: number | null;
+  currentUses: number;
+  expiresAt: string | null;
+  isActive: boolean;
+}
+
+function CouponsSection() {
+  const { toast } = useToast();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newCouponCode, setNewCouponCode] = useState("");
+  const [discountType, setDiscountType] = useState("percentage");
+  const [discountValue, setDiscountValue] = useState("");
+  const [minPurchase, setMinPurchase] = useState("");
+  const [maxUses, setMaxUses] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/affiliate/coupons"],
+  });
+  const coupons = data as Coupon[] | undefined;
+
+  const createCouponMutation = useMutation({
+    mutationFn: async (couponData: any) => {
+      return apiRequest("POST", "/api/affiliate/coupons", couponData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/affiliate/coupons"] });
+      toast({
+        title: "Coupon Created",
+        description: "Your new coupon code has been created successfully.",
+      });
+      setCreateDialogOpen(false);
+      setNewCouponCode("");
+      setDiscountType("percentage");
+      setDiscountValue("");
+      setMinPurchase("");
+      setMaxUses("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Creation Failed",
+        description: error.message || "Failed to create coupon. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateCoupon = () => {
+    if (!newCouponCode || !discountValue) {
+      toast({
+        title: "Missing Fields",
+        description: "Please fill in the coupon code and discount value.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const parsedDiscountValue = parseFloat(discountValue);
+    if (isNaN(parsedDiscountValue) || parsedDiscountValue <= 0) {
+      toast({
+        title: "Invalid Discount",
+        description: "Please enter a valid discount value greater than 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const parsedMinPurchase = minPurchase ? parseFloat(minPurchase) : null;
+    const parsedMaxUses = maxUses ? parseInt(maxUses, 10) : null;
+
+    if (parsedMinPurchase !== null && isNaN(parsedMinPurchase)) {
+      toast({
+        title: "Invalid Minimum Purchase",
+        description: "Please enter a valid minimum purchase amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (parsedMaxUses !== null && isNaN(parsedMaxUses)) {
+      toast({
+        title: "Invalid Max Uses",
+        description: "Please enter a valid maximum uses number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createCouponMutation.mutate({
+      code: newCouponCode.toUpperCase(),
+      discountType,
+      discountValue: parsedDiscountValue,
+      minPurchase: parsedMinPurchase,
+      maxUses: parsedMaxUses,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold">Coupon Management</h2>
+          <p className="text-sm text-muted-foreground">Create and manage your promotional coupons</p>
+        </div>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-create-coupon">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Coupon
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Coupon</DialogTitle>
+              <DialogDescription>
+                Create a promotional coupon for your referrals.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Coupon Code</Label>
+                <Input 
+                  placeholder="e.g., SAVE10"
+                  value={newCouponCode}
+                  onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
+                  data-testid="input-coupon-code"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Discount Type</Label>
+                  <Select value={discountType} onValueChange={setDiscountType}>
+                    <SelectTrigger data-testid="select-discount-type">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percentage">Percentage (%)</SelectItem>
+                      <SelectItem value="fixed">Fixed Amount</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Discount Value</Label>
+                  <Input 
+                    type="number"
+                    placeholder={discountType === "percentage" ? "10" : "100"}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    data-testid="input-discount-value"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Min. Purchase (optional)</Label>
+                  <Input 
+                    type="number"
+                    placeholder="0"
+                    value={minPurchase}
+                    onChange={(e) => setMinPurchase(e.target.value)}
+                    data-testid="input-min-purchase"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Uses (optional)</Label>
+                  <Input 
+                    type="number"
+                    placeholder="Unlimited"
+                    value={maxUses}
+                    onChange={(e) => setMaxUses(e.target.value)}
+                    data-testid="input-max-uses"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateCoupon}
+                disabled={createCouponMutation.isPending}
+                data-testid="button-confirm-create-coupon"
+              >
+                {createCouponMutation.isPending ? "Creating..." : "Create Coupon"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Coupons</CardTitle>
+          <CardDescription>Manage your promotional coupon codes</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Code</TableHead>
+                <TableHead>Discount</TableHead>
+                <TableHead>Min. Purchase</TableHead>
+                <TableHead>Uses</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    Loading coupons...
+                  </TableCell>
+                </TableRow>
+              ) : !coupons || coupons.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No coupons yet. Create your first coupon to start promoting!
+                  </TableCell>
+                </TableRow>
+              ) : (
+                coupons.map((coupon) => (
+                  <TableRow key={coupon.id} data-testid={`row-coupon-${coupon.id}`}>
+                    <TableCell>
+                      <code className="font-mono font-bold">{coupon.code}</code>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {coupon.discountType === "percentage" ? (
+                          <><Percent className="h-3 w-3" /> {coupon.discountValue}%</>
+                        ) : (
+                          formatCurrency(coupon.discountValue)
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {coupon.minPurchase ? formatCurrency(coupon.minPurchase) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {coupon.currentUses} / {coupon.maxUses || "∞"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={coupon.isActive ? "default" : "secondary"}>
+                        {coupon.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
