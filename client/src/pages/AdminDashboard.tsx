@@ -88,6 +88,7 @@ import {
   Layers,
   Globe,
   AlertCircle,
+  FolderOpen,
 } from "lucide-react";
 import {
   AreaChart,
@@ -107,11 +108,12 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "settings" | "activity";
+type AdminSection = "dashboard" | "products" | "categories" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "settings" | "activity";
 
 const menuItems = [
   { id: "dashboard" as AdminSection, title: "Dashboard", icon: LayoutDashboard },
   { id: "products" as AdminSection, title: "Products", icon: Package },
+  { id: "categories" as AdminSection, title: "Categories", icon: FolderOpen },
   { id: "orders" as AdminSection, title: "Orders", icon: ShoppingCart },
   { id: "users" as AdminSection, title: "Users", icon: Users },
   { id: "affiliates" as AdminSection, title: "Affiliates", icon: UserCheck },
@@ -227,6 +229,7 @@ export default function AdminDashboard() {
           <main className="flex-1 overflow-auto p-6 bg-muted/30">
             {activeSection === "dashboard" && <DashboardOverview />}
             {activeSection === "products" && <ProductsSection />}
+            {activeSection === "categories" && <CategoriesSection />}
             {activeSection === "orders" && <OrdersSection />}
             {activeSection === "users" && <UsersSection />}
             {activeSection === "affiliates" && <AffiliatesSection />}
@@ -655,6 +658,323 @@ function ProductsSection() {
           </Table>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function CategoriesSection() {
+  const { toast } = useToast();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ name: "", slug: "", color: "#8b5cf6", icon: "folder" });
+
+  const { data } = useQuery({
+    queryKey: ["/api/categories"],
+  });
+  const categories = data as any[] | undefined;
+  const isLoading = !categories;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { name: string; slug: string; color: string; icon: string }) => {
+      await apiRequest("POST", "/api/categories", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setIsAddOpen(false);
+      setFormData({ name: "", slug: "", color: "#8b5cf6", icon: "folder" });
+      toast({ title: "Category Created", description: "The category has been created successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create category", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; slug?: string; color?: string; icon?: string } }) => {
+      await apiRequest("PATCH", `/api/admin/categories/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setEditingCategory(null);
+      toast({ title: "Category Updated", description: "The category has been updated successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update category", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/categories/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setDeleteConfirm(null);
+      toast({ title: "Category Deleted", description: "The category has been deleted." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete category", variant: "destructive" });
+    },
+  });
+
+  const handleAdd = () => {
+    if (!formData.name || !formData.slug) {
+      toast({ title: "Validation Error", description: "Name and slug are required", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(formData);
+  };
+
+  const handleEdit = () => {
+    if (!editingCategory) return;
+    updateMutation.mutate({ id: editingCategory.id, data: formData });
+  };
+
+  const openEditDialog = (category: any) => {
+    setFormData({ name: category.name, slug: category.slug, color: category.color, icon: category.icon });
+    setEditingCategory(category);
+  };
+
+  const iconOptions = ["folder", "shirt", "laptop", "home", "gamepad", "book", "car", "gift", "heart", "star"];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search categories..." className="pl-10" data-testid="input-search-categories" />
+          </div>
+        </div>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-category">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Category
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Category</DialogTitle>
+              <DialogDescription>Create a new product category.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
+                  placeholder="e.g. Electronics"
+                  data-testid="input-category-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug</Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  placeholder="e.g. electronics"
+                  data-testid="input-category-slug"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="color">Color</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="color"
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    className="w-16 h-9 p-1 cursor-pointer"
+                    data-testid="input-category-color"
+                  />
+                  <Input
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    placeholder="#8b5cf6"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Icon</Label>
+                <Select value={formData.icon} onValueChange={(value) => setFormData({ ...formData, icon: value })}>
+                  <SelectTrigger data-testid="select-category-icon">
+                    <SelectValue placeholder="Select an icon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {iconOptions.map((icon) => (
+                      <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleAdd} disabled={createMutation.isPending} data-testid="button-save-category">
+                {createMutation.isPending ? "Creating..." : "Create Category"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Color</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Icon</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    Loading categories...
+                  </TableCell>
+                </TableRow>
+              ) : (categories || []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No categories found. Create your first category.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (categories || []).map((category: any) => (
+                  <TableRow key={category.id} data-testid={`row-category-${category.id}`}>
+                    <TableCell>
+                      <div
+                        className="w-6 h-6 rounded-full border"
+                        style={{ backgroundColor: category.color }}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell className="text-muted-foreground">/{category.slug}</TableCell>
+                    <TableCell>{category.icon}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(category)}
+                          data-testid={`button-edit-category-${category.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirm(category.id)}
+                          data-testid={`button-delete-category-${category.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Category</DialogTitle>
+            <DialogDescription>Update category details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                data-testid="input-edit-category-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-slug">Slug</Label>
+              <Input
+                id="edit-slug"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                data-testid="input-edit-category-slug"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-color">Color</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="edit-color"
+                  type="color"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  className="w-16 h-9 p-1 cursor-pointer"
+                  data-testid="input-edit-category-color"
+                />
+                <Input
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Icon</Label>
+              <Select value={formData.icon} onValueChange={(value) => setFormData({ ...formData, icon: value })}>
+                <SelectTrigger data-testid="select-edit-category-icon">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {iconOptions.map((icon) => (
+                    <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCategory(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending} data-testid="button-update-category">
+              {updateMutation.isPending ? "Updating..." : "Update Category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Category</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this category? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirm && deleteMutation.mutate(deleteConfirm)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-category"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
