@@ -103,6 +103,13 @@ import {
   FolderOpen,
   Gift,
   Image,
+  Link2,
+  Copy,
+  Download,
+  ExternalLink,
+  Megaphone,
+  FileImage,
+  Code,
 } from "lucide-react";
 import {
   AreaChart,
@@ -3793,6 +3800,234 @@ function AffiliatesSection() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Marketing Tools Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Megaphone className="h-5 w-5 text-primary" />
+            Marketing Tools
+          </CardTitle>
+          <CardDescription>Banners, links, and promotional materials for affiliates</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Quick Links Generator */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              Affiliate Link Generator
+            </h4>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm font-medium mb-2">Homepage Link</p>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value="https://horeq.com/?ref=AFFILIATE_CODE" 
+                    readOnly 
+                    className="text-xs bg-background"
+                    data-testid="input-homepage-link"
+                  />
+                  <Button size="icon" variant="outline" data-testid="button-copy-homepage-link">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm font-medium mb-2">Products Page Link</p>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value="https://horeq.com/products?ref=AFFILIATE_CODE" 
+                    readOnly 
+                    className="text-xs bg-background"
+                    data-testid="input-products-link"
+                  />
+                  <Button size="icon" variant="outline" data-testid="button-copy-products-link">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm font-medium mb-2">Special Offers Link</p>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value="https://horeq.com/deals?ref=AFFILIATE_CODE" 
+                    readOnly 
+                    className="text-xs bg-background"
+                    data-testid="input-deals-link"
+                  />
+                  <Button size="icon" variant="outline" data-testid="button-copy-deals-link">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Banner Gallery */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium flex items-center gap-2">
+                <FileImage className="h-4 w-4 text-primary" />
+                Promotional Banners
+              </h4>
+              <Button variant="outline" size="sm" data-testid="button-upload-banner">
+                <Plus className="h-4 w-4 mr-2" />
+                Upload Banner
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                { id: 1, name: "Summer Sale Banner", size: "728x90", downloads: 156 },
+                { id: 2, name: "Holiday Promo", size: "300x250", downloads: 89 },
+                { id: 3, name: "New Arrivals", size: "160x600", downloads: 234 },
+                { id: 4, name: "Flash Sale", size: "970x250", downloads: 67 },
+                { id: 5, name: "Best Sellers", size: "320x50", downloads: 312 },
+                { id: 6, name: "Free Shipping", size: "468x60", downloads: 145 },
+              ].map((banner) => (
+                <div 
+                  key={banner.id} 
+                  className="p-4 rounded-lg border bg-muted/30"
+                  data-testid={`card-banner-${banner.id}`}
+                >
+                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 rounded-md mb-3 flex items-center justify-center">
+                    <FileImage className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{banner.name}</p>
+                      <Badge variant="secondary" className="text-xs">{banner.size}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">{banner.downloads} downloads</span>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          data-testid={`button-download-banner-${banner.id}`}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          data-testid={`button-copy-banner-code-${banner.id}`}
+                        >
+                          <Code className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Embed Codes */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <Code className="h-4 w-4 text-primary" />
+              Embed Codes
+            </h4>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium">Text Link HTML</p>
+                  <Button size="sm" variant="outline" data-testid="button-copy-text-embed">
+                    <Copy className="h-3 w-3 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+                <div className="bg-background rounded-md p-3 font-mono text-xs overflow-x-auto">
+                  <code className="text-muted-foreground">
+                    {'<a href="https://horeq.com/?ref=CODE">Shop Now at HOREQ</a>'}
+                  </code>
+                </div>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium">Banner HTML</p>
+                  <Button size="sm" variant="outline" data-testid="button-copy-banner-embed">
+                    <Copy className="h-3 w-3 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+                <div className="bg-background rounded-md p-3 font-mono text-xs overflow-x-auto">
+                  <code className="text-muted-foreground">
+                    {'<a href="https://horeq.com/?ref=CODE"><img src="banner.jpg" /></a>'}
+                  </code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Promo Materials */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium flex items-center gap-2">
+                <Gift className="h-4 w-4 text-primary" />
+                Promotional Materials
+              </h4>
+              <Button variant="outline" size="sm" data-testid="button-download-all-materials">
+                <Download className="h-4 w-4 mr-2" />
+                Download All
+              </Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+              {[
+                { name: "Brand Guidelines", type: "PDF", size: "2.4 MB", icon: FileText },
+                { name: "Logo Pack", type: "ZIP", size: "8.1 MB", icon: FileImage },
+                { name: "Product Images", type: "ZIP", size: "45.2 MB", icon: Image },
+                { name: "Social Media Kit", type: "ZIP", size: "12.8 MB", icon: Globe },
+              ].map((material, index) => (
+                <div 
+                  key={index}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover-elevate cursor-pointer"
+                  data-testid={`card-material-${index}`}
+                >
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <material.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{material.name}</p>
+                    <p className="text-xs text-muted-foreground">{material.type} - {material.size}</p>
+                  </div>
+                  <Button size="icon" variant="ghost" data-testid={`button-download-material-${index}`}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="pt-4 border-t">
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="text-center p-3 rounded-lg bg-blue-500/10">
+                <p className="text-2xl font-bold text-blue-600">12</p>
+                <p className="text-xs text-muted-foreground">Active Banners</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-500/10">
+                <p className="text-2xl font-bold text-green-600">1,847</p>
+                <p className="text-xs text-muted-foreground">Total Downloads</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-purple-500/10">
+                <p className="text-2xl font-bold text-purple-600">24</p>
+                <p className="text-xs text-muted-foreground">Link Templates</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-orange-500/10">
+                <p className="text-2xl font-bold text-orange-600">8</p>
+                <p className="text-xs text-muted-foreground">Promo Materials</p>
+              </div>
             </div>
           </div>
         </CardContent>
