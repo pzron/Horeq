@@ -9,16 +9,153 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("customer"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  phone: text("phone"),
+  avatar: text("avatar"),
+  status: text("status").notNull().default("active"),
+  department: text("department"),
+  lastLoginAt: timestamp("last_login_at"),
+  createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const roles = pgTable("roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  color: text("color").default("#6B7280"),
+  level: integer("level").notNull().default(0),
+  isSystem: boolean("is_system").notNull().default(false),
+  canManageUsers: boolean("can_manage_users").notNull().default(false),
+  canManageProducts: boolean("can_manage_products").notNull().default(false),
+  canManageOrders: boolean("can_manage_orders").notNull().default(false),
+  canManageAffiliates: boolean("can_manage_affiliates").notNull().default(false),
+  canManageCms: boolean("can_manage_cms").notNull().default(false),
+  canManageSettings: boolean("can_manage_settings").notNull().default(false),
+  canViewReports: boolean("can_view_reports").notNull().default(false),
+  canProcessPayments: boolean("can_process_payments").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type Role = typeof roles.$inferSelect;
+
+export const affiliateTiers = pgTable("affiliate_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  minEarnings: decimal("min_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+  bonusPercentage: decimal("bonus_percentage", { precision: 5, scale: 2 }).default("0"),
+  benefits: text("benefits"),
+  color: text("color").default("#6B7280"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAffiliateTierSchema = createInsertSchema(affiliateTiers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAffiliateTier = z.infer<typeof insertAffiliateTierSchema>;
+export type AffiliateTier = typeof affiliateTiers.$inferSelect;
+
+export const affiliateLinks = pgTable("affiliate_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").notNull(),
+  name: text("name").notNull(),
+  targetUrl: text("target_url").notNull(),
+  shortCode: text("short_code").notNull().unique(),
+  clicks: integer("clicks").notNull().default(0),
+  conversions: integer("conversions").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAffiliateLinkSchema = createInsertSchema(affiliateLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAffiliateLink = z.infer<typeof insertAffiliateLinkSchema>;
+export type AffiliateLink = typeof affiliateLinks.$inferSelect;
+
+export const commissionLedger = pgTable("commission_ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").notNull(),
+  orderId: varchar("order_id"),
+  type: text("type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCommissionLedgerSchema = createInsertSchema(commissionLedger).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCommissionLedger = z.infer<typeof insertCommissionLedgerSchema>;
+export type CommissionLedger = typeof commissionLedger.$inferSelect;
+
+export const featureFlags = pgTable("feature_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  category: text("category").notNull().default("general"),
+  roles: text("roles").array(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+
+export const pageRevisions = pgTable("page_revisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pageId: varchar("page_id").notNull(),
+  content: text("content"),
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  version: integer("version").notNull(),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPageRevisionSchema = createInsertSchema(pageRevisions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPageRevision = z.infer<typeof insertPageRevisionSchema>;
+export type PageRevision = typeof pageRevisions.$inferSelect;
 
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

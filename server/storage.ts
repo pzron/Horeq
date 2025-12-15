@@ -39,6 +39,18 @@ import {
   type InsertCombo,
   type Banner,
   type InsertBanner,
+  type Role,
+  type InsertRole,
+  type AffiliateTier,
+  type InsertAffiliateTier,
+  type AffiliateLink,
+  type InsertAffiliateLink,
+  type CommissionLedger,
+  type InsertCommissionLedger,
+  type FeatureFlag,
+  type InsertFeatureFlag,
+  type PageRevision,
+  type InsertPageRevision,
   users,
   products,
   categories,
@@ -59,6 +71,12 @@ import {
   notifications,
   combos,
   banners,
+  roles,
+  affiliateTiers,
+  affiliateLinks,
+  commissionLedger,
+  featureFlags,
+  pageRevisions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, like } from "drizzle-orm";
@@ -206,6 +224,45 @@ export interface IStorage {
   createBanner(banner: InsertBanner): Promise<Banner>;
   updateBanner(id: string, data: Partial<InsertBanner>): Promise<Banner | undefined>;
   deleteBanner(id: string): Promise<void>;
+
+  // Roles
+  getAllRoles(): Promise<Role[]>;
+  getRoleByName(name: string): Promise<Role | undefined>;
+  createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: string, data: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: string): Promise<void>;
+
+  // Affiliate Tiers
+  getAllAffiliateTiers(): Promise<AffiliateTier[]>;
+  createAffiliateTier(tier: InsertAffiliateTier): Promise<AffiliateTier>;
+  updateAffiliateTier(id: string, data: Partial<InsertAffiliateTier>): Promise<AffiliateTier | undefined>;
+  deleteAffiliateTier(id: string): Promise<void>;
+
+  // Affiliate Links
+  getAffiliateLinksByAffiliateId(affiliateId: string): Promise<AffiliateLink[]>;
+  createAffiliateLink(link: InsertAffiliateLink): Promise<AffiliateLink>;
+  updateAffiliateLink(id: string, data: Partial<InsertAffiliateLink>): Promise<AffiliateLink | undefined>;
+  deleteAffiliateLink(id: string): Promise<void>;
+  incrementAffiliateLinkClicks(id: string): Promise<void>;
+
+  // Commission Ledger
+  getCommissionLedger(affiliateId: string): Promise<CommissionLedger[]>;
+  createCommissionEntry(entry: InsertCommissionLedger): Promise<CommissionLedger>;
+
+  // Feature Flags
+  getAllFeatureFlags(): Promise<FeatureFlag[]>;
+  getFeatureFlagByName(name: string): Promise<FeatureFlag | undefined>;
+  createFeatureFlag(flag: InsertFeatureFlag): Promise<FeatureFlag>;
+  updateFeatureFlag(id: string, data: Partial<InsertFeatureFlag>): Promise<FeatureFlag | undefined>;
+  deleteFeatureFlag(id: string): Promise<void>;
+
+  // Page Revisions
+  getPageRevisions(pageId: string): Promise<PageRevision[]>;
+  createPageRevision(revision: InsertPageRevision): Promise<PageRevision>;
+
+  // Search Users
+  searchUsers(query: string): Promise<User[]>;
+  getUsersCount(): Promise<number>;
 }
 
 export class DbStorage implements IStorage {
@@ -705,6 +762,130 @@ export class DbStorage implements IStorage {
 
   async deleteBanner(id: string): Promise<void> {
     await db.delete(banners).where(eq(banners.id, id));
+  }
+
+  // Roles
+  async getAllRoles(): Promise<Role[]> {
+    return await db.select().from(roles).orderBy(roles.level);
+  }
+
+  async getRoleByName(name: string): Promise<Role | undefined> {
+    const result = await db.select().from(roles).where(eq(roles.name, name));
+    return result[0];
+  }
+
+  async createRole(role: InsertRole): Promise<Role> {
+    const result = await db.insert(roles).values(role).returning();
+    return result[0];
+  }
+
+  async updateRole(id: string, data: Partial<InsertRole>): Promise<Role | undefined> {
+    const result = await db.update(roles).set(data).where(eq(roles.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteRole(id: string): Promise<void> {
+    await db.delete(roles).where(eq(roles.id, id));
+  }
+
+  // Affiliate Tiers
+  async getAllAffiliateTiers(): Promise<AffiliateTier[]> {
+    return await db.select().from(affiliateTiers).orderBy(affiliateTiers.sortOrder);
+  }
+
+  async createAffiliateTier(tier: InsertAffiliateTier): Promise<AffiliateTier> {
+    const result = await db.insert(affiliateTiers).values(tier).returning();
+    return result[0];
+  }
+
+  async updateAffiliateTier(id: string, data: Partial<InsertAffiliateTier>): Promise<AffiliateTier | undefined> {
+    const result = await db.update(affiliateTiers).set(data).where(eq(affiliateTiers.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteAffiliateTier(id: string): Promise<void> {
+    await db.delete(affiliateTiers).where(eq(affiliateTiers.id, id));
+  }
+
+  // Affiliate Links
+  async getAffiliateLinksByAffiliateId(affiliateId: string): Promise<AffiliateLink[]> {
+    return await db.select().from(affiliateLinks).where(eq(affiliateLinks.affiliateId, affiliateId));
+  }
+
+  async createAffiliateLink(link: InsertAffiliateLink): Promise<AffiliateLink> {
+    const result = await db.insert(affiliateLinks).values(link).returning();
+    return result[0];
+  }
+
+  async updateAffiliateLink(id: string, data: Partial<InsertAffiliateLink>): Promise<AffiliateLink | undefined> {
+    const result = await db.update(affiliateLinks).set(data).where(eq(affiliateLinks.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteAffiliateLink(id: string): Promise<void> {
+    await db.delete(affiliateLinks).where(eq(affiliateLinks.id, id));
+  }
+
+  async incrementAffiliateLinkClicks(id: string): Promise<void> {
+    await db.update(affiliateLinks).set({ 
+      clicks: sql`${affiliateLinks.clicks} + 1` 
+    }).where(eq(affiliateLinks.id, id));
+  }
+
+  // Commission Ledger
+  async getCommissionLedger(affiliateId: string): Promise<CommissionLedger[]> {
+    return await db.select().from(commissionLedger).where(eq(commissionLedger.affiliateId, affiliateId)).orderBy(desc(commissionLedger.createdAt));
+  }
+
+  async createCommissionEntry(entry: InsertCommissionLedger): Promise<CommissionLedger> {
+    const result = await db.insert(commissionLedger).values(entry).returning();
+    return result[0];
+  }
+
+  // Feature Flags
+  async getAllFeatureFlags(): Promise<FeatureFlag[]> {
+    return await db.select().from(featureFlags);
+  }
+
+  async getFeatureFlagByName(name: string): Promise<FeatureFlag | undefined> {
+    const result = await db.select().from(featureFlags).where(eq(featureFlags.name, name));
+    return result[0];
+  }
+
+  async createFeatureFlag(flag: InsertFeatureFlag): Promise<FeatureFlag> {
+    const result = await db.insert(featureFlags).values(flag).returning();
+    return result[0];
+  }
+
+  async updateFeatureFlag(id: string, data: Partial<InsertFeatureFlag>): Promise<FeatureFlag | undefined> {
+    const result = await db.update(featureFlags).set(data).where(eq(featureFlags.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteFeatureFlag(id: string): Promise<void> {
+    await db.delete(featureFlags).where(eq(featureFlags.id, id));
+  }
+
+  // Page Revisions
+  async getPageRevisions(pageId: string): Promise<PageRevision[]> {
+    return await db.select().from(pageRevisions).where(eq(pageRevisions.pageId, pageId)).orderBy(desc(pageRevisions.version));
+  }
+
+  async createPageRevision(revision: InsertPageRevision): Promise<PageRevision> {
+    const result = await db.insert(pageRevisions).values(revision).returning();
+    return result[0];
+  }
+
+  // Search Users
+  async searchUsers(query: string): Promise<User[]> {
+    return await db.select().from(users).where(
+      sql`${users.username} ILIKE ${`%${query}%`} OR ${users.email} ILIKE ${`%${query}%`} OR ${users.firstName} ILIKE ${`%${query}%`} OR ${users.lastName} ILIKE ${`%${query}%`}`
+    );
+  }
+
+  async getUsersCount(): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(users);
+    return result?.count || 0;
   }
 }
 
