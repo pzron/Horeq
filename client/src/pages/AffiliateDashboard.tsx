@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface AffiliateStats {
   totalClicks: number;
@@ -15,10 +16,12 @@ interface AffiliateStats {
   monthlyProgress: number;
   avgOrderValue: number;
   totalReferrals: number;
+  commission: string;
+  code: string;
 }
 
 interface Earning {
-  id: number;
+  id: string;
   date: string;
   orderId: string;
   orderAmount: number;
@@ -27,13 +30,32 @@ interface Earning {
 }
 
 interface Payout {
-  id: number;
-  requestedAt: string;
+  id: string;
+  createdAt: string;
+  amount: string;
+  status: string;
+  processedAt: string | null;
+  paymentMethod: string;
+}
+
+interface Referral {
+  id: string;
+  customer: string;
   amount: number;
   status: string;
-  paidAt: string | null;
-  method: string;
+  date: string;
+  commission: number;
 }
+
+interface AffiliateClick {
+  id: string;
+  affiliateId: string;
+  ipAddress: string | null;
+  converted: boolean;
+  orderId: string | null;
+  createdAt: string;
+}
+
 import {
   Sidebar,
   SidebarContent,
@@ -56,6 +78,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -74,6 +97,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   LayoutDashboard,
   Link2,
   DollarSign,
@@ -88,13 +117,32 @@ import {
   AlertCircle,
   Wallet,
   ArrowUpRight,
+  ArrowDownRight,
   Calendar,
   Download,
   Share2,
   Tag,
   Plus,
   Percent,
-  Trash2,
+  Settings,
+  BarChart3,
+  Target,
+  Award,
+  Star,
+  Crown,
+  Gift,
+  CreditCard,
+  Building2,
+  Smartphone,
+  Mail,
+  Bell,
+  Shield,
+  Eye,
+  EyeOff,
+  RefreshCcw,
+  FileText,
+  TrendingDown,
+  Activity,
 } from "lucide-react";
 import {
   Select,
@@ -103,23 +151,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
-type AffiliateSection = "dashboard" | "links" | "coupons" | "earnings" | "payouts" | "resources";
+type AffiliateSection = "dashboard" | "analytics" | "links" | "coupons" | "earnings" | "payouts" | "settings" | "resources";
 
 const menuItems = [
   { id: "dashboard" as AffiliateSection, title: "Dashboard", icon: LayoutDashboard },
+  { id: "analytics" as AffiliateSection, title: "Analytics", icon: BarChart3 },
   { id: "links" as AffiliateSection, title: "Referral Links", icon: Link2 },
   { id: "coupons" as AffiliateSection, title: "Coupons", icon: Tag },
   { id: "earnings" as AffiliateSection, title: "Earnings", icon: DollarSign },
   { id: "payouts" as AffiliateSection, title: "Payouts", icon: Wallet },
+  { id: "settings" as AffiliateSection, title: "Settings", icon: Settings },
   { id: "resources" as AffiliateSection, title: "Resources", icon: Share2 },
 ];
+
+function getTierInfo(totalEarnings: number) {
+  if (totalEarnings >= 10000) {
+    return { tier: "Diamond", color: "text-cyan-500", bg: "bg-cyan-500/10", icon: Crown, nextTier: null, progress: 100 };
+  } else if (totalEarnings >= 5000) {
+    return { tier: "Platinum", color: "text-purple-500", bg: "bg-purple-500/10", icon: Award, nextTier: "Diamond", progress: ((totalEarnings - 5000) / 5000) * 100, remaining: 10000 - totalEarnings };
+  } else if (totalEarnings >= 2000) {
+    return { tier: "Gold", color: "text-yellow-500", bg: "bg-yellow-500/10", icon: Star, nextTier: "Platinum", progress: ((totalEarnings - 2000) / 3000) * 100, remaining: 5000 - totalEarnings };
+  } else if (totalEarnings >= 500) {
+    return { tier: "Silver", color: "text-gray-400", bg: "bg-gray-400/10", icon: Award, nextTier: "Gold", progress: ((totalEarnings - 500) / 1500) * 100, remaining: 2000 - totalEarnings };
+  }
+  return { tier: "Bronze", color: "text-orange-600", bg: "bg-orange-600/10", icon: Award, nextTier: "Silver", progress: (totalEarnings / 500) * 100, remaining: 500 - totalEarnings };
+}
 
 export default function AffiliateDashboard() {
   const [activeSection, setActiveSection] = useState<AffiliateSection>("dashboard");
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const { data: statsData } = useQuery({
+    queryKey: ["/api/affiliate/stats"],
+  });
+  const stats = statsData as AffiliateStats | undefined;
 
   const handleLogout = () => {
     logout();
@@ -130,6 +199,9 @@ export default function AffiliateDashboard() {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
+
+  const tierInfo = getTierInfo(stats?.totalEarnings || 0);
+  const TierIcon = tierInfo.icon;
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -166,16 +238,44 @@ export default function AffiliateDashboard() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            <SidebarGroup className="mt-4">
+              <SidebarGroupLabel>Your Tier</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <div className="px-3 py-2">
+                  <div className={`flex items-center gap-2 p-3 rounded-lg ${tierInfo.bg}`}>
+                    <TierIcon className={`h-5 w-5 ${tierInfo.color}`} />
+                    <div>
+                      <p className={`font-semibold ${tierInfo.color}`}>{tierInfo.tier}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {parseFloat(stats?.commission || "10")}% commission
+                      </p>
+                    </div>
+                  </div>
+                  {tierInfo.nextTier && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                        <span>Progress to {tierInfo.nextTier}</span>
+                        <span>{tierInfo.progress.toFixed(0)}%</span>
+                      </div>
+                      <Progress value={tierInfo.progress} className="h-1.5" />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatCurrency(tierInfo.remaining || 0)} to go
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t">
             <div className="flex items-center gap-3 mb-3">
               <Avatar className="h-9 w-9">
-                <AvatarImage src={user?.avatar} />
-                <AvatarFallback>{user?.name?.charAt(0) || "A"}</AvatarFallback>
+                <AvatarFallback>{user?.username?.charAt(0)?.toUpperCase() || "A"}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.affiliateCode || "Partner"}</p>
+                <p className="text-sm font-medium truncate">{user?.username || "Partner"}</p>
+                <p className="text-xs text-muted-foreground truncate">{stats?.code || "Partner"}</p>
               </div>
             </div>
             <Button 
@@ -197,16 +297,20 @@ export default function AffiliateDashboard() {
               <SidebarTrigger data-testid="button-affiliate-sidebar-toggle" />
               <div>
                 <h1 className="text-xl font-bold capitalize" data-testid="text-affiliate-section-title">
-                  {activeSection === "dashboard" ? "Affiliate Dashboard" : activeSection}
+                  {activeSection === "dashboard" ? "Affiliate Dashboard" : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {activeSection === "dashboard" 
-                    ? `Welcome back, ${user?.name || "Partner"}` 
+                    ? `Welcome back, ${user?.username || "Partner"}` 
                     : `Manage your ${activeSection}`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Badge className={tierInfo.bg + " " + tierInfo.color + " border-0"}>
+                <TierIcon className="h-3 w-3 mr-1" />
+                {tierInfo.tier} Partner
+              </Badge>
               <Link href="/">
                 <Button variant="outline" size="sm" data-testid="link-affiliate-view-site">
                   <ExternalLink className="h-4 w-4 mr-2" />
@@ -217,11 +321,13 @@ export default function AffiliateDashboard() {
           </header>
 
           <main className="flex-1 overflow-auto p-6 bg-muted/30">
-            {activeSection === "dashboard" && <AffiliateDashboardOverview user={user} />}
-            {activeSection === "links" && <ReferralLinksSection user={user} />}
+            {activeSection === "dashboard" && <AffiliateDashboardOverview user={user} stats={stats} tierInfo={tierInfo} />}
+            {activeSection === "analytics" && <AnalyticsSection />}
+            {activeSection === "links" && <ReferralLinksSection user={user} stats={stats} />}
             {activeSection === "coupons" && <CouponsSection />}
             {activeSection === "earnings" && <EarningsSection />}
             {activeSection === "payouts" && <PayoutsSection />}
+            {activeSection === "settings" && <SettingsSection user={user} />}
             {activeSection === "resources" && <ResourcesSection />}
           </main>
         </div>
@@ -230,15 +336,14 @@ export default function AffiliateDashboard() {
   );
 }
 
-function AffiliateDashboardOverview({ user }: { user: any }) {
+function AffiliateDashboardOverview({ user, stats, tierInfo }: { user: any; stats: AffiliateStats | undefined; tierInfo: any }) {
   const { toast } = useToast();
   
-  const { data, isLoading } = useQuery({
+  const { isLoading } = useQuery({
     queryKey: ["/api/affiliate/stats"],
   });
-  const stats = data as AffiliateStats | undefined;
 
-  const affiliateLink = `${window.location.origin}?ref=${user?.affiliateCode || ""}`;
+  const affiliateLink = `${window.location.origin}?ref=${stats?.code || ""}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(affiliateLink);
@@ -248,6 +353,8 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
     });
   };
 
+  const TierIcon = tierInfo.icon;
+
   const statCards = [
     { 
       title: "Total Clicks", 
@@ -255,7 +362,8 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
       icon: MousePointer, 
       color: "text-blue-500", 
       bg: "bg-blue-500/10",
-      trend: "+12% this month"
+      trend: stats?.totalClicks && stats.totalClicks > 0 ? "+12%" : "0%",
+      trendUp: true
     },
     { 
       title: "Conversions", 
@@ -263,7 +371,8 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
       icon: TrendingUp, 
       color: "text-green-500", 
       bg: "bg-green-500/10",
-      trend: "+8% this month"
+      trend: stats?.totalConversions && stats.totalConversions > 0 ? "+8%" : "0%",
+      trendUp: true
     },
     { 
       title: "Total Earnings", 
@@ -271,7 +380,8 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
       icon: DollarSign, 
       color: "text-purple-500", 
       bg: "bg-purple-500/10",
-      trend: "Lifetime"
+      trend: "Lifetime",
+      trendUp: true
     },
     { 
       title: "Pending Payout", 
@@ -279,37 +389,70 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
       icon: Wallet, 
       color: "text-orange-500", 
       bg: "bg-orange-500/10",
-      trend: "Available to withdraw"
+      trend: "Available",
+      trendUp: true
     },
   ];
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h3 className="font-semibold text-lg mb-1">Your Referral Link</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Share this link to earn 10% commission on every sale
-              </p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <code className="bg-background px-3 py-2 rounded-lg text-sm border" data-testid="text-affiliate-link">
-                  {affiliateLink}
-                </code>
-                <Button size="sm" onClick={copyLink} data-testid="button-copy-affiliate-link">
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
-                </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Your Referral Link</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Share this link to earn {parseFloat(stats?.commission || "10")}% commission on every sale
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <code className="bg-background px-3 py-2 rounded-lg text-sm border max-w-xs truncate" data-testid="text-affiliate-link">
+                    {affiliateLink}
+                  </code>
+                  <Button size="sm" onClick={copyLink} data-testid="button-copy-affiliate-link">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div className="text-center md:text-right">
+                <div className="text-3xl font-bold text-purple-500">{parseFloat(stats?.commission || "10")}%</div>
+                <p className="text-sm text-muted-foreground">Commission Rate</p>
               </div>
             </div>
-            <div className="text-center md:text-right">
-              <div className="text-3xl font-bold text-purple-500">10%</div>
-              <p className="text-sm text-muted-foreground">Commission Rate</p>
+          </CardContent>
+        </Card>
+
+        <Card className={tierInfo.bg + " border-0"}>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`p-3 rounded-lg bg-background`}>
+                <TierIcon className={`h-6 w-6 ${tierInfo.color}`} />
+              </div>
+              <div>
+                <h3 className={`font-bold text-xl ${tierInfo.color}`}>{tierInfo.tier}</h3>
+                <p className="text-sm text-muted-foreground">Partner Status</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            {tierInfo.nextTier ? (
+              <>
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span>Progress to {tierInfo.nextTier}</span>
+                  <span className="font-medium">{tierInfo.progress.toFixed(0)}%</span>
+                </div>
+                <Progress value={tierInfo.progress} className="h-2 mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  Earn {formatCurrency(tierInfo.remaining || 0)} more to reach {tierInfo.nextTier}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You've reached the highest tier. Enjoy maximum benefits!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
@@ -326,7 +469,14 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
               <div className="text-2xl font-bold" data-testid={`stat-affiliate-${stat.title.toLowerCase().replace(' ', '-')}`}>
                 {isLoading ? "..." : stat.value}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{stat.trend}</p>
+              <div className="flex items-center gap-1 mt-1">
+                {stat.trendUp ? (
+                  <ArrowUpRight className="h-3 w-3 text-green-500" />
+                ) : (
+                  <ArrowDownRight className="h-3 w-3 text-red-500" />
+                )}
+                <p className={`text-xs ${stat.trendUp ? 'text-green-500' : 'text-red-500'}`}>{stat.trend}</p>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -356,13 +506,13 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
                   {stats?.conversionRate?.toFixed(1) || "0"}%
                 </span>
               </div>
-              <Progress value={stats?.conversionRate || 0} className="h-2" />
+              <Progress value={Math.min(stats?.conversionRate || 0, 100)} className="h-2" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm">Monthly Goal</span>
                 <span className="text-sm font-medium">
-                  {stats?.monthlyProgress || 0}%
+                  {stats?.monthlyProgress?.toFixed(0) || "0"}%
                 </span>
               </div>
               <Progress value={stats?.monthlyProgress || 0} className="h-2" />
@@ -376,19 +526,46 @@ function AffiliateDashboardOverview({ user }: { user: any }) {
               <span className="text-muted-foreground">Total Referrals</span>
               <span className="font-medium">{stats?.totalReferrals || 0}</span>
             </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Commission Rate</span>
+              <span className="font-medium">{parseFloat(stats?.commission || "10")}%</span>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="text-lg">Quick Actions</CardTitle>
+              <CardDescription>Common tasks and shortcuts</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Share2 className="h-5 w-5" />
+              <span className="text-sm">Share Links</span>
+            </Button>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Tag className="h-5 w-5" />
+              <span className="text-sm">Create Coupon</span>
+            </Button>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Wallet className="h-5 w-5" />
+              <span className="text-sm">Request Payout</span>
+            </Button>
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <BarChart3 className="h-5 w-5" />
+              <span className="text-sm">View Analytics</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
-}
-
-interface Referral {
-  id: number;
-  customer: string;
-  amount: number;
-  status: string;
-  date: string;
 }
 
 function RecentReferralsList() {
@@ -402,12 +579,18 @@ function RecentReferralsList() {
   }
 
   if (!referrals || referrals.length === 0) {
-    return <div className="text-sm text-muted-foreground text-center py-4">No referrals yet</div>;
+    return (
+      <div className="text-center py-8">
+        <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+        <p className="text-sm text-muted-foreground">No referrals yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Start sharing your links to earn commissions</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-3">
-      {referrals.map((referral) => (
+      {referrals.slice(0, 5).map((referral) => (
         <div key={referral.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${referral.status === "completed" ? "bg-green-500/10" : "bg-yellow-500/10"}`}>
@@ -418,12 +601,19 @@ function RecentReferralsList() {
             </div>
             <div>
               <p className="text-sm font-medium">{referral.customer}</p>
-              <p className="text-xs text-muted-foreground">{referral.date}</p>
+              <p className="text-xs text-muted-foreground">
+                {typeof referral.date === 'string' 
+                  ? referral.date.includes('T') 
+                    ? format(new Date(referral.date), 'MMM d, yyyy')
+                    : referral.date
+                  : format(new Date(referral.date), 'MMM d, yyyy')
+                }
+              </p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-sm font-medium">{formatCurrency(referral.amount)}</p>
-            <p className="text-xs text-green-500">+{formatCurrency(referral.amount * 0.1)} earned</p>
+            <p className="text-xs text-green-500">+{formatCurrency(referral.commission)} earned</p>
           </div>
         </div>
       ))}
@@ -431,16 +621,242 @@ function RecentReferralsList() {
   );
 }
 
-function ReferralLinksSection({ user }: { user: any }) {
+function AnalyticsSection() {
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ["/api/affiliate/stats"],
+  });
+  const stats = statsData as AffiliateStats | undefined;
+
+  const { data: clicksData, isLoading: clicksLoading } = useQuery({
+    queryKey: ["/api/affiliate/clicks"],
+  });
+  const clicks = clicksData as AffiliateClick[] | undefined;
+
+  const { data: earningsData } = useQuery({
+    queryKey: ["/api/affiliate/earnings"],
+  });
+  const earnings = earningsData as Earning[] | undefined;
+
+  const isLoading = statsLoading || clicksLoading;
+
+  const recentClicks = clicks?.slice(0, 20) || [];
+  const convertedClicks = clicks?.filter(c => c.converted).length || 0;
+  const totalClicksCount = clicks?.length || 0;
+  const realConversionRate = totalClicksCount > 0 ? (convertedClicks / totalClicksCount) * 100 : 0;
+
+  const last7DaysClicks = clicks?.filter(c => {
+    const clickDate = new Date(c.createdAt);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return clickDate >= weekAgo;
+  }).length || 0;
+
+  const last30DaysClicks = clicks?.filter(c => {
+    const clickDate = new Date(c.createdAt);
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    return clickDate >= monthAgo;
+  }).length || 0;
+
+  const totalEarningsAmount = earnings?.reduce((sum, e) => sum + e.commission, 0) || 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Total Clicks
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="analytics-total-clicks">
+              {isLoading ? "..." : totalClicksCount}
+            </div>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <MousePointer className="h-4 w-4" />
+              Last 7 Days
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="analytics-7day-clicks">
+              {isLoading ? "..." : last7DaysClicks}
+            </div>
+            <p className="text-xs text-muted-foreground">Recent clicks</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Conversion Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="analytics-conversion-rate">
+              {isLoading ? "..." : realConversionRate.toFixed(1) + "%"}
+            </div>
+            <p className="text-xs text-muted-foreground">{convertedClicks} conversions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Total Earned
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500" data-testid="analytics-total-earned">
+              {isLoading ? "..." : formatCurrency(totalEarningsAmount)}
+            </div>
+            <p className="text-xs text-muted-foreground">From referrals</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Click Performance</CardTitle>
+            <CardDescription>Your referral link click statistics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm">Last 7 Days</span>
+                  <span className="text-sm font-medium">{last7DaysClicks} clicks</span>
+                </div>
+                <Progress value={Math.min((last7DaysClicks / Math.max(last30DaysClicks, 1)) * 100, 100)} className="h-2" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm">Last 30 Days</span>
+                  <span className="text-sm font-medium">{last30DaysClicks} clicks</span>
+                </div>
+                <Progress value={Math.min((last30DaysClicks / Math.max(totalClicksCount, 1)) * 100, 100)} className="h-2" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm">Conversion Rate</span>
+                  <span className="text-sm font-medium">{realConversionRate.toFixed(1)}%</span>
+                </div>
+                <Progress value={Math.min(realConversionRate, 100)} className="h-2" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Earnings Breakdown</CardTitle>
+            <CardDescription>Commission earnings by status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-sm">Paid Commissions</span>
+                </div>
+                <span className="font-medium text-green-500">
+                  {formatCurrency(earnings?.filter(e => e.status === 'paid').reduce((s, e) => s + e.commission, 0) || 0)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-500/10">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm">Pending Commissions</span>
+                </div>
+                <span className="font-medium text-yellow-500">
+                  {formatCurrency(earnings?.filter(e => e.status === 'pending').reduce((s, e) => s + e.commission, 0) || 0)}
+                </span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Total Lifetime</span>
+                <span className="font-bold text-lg">{formatCurrency(stats?.totalEarnings || 0)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Click Activity</CardTitle>
+          <CardDescription>Last 20 clicks from your referral links</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>IP Address</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Order</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8">Loading clicks...</TableCell>
+                </TableRow>
+              ) : recentClicks.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No click data yet. Share your links to start tracking!
+                  </TableCell>
+                </TableRow>
+              ) : (
+                recentClicks.map((click) => (
+                  <TableRow key={click.id}>
+                    <TableCell>
+                      {format(new Date(click.createdAt), 'MMM d, yyyy h:mm a')}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {click.ipAddress || 'Unknown'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={click.converted ? "default" : "secondary"}>
+                        {click.converted ? "Converted" : "Clicked"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {click.orderId ? (
+                        <span className="font-mono text-sm">{click.orderId.substring(0, 8)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ReferralLinksSection({ user, stats }: { user: any; stats: AffiliateStats | undefined }) {
   const { toast } = useToast();
   const baseUrl = window.location.origin;
-  const affiliateCode = user?.affiliateCode || "";
+  const affiliateCode = stats?.code || "";
 
   const links = [
-    { name: "Homepage", path: "/", description: "Main store landing page" },
-    { name: "Shop", path: "/shop", description: "All products page" },
-    { name: "Deals", path: "/deals", description: "Special offers and discounts" },
-    { name: "Combo Packs", path: "/combo", description: "Value bundle packages" },
+    { name: "Homepage", path: "/", description: "Main store landing page", icon: LayoutDashboard },
+    { name: "Shop", path: "/shop", description: "All products page", icon: Tag },
+    { name: "Deals", path: "/deals", description: "Special offers and discounts", icon: Gift },
+    { name: "Combo Packs", path: "/combo", description: "Value bundle packages", icon: Share2 },
   ];
 
   const copyLink = (path: string) => {
@@ -452,23 +868,35 @@ function ReferralLinksSection({ user }: { user: any }) {
     });
   };
 
+  const copyCode = () => {
+    navigator.clipboard.writeText(affiliateCode);
+    toast({
+      title: "Code Copied",
+      description: "Your affiliate code has been copied.",
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20">
         <CardHeader>
           <CardTitle>Your Referral Code</CardTitle>
-          <CardDescription>Use this code in all your referral links</CardDescription>
+          <CardDescription>Use this code in all your referral links and promotions</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 rounded-lg">
               <span className="text-2xl font-bold text-white" data-testid="text-affiliate-code">
                 {affiliateCode || "N/A"}
               </span>
             </div>
-            <div>
-              <p className="text-sm font-medium">Commission Rate: 10%</p>
-              <p className="text-xs text-muted-foreground">On every successful sale</p>
+            <Button variant="outline" onClick={copyCode}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Code
+            </Button>
+            <div className="flex-1">
+              <p className="text-sm font-medium">Commission Rate: {parseFloat(stats?.commission || "10")}%</p>
+              <p className="text-xs text-muted-foreground">On every successful sale through your links</p>
             </div>
           </div>
         </CardContent>
@@ -487,23 +915,65 @@ function ReferralLinksSection({ user }: { user: any }) {
                 className="flex items-center justify-between p-4 rounded-lg border"
                 data-testid={`row-link-${link.name.toLowerCase()}`}
               >
-                <div>
-                  <p className="font-medium">{link.name}</p>
-                  <p className="text-sm text-muted-foreground">{link.description}</p>
-                  <code className="text-xs text-muted-foreground mt-1 block">
-                    {baseUrl}{link.path}?ref={affiliateCode}
-                  </code>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <link.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{link.name}</p>
+                    <p className="text-sm text-muted-foreground">{link.description}</p>
+                    <code className="text-xs text-muted-foreground mt-1 block">
+                      {baseUrl}{link.path}?ref={affiliateCode}
+                    </code>
+                  </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => copyLink(link.path)}
-                  data-testid={`button-copy-link-${link.name.toLowerCase()}`}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => copyLink(link.path)}
+                    data-testid={`button-copy-link-${link.name.toLowerCase()}`}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    asChild
+                  >
+                    <a href={`${link.path}?ref=${affiliateCode}`} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Custom Link Builder</CardTitle>
+          <CardDescription>Create a referral link for any page on the store</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Input 
+                placeholder="Enter any page URL (e.g., /product/123)"
+                id="custom-link-input"
+                data-testid="input-custom-link"
+              />
+            </div>
+            <Button onClick={() => {
+              const input = document.getElementById('custom-link-input') as HTMLInputElement;
+              const path = input?.value || '/';
+              copyLink(path);
+            }}>
+              <Copy className="h-4 w-4 mr-2" />
+              Generate & Copy
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -527,6 +997,9 @@ function EarningsSection() {
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  const paidEarnings = displayEarnings.filter(e => e.status === 'paid').reduce((s, e) => s + e.commission, 0);
+  const pendingEarnings = displayEarnings.filter(e => e.status === 'pending').reduce((s, e) => s + e.commission, 0);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -547,28 +1020,33 @@ function EarningsSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-500" data-testid="stat-pending-earnings">
-              {statsLoading ? "..." : formatCurrency(stats?.pendingPayout || 0)}
+              {isLoading ? "..." : formatCurrency(pendingEarnings)}
             </div>
             <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Paid Out</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-monthly-earnings">
-              {statsLoading ? "..." : formatCurrency(stats?.totalEarnings || 0)}
+            <div className="text-2xl font-bold" data-testid="stat-paid-earnings">
+              {isLoading ? "..." : formatCurrency(paidEarnings)}
             </div>
-            <p className="text-xs text-muted-foreground">{currentMonth}</p>
+            <p className="text-xs text-muted-foreground">Successfully paid</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Earnings History</CardTitle>
-          <CardDescription>Detailed breakdown of your commissions</CardDescription>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle>Earnings History</CardTitle>
+              <CardDescription>Detailed breakdown of your commissions</CardDescription>
+            </div>
+            <Badge variant="secondary">{displayEarnings.length} transactions</Badge>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -577,7 +1055,7 @@ function EarningsSection() {
                 <TableHead>Date</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Order Amount</TableHead>
-                <TableHead>Commission (10%)</TableHead>
+                <TableHead>Commission</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -591,13 +1069,19 @@ function EarningsSection() {
               ) : displayEarnings.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No earnings yet. Start sharing your referral links!
+                    <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p>No earnings yet. Start sharing your referral links!</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 displayEarnings.map((earning: any) => (
                   <TableRow key={earning.id} data-testid={`row-earning-${earning.id}`}>
-                    <TableCell>{earning.date}</TableCell>
+                    <TableCell>
+                      {typeof earning.date === 'string' && earning.date.includes('T')
+                        ? format(new Date(earning.date), 'MMM d, yyyy')
+                        : earning.date
+                      }
+                    </TableCell>
                     <TableCell className="font-mono">{earning.orderId}</TableCell>
                     <TableCell>{formatCurrency(earning.orderAmount)}</TableCell>
                     <TableCell className="text-green-500 font-medium">
@@ -622,6 +1106,8 @@ function EarningsSection() {
 function PayoutsSection() {
   const { toast } = useToast();
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [payoutAmount, setPayoutAmount] = useState("");
   
   const { data: payoutsData, isLoading } = useQuery({
     queryKey: ["/api/affiliate/payouts"],
@@ -634,8 +1120,8 @@ function PayoutsSection() {
   const stats = statsData as AffiliateStats | undefined;
 
   const requestPayoutMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      return apiRequest("POST", "/api/affiliate/request-payout", { amount });
+    mutationFn: async (data: { amount: number; paymentMethod: string }) => {
+      return apiRequest("POST", "/api/affiliate/request-payout", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate/payouts"] });
@@ -645,6 +1131,7 @@ function PayoutsSection() {
         description: "Your payout request has been submitted for review.",
       });
       setRequestDialogOpen(false);
+      setPayoutAmount("");
     },
     onError: () => {
       toast({
@@ -658,8 +1145,29 @@ function PayoutsSection() {
   const displayPayouts: Payout[] = payouts || [];
   const pendingBalance = stats?.pendingPayout || 0;
   const totalPaidOut = displayPayouts
-    .filter(p => p.status === "completed")
-    .reduce((sum, p) => sum + p.amount, 0);
+    .filter(p => p.status === "paid")
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+  const handleRequestPayout = () => {
+    const amount = parseFloat(payoutAmount) || pendingBalance;
+    if (amount < 50) {
+      toast({
+        title: "Minimum Amount Required",
+        description: "Minimum payout amount is ৳50.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (amount > pendingBalance) {
+      toast({
+        title: "Insufficient Balance",
+        description: "You cannot request more than your available balance.",
+        variant: "destructive",
+      });
+      return;
+    }
+    requestPayoutMutation.mutate({ amount, paymentMethod });
+  };
 
   return (
     <div className="space-y-6">
@@ -670,7 +1178,7 @@ function PayoutsSection() {
         </div>
         <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-request-payout">
+            <Button data-testid="button-request-payout" disabled={pendingBalance < 50}>
               <DollarSign className="h-4 w-4 mr-2" />
               Request Payout
             </Button>
@@ -690,8 +1198,29 @@ function PayoutsSection() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Payout Method</Label>
-                <Input value="PayPal / Bank Transfer" disabled />
+                <Label>Payout Amount</Label>
+                <Input 
+                  type="number"
+                  placeholder={`Max: ${pendingBalance}`}
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  data-testid="input-payout-amount"
+                />
+                <p className="text-xs text-muted-foreground">Leave empty to request full balance</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger data-testid="select-payment-method">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                    <SelectItem value="bkash">bKash</SelectItem>
+                    <SelectItem value="nagad">Nagad</SelectItem>
+                    <SelectItem value="paypal">PayPal</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
@@ -699,7 +1228,7 @@ function PayoutsSection() {
                 Cancel
               </Button>
               <Button 
-                onClick={() => requestPayoutMutation.mutate(pendingBalance)}
+                onClick={handleRequestPayout}
                 disabled={requestPayoutMutation.isPending || pendingBalance < 50}
                 data-testid="button-confirm-payout"
               >
@@ -710,7 +1239,7 @@ function PayoutsSection() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Available Balance</CardTitle>
@@ -731,6 +1260,17 @@ function PayoutsSection() {
               {isLoading ? "..." : formatCurrency(totalPaidOut)}
             </div>
             <p className="text-xs text-muted-foreground">All time payouts</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-500">
+              {isLoading ? "..." : displayPayouts.filter(p => p.status === "pending").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting processing</p>
           </CardContent>
         </Card>
       </div>
@@ -761,24 +1301,29 @@ function PayoutsSection() {
               ) : displayPayouts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No payout history yet
+                    <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p>No payout history yet</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 displayPayouts.map((payout: any) => (
                   <TableRow key={payout.id} data-testid={`row-payout-${payout.id}`}>
-                    <TableCell>{payout.requestedAt}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(payout.amount)}</TableCell>
-                    <TableCell>{payout.method}</TableCell>
+                    <TableCell>
+                      {payout.createdAt && format(new Date(payout.createdAt), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell className="font-medium">{formatCurrency(parseFloat(payout.amount))}</TableCell>
+                    <TableCell>{payout.paymentMethod || "Bank Transfer"}</TableCell>
                     <TableCell>
                       <Badge variant={
-                        payout.status === "completed" ? "default" :
+                        payout.status === "paid" ? "default" :
                         payout.status === "pending" ? "secondary" : "destructive"
                       }>
                         {payout.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{payout.paidAt || "-"}</TableCell>
+                    <TableCell>
+                      {payout.processedAt ? format(new Date(payout.processedAt), 'MMM d, yyyy') : "-"}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -791,13 +1336,13 @@ function PayoutsSection() {
 }
 
 interface Coupon {
-  id: number;
+  id: string;
   code: string;
   discountType: string;
-  discountValue: number;
-  minPurchase: number | null;
+  discountValue: string;
+  minPurchase: string | null;
   maxUses: number | null;
-  currentUses: number;
+  usedCount: number;
   expiresAt: string | null;
   isActive: boolean;
 }
@@ -862,33 +1407,12 @@ function CouponsSection() {
       return;
     }
 
-    const parsedMinPurchase = minPurchase ? parseFloat(minPurchase) : null;
-    const parsedMaxUses = maxUses ? parseInt(maxUses, 10) : null;
-
-    if (parsedMinPurchase !== null && isNaN(parsedMinPurchase)) {
-      toast({
-        title: "Invalid Minimum Purchase",
-        description: "Please enter a valid minimum purchase amount.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (parsedMaxUses !== null && isNaN(parsedMaxUses)) {
-      toast({
-        title: "Invalid Max Uses",
-        description: "Please enter a valid maximum uses number.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     createCouponMutation.mutate({
       code: newCouponCode.toUpperCase(),
       discountType,
       discountValue: parsedDiscountValue,
-      minPurchase: parsedMinPurchase,
-      maxUses: parsedMaxUses,
+      minPurchase: minPurchase ? parseFloat(minPurchase) : null,
+      maxUses: maxUses ? parseInt(maxUses, 10) : null,
     });
   };
 
@@ -988,8 +1512,13 @@ function CouponsSection() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your Coupons</CardTitle>
-          <CardDescription>Manage your promotional coupon codes</CardDescription>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Your Coupons</CardTitle>
+              <CardDescription>Manage your promotional coupon codes</CardDescription>
+            </div>
+            <Badge variant="secondary">{coupons?.length || 0} coupons</Badge>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -1012,7 +1541,8 @@ function CouponsSection() {
               ) : !coupons || coupons.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No coupons yet. Create your first coupon to start promoting!
+                    <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p>No coupons yet. Create your first coupon to start promoting!</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1026,15 +1556,15 @@ function CouponsSection() {
                         {coupon.discountType === "percentage" ? (
                           <><Percent className="h-3 w-3" /> {coupon.discountValue}%</>
                         ) : (
-                          formatCurrency(coupon.discountValue)
+                          formatCurrency(parseFloat(coupon.discountValue))
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {coupon.minPurchase ? formatCurrency(coupon.minPurchase) : "-"}
+                      {coupon.minPurchase ? formatCurrency(parseFloat(coupon.minPurchase)) : "-"}
                     </TableCell>
                     <TableCell>
-                      {coupon.currentUses} / {coupon.maxUses || "∞"}
+                      {coupon.usedCount || 0} / {coupon.maxUses || "∞"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={coupon.isActive ? "default" : "secondary"}>
@@ -1052,12 +1582,257 @@ function CouponsSection() {
   );
 }
 
+function SettingsSection({ user }: { user: any }) {
+  const { toast } = useToast();
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState("bank");
+  
+  const { data: statsData } = useQuery({
+    queryKey: ["/api/affiliate/stats"],
+  });
+  const stats = statsData as AffiliateStats | undefined;
+
+  const handleSaveSettings = () => {
+    toast({
+      title: "Settings Saved",
+      description: "Your preferences have been updated successfully.",
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="payment">Payment</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Information</CardTitle>
+              <CardDescription>Your affiliate account details</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarFallback className="text-xl">{user?.username?.charAt(0)?.toUpperCase() || "A"}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-lg">{user?.username || "Affiliate Partner"}</h3>
+                  <p className="text-sm text-muted-foreground">{user?.email || "affiliate@example.com"}</p>
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input value={user?.username || ""} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={user?.email || ""} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Affiliate Code</Label>
+                  <Input value={stats?.code || ""} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Commission Rate</Label>
+                  <Input value={`${parseFloat(stats?.commission || "10")}%`} disabled />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payment" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Settings</CardTitle>
+              <CardDescription>Configure your payout preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Preferred Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger data-testid="select-preferred-payment">
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Bank Transfer
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="bkash">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="h-4 w-4" />
+                        bKash
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="nagad">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="h-4 w-4" />
+                        Nagad
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="paypal">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        PayPal
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {paymentMethod === "bank" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bank Name</Label>
+                    <Input placeholder="Enter bank name" data-testid="input-bank-name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Number</Label>
+                    <Input placeholder="Enter account number" data-testid="input-account-number" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Holder Name</Label>
+                    <Input placeholder="Enter account holder name" data-testid="input-holder-name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Routing Number</Label>
+                    <Input placeholder="Enter routing number" data-testid="input-routing" />
+                  </div>
+                </div>
+              )}
+
+              {(paymentMethod === "bkash" || paymentMethod === "nagad") && (
+                <div className="space-y-2">
+                  <Label>{paymentMethod === "bkash" ? "bKash" : "Nagad"} Number</Label>
+                  <Input placeholder="Enter mobile number" data-testid="input-mobile-number" />
+                </div>
+              )}
+
+              {paymentMethod === "paypal" && (
+                <div className="space-y-2">
+                  <Label>PayPal Email</Label>
+                  <Input placeholder="Enter PayPal email" type="email" data-testid="input-paypal-email" />
+                </div>
+              )}
+
+              <Button onClick={handleSaveSettings} data-testid="button-save-payment">
+                Save Payment Settings
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payout Preferences</CardTitle>
+              <CardDescription>Configure automatic payout settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Automatic Payouts</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically request payout when balance exceeds threshold
+                  </p>
+                </div>
+                <Switch />
+              </div>
+              <div className="space-y-2">
+                <Label>Minimum Payout Threshold</Label>
+                <Input type="number" placeholder="100" defaultValue="100" />
+                <p className="text-xs text-muted-foreground">Minimum balance required to trigger automatic payout</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Preferences</CardTitle>
+              <CardDescription>Manage how you receive updates</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email Notifications
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Receive email updates about referrals and earnings
+                  </p>
+                </div>
+                <Switch 
+                  checked={emailNotifications} 
+                  onCheckedChange={setEmailNotifications}
+                  data-testid="switch-email-notifications"
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    New Referral Alerts
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Get notified when someone uses your referral link
+                  </p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Payout Updates
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Notifications about payout status changes
+                  </p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Weekly Performance Reports
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Receive weekly summary of your affiliate performance
+                  </p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Button onClick={handleSaveSettings} data-testid="button-save-notifications">
+                Save Notification Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 function ResourcesSection() {
   const resources = [
     {
       title: "Brand Guidelines",
       description: "Logo usage, colors, and brand assets",
-      icon: Download,
+      icon: FileText,
       action: "Download",
     },
     {
@@ -1085,6 +1860,15 @@ function ResourcesSection() {
     "Create product reviews and tutorials featuring your affiliate links",
     "Use email marketing to reach your existing audience",
     "Engage with your followers and answer product questions",
+    "Use your exclusive coupon codes to offer additional value to customers",
+    "Track your analytics regularly to optimize your promotional strategies",
+  ];
+
+  const faqs = [
+    { q: "How do I get paid?", a: "Request payouts from your dashboard when your balance exceeds ৳50. We support bank transfer, bKash, Nagad, and PayPal." },
+    { q: "When do I earn commission?", a: "You earn commission when a customer completes a purchase using your referral link or coupon code." },
+    { q: "How long is the cookie duration?", a: "Our referral cookie lasts for 30 days, meaning you'll earn commission on any purchase within 30 days of the initial click." },
+    { q: "Can I promote on social media?", a: "Yes! We encourage sharing on social media, blogs, YouTube, and any other platform where you have an audience." },
   ];
 
   return (
@@ -1126,7 +1910,7 @@ function ResourcesSection() {
           <CardDescription>Best practices to maximize your earnings</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {tips.map((tip, index) => (
               <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
                 <div className="bg-green-500/10 p-1 rounded-full mt-0.5">
@@ -1141,12 +1925,29 @@ function ResourcesSection() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Frequently Asked Questions</CardTitle>
+          <CardDescription>Common questions about the affiliate program</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div key={index} className="border-b pb-4 last:border-0 last:pb-0">
+                <h4 className="font-medium mb-1">{faq.q}</h4>
+                <p className="text-sm text-muted-foreground">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Need Help?</CardTitle>
           <CardDescription>Contact our affiliate support team</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
               <p className="text-sm">
                 Have questions about the affiliate program? Our dedicated team is here to help.
               </p>
@@ -1155,6 +1956,7 @@ function ResourcesSection() {
               </p>
             </div>
             <Button variant="outline" data-testid="button-contact-support">
+              <Mail className="h-4 w-4 mr-2" />
               Contact Support
             </Button>
           </div>
