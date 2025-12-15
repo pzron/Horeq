@@ -20,6 +20,12 @@ Horeq is a full-stack e-commerce platform built with React frontend and Express 
 - **Affiliate Analytics**: Detailed performance charts for clicks, conversions, and earnings
 - **Affiliate Payout Management**: Comprehensive payout history with approval/rejection workflow
 - **Affiliate Marketing Tools**: Banner and link resources for affiliate promoters
+- **Product-Level Affiliate Settings**: Per-product affiliate commission controls with:
+  - Enable/disable affiliate commissions per product
+  - Commission type (percentage, fixed amount, or points)
+  - Custom commission value per product
+  - Bonus points per product for affiliates
+- **Affiliate Approval System**: Admin approval/rejection workflow for affiliate applications
 - **CMS Page Builder**: Visual page builder with drag-drop blocks (Hero, Features, Testimonials, etc.)
 - **System Settings**: General, Payment, Email, and Shipping configuration tabs
 - **Roles & Permissions**: Role management (Admin, Manager, Editor, Support, Viewer) with granular CRUD permission matrix for 10 modules
