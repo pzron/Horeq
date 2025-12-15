@@ -130,7 +130,25 @@ import {
   Play,
   Sparkles,
   Zap,
+  Mail,
+  Truck,
+  Building2,
+  MapPin,
+  Key,
+  Database,
+  Save,
+  Check,
+  RefreshCw,
+  Server,
+  Lock,
+  Wallet,
+  Store,
+  Bell,
+  Languages,
+  Calendar,
+  Upload,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AreaChart,
   Area,
@@ -149,7 +167,7 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "settings" | "activity";
+type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity";
 
 const menuItems = [
   { id: "dashboard" as AdminSection, title: "Dashboard", icon: LayoutDashboard },
@@ -163,6 +181,8 @@ const menuItems = [
   { id: "pages" as AdminSection, title: "CMS Pages", icon: FileText },
   { id: "menus" as AdminSection, title: "Menus", icon: Menu },
   { id: "coupons" as AdminSection, title: "Coupons", icon: Tag },
+  { id: "roles" as AdminSection, title: "Roles & Permissions", icon: Shield },
+  { id: "reports" as AdminSection, title: "Reports", icon: BarChart3 },
   { id: "settings" as AdminSection, title: "Settings", icon: Settings },
   { id: "activity" as AdminSection, title: "Activity Log", icon: Activity },
 ];
@@ -281,6 +301,8 @@ export default function AdminDashboard() {
             {activeSection === "pages" && <PagesSection />}
             {activeSection === "menus" && <MenusSection />}
             {activeSection === "coupons" && <CouponsSection />}
+            {activeSection === "roles" && <RolesPermissionsSection />}
+            {activeSection === "reports" && <ReportsSection />}
             {activeSection === "settings" && <SettingsSection />}
             {activeSection === "activity" && <ActivitySection />}
           </main>
@@ -3687,65 +3709,1828 @@ function CouponsSection() {
   );
 }
 
-function SettingsSection() {
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ["/api/admin/settings"],
+function RolesPermissionsSection() {
+  const { toast } = useToast();
+  const [selectedRole, setSelectedRole] = useState<string | null>("admin");
+  const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+
+  const [roles, setRoles] = useState([
+    { id: "admin", name: "Administrator", description: "Full system access with all permissions", usersCount: 2, color: "bg-destructive" },
+    { id: "manager", name: "Manager", description: "Can manage products, orders, and customers", usersCount: 5, color: "bg-primary" },
+    { id: "editor", name: "Editor", description: "Can manage content and CMS pages", usersCount: 8, color: "bg-accent" },
+    { id: "support", name: "Support Agent", description: "Can view and respond to customer inquiries", usersCount: 12, color: "bg-secondary" },
+    { id: "viewer", name: "Viewer", description: "Read-only access to dashboard and reports", usersCount: 3, color: "bg-muted" },
+  ]);
+
+  const modules = [
+    { id: "dashboard", name: "Dashboard", description: "View dashboard and statistics" },
+    { id: "products", name: "Products", description: "Manage product catalog" },
+    { id: "orders", name: "Orders", description: "View and manage orders" },
+    { id: "customers", name: "Customers", description: "Manage customer accounts" },
+    { id: "content", name: "CMS & Content", description: "Manage pages and content" },
+    { id: "coupons", name: "Coupons", description: "Create and manage discount codes" },
+    { id: "affiliates", name: "Affiliates", description: "Manage affiliate program" },
+    { id: "reports", name: "Reports", description: "Access reports and analytics" },
+    { id: "settings", name: "Settings", description: "Configure system settings" },
+    { id: "users", name: "User Management", description: "Manage admin users and roles" },
+  ];
+
+  const permissions = ["view", "create", "edit", "delete"];
+
+  const [rolePermissions, setRolePermissions] = useState<Record<string, Record<string, string[]>>>({
+    admin: {
+      dashboard: ["view", "create", "edit", "delete"],
+      products: ["view", "create", "edit", "delete"],
+      orders: ["view", "create", "edit", "delete"],
+      customers: ["view", "create", "edit", "delete"],
+      content: ["view", "create", "edit", "delete"],
+      coupons: ["view", "create", "edit", "delete"],
+      affiliates: ["view", "create", "edit", "delete"],
+      reports: ["view", "create", "edit", "delete"],
+      settings: ["view", "create", "edit", "delete"],
+      users: ["view", "create", "edit", "delete"],
+    },
+    manager: {
+      dashboard: ["view"],
+      products: ["view", "create", "edit"],
+      orders: ["view", "edit"],
+      customers: ["view", "edit"],
+      content: ["view"],
+      coupons: ["view", "create", "edit"],
+      affiliates: ["view"],
+      reports: ["view"],
+      settings: [],
+      users: [],
+    },
+    editor: {
+      dashboard: ["view"],
+      products: ["view", "edit"],
+      orders: ["view"],
+      customers: ["view"],
+      content: ["view", "create", "edit", "delete"],
+      coupons: [],
+      affiliates: [],
+      reports: [],
+      settings: [],
+      users: [],
+    },
+    support: {
+      dashboard: ["view"],
+      products: ["view"],
+      orders: ["view", "edit"],
+      customers: ["view", "edit"],
+      content: [],
+      coupons: ["view"],
+      affiliates: [],
+      reports: [],
+      settings: [],
+      users: [],
+    },
+    viewer: {
+      dashboard: ["view"],
+      products: ["view"],
+      orders: ["view"],
+      customers: ["view"],
+      content: ["view"],
+      coupons: ["view"],
+      affiliates: ["view"],
+      reports: ["view"],
+      settings: [],
+      users: [],
+    },
   });
 
-  const settingsGroups = [
-    { key: "general", title: "General Settings", description: "Site name, description, and basic info" },
-    { key: "store", title: "Store Settings", description: "Currency, shipping, and payment options" },
-    { key: "email", title: "Email Settings", description: "SMTP configuration and email templates" },
-    { key: "seo", title: "SEO Settings", description: "Meta tags, sitemap, and search optimization" },
+  const [assignedUsers] = useState([
+    { id: 1, name: "John Admin", email: "john@horeq.com", role: "admin", avatar: "" },
+    { id: 2, name: "Sarah Manager", email: "sarah@horeq.com", role: "manager", avatar: "" },
+    { id: 3, name: "Mike Editor", email: "mike@horeq.com", role: "editor", avatar: "" },
+    { id: 4, name: "Lisa Support", email: "lisa@horeq.com", role: "support", avatar: "" },
+    { id: 5, name: "Tom Viewer", email: "tom@horeq.com", role: "viewer", avatar: "" },
+  ]);
+
+  const togglePermission = (moduleId: string, permission: string) => {
+    if (!selectedRole) return;
+    
+    setRolePermissions(prev => {
+      const rolePerms = prev[selectedRole] || {};
+      const modulePerms = rolePerms[moduleId] || [];
+      
+      const hasPermission = modulePerms.includes(permission);
+      const newModulePerms = hasPermission
+        ? modulePerms.filter(p => p !== permission)
+        : [...modulePerms, permission];
+      
+      return {
+        ...prev,
+        [selectedRole]: {
+          ...rolePerms,
+          [moduleId]: newModulePerms,
+        },
+      };
+    });
+  };
+
+  const toggleAllPermissions = (moduleId: string) => {
+    if (!selectedRole) return;
+    
+    const currentPerms = rolePermissions[selectedRole]?.[moduleId] || [];
+    const hasAll = permissions.every(p => currentPerms.includes(p));
+    
+    setRolePermissions(prev => ({
+      ...prev,
+      [selectedRole]: {
+        ...prev[selectedRole],
+        [moduleId]: hasAll ? [] : [...permissions],
+      },
+    }));
+  };
+
+  const handleAddRole = () => {
+    if (!newRoleName.trim()) return;
+    
+    const newRole = {
+      id: newRoleName.toLowerCase().replace(/\s+/g, "_"),
+      name: newRoleName,
+      description: newRoleDescription,
+      usersCount: 0,
+      color: "bg-purple-500",
+    };
+    
+    setRoles([...roles, newRole]);
+    setRolePermissions(prev => ({
+      ...prev,
+      [newRole.id]: {},
+    }));
+    
+    setNewRoleName("");
+    setNewRoleDescription("");
+    setIsAddRoleOpen(false);
+    
+    toast({
+      title: "Role Created",
+      description: `${newRoleName} role has been created successfully.`,
+    });
+  };
+
+  const handleSavePermissions = () => {
+    toast({
+      title: "Permissions Saved",
+      description: "Role permissions have been updated successfully.",
+    });
+  };
+
+  const selectedRoleData = roles.find(r => r.id === selectedRole);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold">Roles & Permissions</h2>
+          <p className="text-muted-foreground">Manage user roles and access control</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Dialog open={isAddRoleOpen} onOpenChange={setIsAddRoleOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-role">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Role
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Role</DialogTitle>
+                <DialogDescription>Add a new role with custom permissions</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="roleName">Role Name</Label>
+                  <Input
+                    id="roleName"
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    placeholder="e.g., Marketing Manager"
+                    data-testid="input-role-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="roleDescription">Description</Label>
+                  <Textarea
+                    id="roleDescription"
+                    value={newRoleDescription}
+                    onChange={(e) => setNewRoleDescription(e.target.value)}
+                    placeholder="Describe what this role can do..."
+                    data-testid="input-role-description"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddRoleOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddRole} data-testid="button-save-role">Create Role</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={handleSavePermissions} data-testid="button-save-permissions">
+            <Save className="h-4 w-4 mr-2" />
+            Save Changes
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-base">Roles</CardTitle>
+            <CardDescription>Select a role to manage</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {roles.map((role) => (
+                <button
+                  key={role.id}
+                  className={`w-full p-4 text-left hover-elevate transition-colors ${selectedRole === role.id ? "bg-muted" : ""}`}
+                  onClick={() => setSelectedRole(role.id)}
+                  data-testid={`button-select-role-${role.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${role.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{role.name}</p>
+                      <p className="text-xs text-muted-foreground">{role.usersCount} users</p>
+                    </div>
+                    {selectedRole === role.id && (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="lg:col-span-3 space-y-6">
+          {selectedRoleData && (
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full ${selectedRoleData.color}`} />
+                      <div>
+                        <CardTitle>{selectedRoleData.name}</CardTitle>
+                        <CardDescription>{selectedRoleData.description}</CardDescription>
+                      </div>
+                    </div>
+                    {selectedRole !== "admin" && (
+                      <Button variant="ghost" size="icon" data-testid="button-delete-role">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px]">Module</TableHead>
+                          <TableHead className="text-center">View</TableHead>
+                          <TableHead className="text-center">Create</TableHead>
+                          <TableHead className="text-center">Edit</TableHead>
+                          <TableHead className="text-center">Delete</TableHead>
+                          <TableHead className="text-center w-[100px]">All</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {modules.map((module) => {
+                          const modulePerms = rolePermissions[selectedRole]?.[module.id] || [];
+                          const hasAll = permissions.every(p => modulePerms.includes(p));
+                          
+                          return (
+                            <TableRow key={module.id}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{module.name}</p>
+                                  <p className="text-xs text-muted-foreground">{module.description}</p>
+                                </div>
+                              </TableCell>
+                              {permissions.map((perm) => (
+                                <TableCell key={perm} className="text-center">
+                                  <Switch
+                                    checked={modulePerms.includes(perm)}
+                                    onCheckedChange={() => togglePermission(module.id, perm)}
+                                    disabled={selectedRole === "admin"}
+                                    data-testid={`switch-${module.id}-${perm}`}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell className="text-center">
+                                <Button
+                                  variant={hasAll ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleAllPermissions(module.id)}
+                                  disabled={selectedRole === "admin"}
+                                  data-testid={`button-toggle-all-${module.id}`}
+                                >
+                                  {hasAll ? "All" : "None"}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Users with this Role</CardTitle>
+                  <CardDescription>Users currently assigned to {selectedRoleData.name}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {assignedUsers
+                      .filter(u => u.role === selectedRole)
+                      .map((user) => (
+                        <div key={user.id} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={user.avatar} />
+                              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{user.name}</p>
+                              <p className="text-xs text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                          <Select defaultValue={user.role}>
+                            <SelectTrigger className="w-[140px]" data-testid={`select-user-role-${user.id}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.map((role) => (
+                                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    {assignedUsers.filter(u => u.role === selectedRole).length === 0 && (
+                      <p className="text-center text-muted-foreground py-4">No users assigned to this role</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportsSection() {
+  const { toast } = useToast();
+  const [dateRange, setDateRange] = useState("30d");
+  const [reportType, setReportType] = useState("sales");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const salesReportData = [
+    { date: "Week 1", revenue: 12500, orders: 85, avgOrder: 147 },
+    { date: "Week 2", revenue: 15800, orders: 102, avgOrder: 155 },
+    { date: "Week 3", revenue: 11200, orders: 78, avgOrder: 144 },
+    { date: "Week 4", revenue: 18500, orders: 125, avgOrder: 148 },
+  ];
+
+  const productReportData = [
+    { name: "Industrial Drill Pro", sold: 245, revenue: 48755, growth: 12.5 },
+    { name: "Safety Helmet Set", sold: 189, revenue: 9450, growth: 8.2 },
+    { name: "Commercial Mixer", sold: 156, revenue: 77844, growth: -3.4 },
+    { name: "Welding Machine X1", sold: 134, revenue: 53466, growth: 15.8 },
+    { name: "Power Generator 5K", sold: 98, revenue: 147000, growth: 22.1 },
+  ];
+
+  const customerReportData = [
+    { metric: "New Customers", value: 342, change: 18.5, period: "This Month" },
+    { metric: "Returning Customers", value: 156, change: 12.3, period: "This Month" },
+    { metric: "Customer Lifetime Value", value: 485, change: 8.7, period: "Average" },
+    { metric: "Churn Rate", value: 2.8, change: -0.5, period: "This Month" },
+  ];
+
+  const trafficSourceData = [
+    { name: "Direct", value: 35, visitors: 12500 },
+    { name: "Organic Search", value: 28, visitors: 10000 },
+    { name: "Social Media", value: 18, visitors: 6500 },
+    { name: "Referral", value: 12, visitors: 4300 },
+    { name: "Email", value: 7, visitors: 2500 },
+  ];
+
+  const handleExport = async (format: string) => {
+    setIsExporting(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsExporting(false);
+    toast({
+      title: "Report Exported",
+      description: `Your ${reportType} report has been exported as ${format.toUpperCase()}.`,
+    });
+  };
+
+  const CHART_COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold">Reports & Analytics</h2>
+          <p className="text-muted-foreground">Comprehensive business insights and data export</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-[140px]" data-testid="select-date-range">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="365d">Last year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-export-report">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Export Report</DialogTitle>
+                <DialogDescription>Choose a format to export your report</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                <Button variant="outline" onClick={() => handleExport("csv")} disabled={isExporting} data-testid="button-export-csv">
+                  <FileText className="h-4 w-4 mr-2" />
+                  CSV
+                </Button>
+                <Button variant="outline" onClick={() => handleExport("pdf")} disabled={isExporting} data-testid="button-export-pdf">
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+                <Button variant="outline" onClick={() => handleExport("excel")} disabled={isExporting} data-testid="button-export-excel">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Excel
+                </Button>
+                <Button variant="outline" onClick={() => handleExport("json")} disabled={isExporting} data-testid="button-export-json">
+                  <Code className="h-4 w-4 mr-2" />
+                  JSON
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Tabs value={reportType} onValueChange={setReportType} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid gap-1">
+          <TabsTrigger value="sales" className="flex items-center gap-2" data-testid="tab-sales-report">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Sales</span>
+          </TabsTrigger>
+          <TabsTrigger value="products" className="flex items-center gap-2" data-testid="tab-products-report">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Products</span>
+          </TabsTrigger>
+          <TabsTrigger value="customers" className="flex items-center gap-2" data-testid="tab-customers-report">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Customers</span>
+          </TabsTrigger>
+          <TabsTrigger value="traffic" className="flex items-center gap-2" data-testid="tab-traffic-report">
+            <Globe className="h-4 w-4" />
+            <span className="hidden sm:inline">Traffic</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sales" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="stat-total-revenue">$58,000</div>
+                <div className="flex items-center text-xs text-green-500 mt-1">
+                  <ArrowUp className="h-3 w-3 mr-1" />
+                  12.5% from last period
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+                <ShoppingCart className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="stat-total-orders">390</div>
+                <div className="flex items-center text-xs text-green-500 mt-1">
+                  <ArrowUp className="h-3 w-3 mr-1" />
+                  8.2% from last period
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Average Order</CardTitle>
+                <CreditCard className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="stat-avg-order">$148.72</div>
+                <div className="flex items-center text-xs text-green-500 mt-1">
+                  <ArrowUp className="h-3 w-3 mr-1" />
+                  3.8% from last period
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Refund Rate</CardTitle>
+                <AlertCircle className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="stat-refund-rate">2.4%</div>
+                <div className="flex items-center text-xs text-green-500 mt-1">
+                  <ArrowDown className="h-3 w-3 mr-1" />
+                  0.3% from last period
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Revenue & Orders Trend
+              </CardTitle>
+              <CardDescription>Weekly breakdown of sales performance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={salesReportData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="date" className="text-xs" />
+                  <YAxis yAxisId="left" className="text-xs" />
+                  <YAxis yAxisId="right" orientation="right" className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="revenue" fill="#8b5cf6" name="Revenue ($)" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="orders" fill="#3b82f6" name="Orders" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="products" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Selling Products</CardTitle>
+              <CardDescription>Products with highest sales in selected period</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Units Sold</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Growth</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {productReportData.map((product, index) => (
+                    <TableRow key={index} data-testid={`row-product-report-${index}`}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-right">{product.sold}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(product.revenue)}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={product.growth >= 0 ? "default" : "secondary"}>
+                          {product.growth >= 0 ? "+" : ""}{product.growth}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="customers" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {customerReportData.map((item, index) => (
+              <Card key={index}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{item.metric}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid={`stat-${item.metric.toLowerCase().replace(/\s+/g, '-')}`}>
+                    {item.metric.includes("Value") ? formatCurrency(item.value) : 
+                     item.metric.includes("Rate") ? `${item.value}%` : item.value}
+                  </div>
+                  <div className={`flex items-center text-xs mt-1 ${item.change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    {item.change >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                    {Math.abs(item.change)}% {item.period}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="traffic" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Traffic Sources</CardTitle>
+                <CardDescription>Breakdown by acquisition channel</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <RechartsPieChart>
+                    <Pie
+                      data={trafficSourceData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {trafficSourceData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Traffic Breakdown</CardTitle>
+                <CardDescription>Visitors by source</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {trafficSourceData.map((source, index) => (
+                    <div key={source.name} className="flex items-center gap-4">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} 
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium">{source.name}</span>
+                          <span className="text-muted-foreground">{source.visitors.toLocaleString()} visitors</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full" 
+                            style={{ 
+                              width: `${source.value}%`, 
+                              backgroundColor: CHART_COLORS[index % CHART_COLORS.length] 
+                            }} 
+                          />
+                        </div>
+                      </div>
+                      <Badge variant="outline">{source.value}%</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function SettingsSection() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("general");
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const [generalSettings, setGeneralSettings] = useState({
+    siteName: "HOREQ Store",
+    siteDescription: "Your one-stop shop for quality products",
+    siteEmail: "contact@horeq.com",
+    sitePhone: "+1 234 567 8900",
+    siteAddress: "123 Commerce Street, City, Country",
+    siteLogo: "",
+    favicon: "",
+    timezone: "UTC",
+    dateFormat: "MM/DD/YYYY",
+    maintenanceMode: false,
+    allowGuestCheckout: true,
+    enableReviews: true,
+    enableWishlist: true,
+    enableCompare: true,
+    itemsPerPage: "12",
+  });
+
+  const [paymentSettings, setPaymentSettings] = useState({
+    currency: "USD",
+    currencySymbol: "$",
+    currencyPosition: "before",
+    thousandSeparator: ",",
+    decimalSeparator: ".",
+    decimalPlaces: "2",
+    stripeEnabled: true,
+    stripePublicKey: "",
+    stripeSecretKey: "",
+    paypalEnabled: false,
+    paypalClientId: "",
+    paypalSecret: "",
+    codEnabled: true,
+    bankTransferEnabled: false,
+    bankName: "",
+    bankAccountNumber: "",
+    bankRoutingNumber: "",
+    minOrderAmount: "0",
+    maxOrderAmount: "10000",
+  });
+
+  const [emailSettings, setEmailSettings] = useState({
+    smtpHost: "smtp.gmail.com",
+    smtpPort: "587",
+    smtpUsername: "",
+    smtpPassword: "",
+    smtpEncryption: "tls",
+    fromName: "HOREQ Store",
+    fromEmail: "noreply@horeq.com",
+    orderConfirmation: true,
+    shippingNotification: true,
+    deliveryConfirmation: true,
+    abandonedCartReminder: true,
+    newsletterEnabled: true,
+    welcomeEmailEnabled: true,
+    passwordResetEnabled: true,
+  });
+
+  const [shippingSettings, setShippingSettings] = useState({
+    freeShippingThreshold: "50",
+    flatRateEnabled: true,
+    flatRateAmount: "5.99",
+    weightBasedEnabled: false,
+    weightUnit: "kg",
+    dimensionUnit: "cm",
+    defaultCountry: "US",
+    allowedCountries: "US,CA,GB,AU",
+    restrictedCountries: "",
+    handlingFee: "0",
+    processingTime: "1-2 business days",
+    localPickupEnabled: false,
+    localPickupAddress: "",
+    trackingEnabled: true,
+    signatureRequired: false,
+    insuranceEnabled: false,
+    insuranceRate: "1",
+  });
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsSaving(false);
+    toast({
+      title: "Settings Saved",
+      description: "Your settings have been updated successfully.",
+    });
+  };
+
+  const currencies = [
+    { code: "USD", name: "US Dollar", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "GBP", name: "British Pound", symbol: "£" },
+    { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+    { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+    { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+  ];
+
+  const timezones = [
+    "UTC", "America/New_York", "America/Los_Angeles", "America/Chicago",
+    "Europe/London", "Europe/Paris", "Asia/Tokyo", "Asia/Shanghai",
+    "Australia/Sydney", "Pacific/Auckland",
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {settingsGroups.map((group) => (
-          <Card key={group.key} className="hover-elevate cursor-pointer" data-testid={`card-settings-${group.key}`}>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">{group.title}</CardTitle>
-                <CardDescription>{group.description}</CardDescription>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-          </Card>
-        ))}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">System Settings</h2>
+          <p className="text-muted-foreground">Configure your store settings and preferences</p>
+        </div>
+        <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-settings">
+          {isSaving ? (
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          Save Changes
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Settings</CardTitle>
-          <CardDescription>Commonly modified settings</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Maintenance Mode</Label>
-              <p className="text-sm text-muted-foreground">Temporarily disable the store</p>
-            </div>
-            <Switch data-testid="switch-maintenance-mode" />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Allow Guest Checkout</Label>
-              <p className="text-sm text-muted-foreground">Let customers checkout without account</p>
-            </div>
-            <Switch defaultChecked data-testid="switch-guest-checkout" />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Reviews</Label>
-              <p className="text-sm text-muted-foreground">Allow customers to leave product reviews</p>
-            </div>
-            <Switch defaultChecked data-testid="switch-enable-reviews" />
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid gap-1">
+          <TabsTrigger value="general" className="flex items-center gap-2" data-testid="tab-general">
+            <Store className="h-4 w-4" />
+            <span className="hidden sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="payment" className="flex items-center gap-2" data-testid="tab-payment">
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Payment</span>
+          </TabsTrigger>
+          <TabsTrigger value="email" className="flex items-center gap-2" data-testid="tab-email">
+            <Mail className="h-4 w-4" />
+            <span className="hidden sm:inline">Email</span>
+          </TabsTrigger>
+          <TabsTrigger value="shipping" className="flex items-center gap-2" data-testid="tab-shipping">
+            <Truck className="h-4 w-4" />
+            <span className="hidden sm:inline">Shipping</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Store Information
+              </CardTitle>
+              <CardDescription>Basic information about your store</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="siteName">Store Name</Label>
+                <Input
+                  id="siteName"
+                  value={generalSettings.siteName}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, siteName: e.target.value })}
+                  data-testid="input-site-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="siteEmail">Contact Email</Label>
+                <Input
+                  id="siteEmail"
+                  type="email"
+                  value={generalSettings.siteEmail}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, siteEmail: e.target.value })}
+                  data-testid="input-site-email"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="siteDescription">Store Description</Label>
+                <Textarea
+                  id="siteDescription"
+                  value={generalSettings.siteDescription}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, siteDescription: e.target.value })}
+                  data-testid="input-site-description"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sitePhone">Phone Number</Label>
+                <Input
+                  id="sitePhone"
+                  value={generalSettings.sitePhone}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, sitePhone: e.target.value })}
+                  data-testid="input-site-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="siteAddress">Business Address</Label>
+                <Input
+                  id="siteAddress"
+                  value={generalSettings.siteAddress}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, siteAddress: e.target.value })}
+                  data-testid="input-site-address"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Branding
+              </CardTitle>
+              <CardDescription>Logo and visual identity</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="siteLogo">Logo URL</Label>
+                <Input
+                  id="siteLogo"
+                  placeholder="https://example.com/logo.png"
+                  value={generalSettings.siteLogo}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, siteLogo: e.target.value })}
+                  data-testid="input-logo-url"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="favicon">Favicon URL</Label>
+                <Input
+                  id="favicon"
+                  placeholder="https://example.com/favicon.ico"
+                  value={generalSettings.favicon}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, favicon: e.target.value })}
+                  data-testid="input-favicon-url"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Localization
+              </CardTitle>
+              <CardDescription>Regional settings and formats</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Timezone</Label>
+                <Select 
+                  value={generalSettings.timezone} 
+                  onValueChange={(value) => setGeneralSettings({ ...generalSettings, timezone: value })}
+                >
+                  <SelectTrigger data-testid="select-timezone">
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timezones.map((tz) => (
+                      <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateFormat">Date Format</Label>
+                <Select 
+                  value={generalSettings.dateFormat} 
+                  onValueChange={(value) => setGeneralSettings({ ...generalSettings, dateFormat: value })}
+                >
+                  <SelectTrigger data-testid="select-date-format">
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                    <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                    <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="itemsPerPage">Items Per Page</Label>
+                <Select 
+                  value={generalSettings.itemsPerPage} 
+                  onValueChange={(value) => setGeneralSettings({ ...generalSettings, itemsPerPage: value })}
+                >
+                  <SelectTrigger data-testid="select-items-per-page">
+                    <SelectValue placeholder="Select count" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="8">8</SelectItem>
+                    <SelectItem value="12">12</SelectItem>
+                    <SelectItem value="16">16</SelectItem>
+                    <SelectItem value="24">24</SelectItem>
+                    <SelectItem value="48">48</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Store Features
+              </CardTitle>
+              <CardDescription>Enable or disable store features</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Maintenance Mode</Label>
+                  <p className="text-sm text-muted-foreground">Temporarily disable the store for visitors</p>
+                </div>
+                <Switch 
+                  checked={generalSettings.maintenanceMode}
+                  onCheckedChange={(checked) => setGeneralSettings({ ...generalSettings, maintenanceMode: checked })}
+                  data-testid="switch-maintenance-mode" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Guest Checkout</Label>
+                  <p className="text-sm text-muted-foreground">Allow customers to checkout without creating an account</p>
+                </div>
+                <Switch 
+                  checked={generalSettings.allowGuestCheckout}
+                  onCheckedChange={(checked) => setGeneralSettings({ ...generalSettings, allowGuestCheckout: checked })}
+                  data-testid="switch-guest-checkout" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Product Reviews</Label>
+                  <p className="text-sm text-muted-foreground">Allow customers to leave product reviews</p>
+                </div>
+                <Switch 
+                  checked={generalSettings.enableReviews}
+                  onCheckedChange={(checked) => setGeneralSettings({ ...generalSettings, enableReviews: checked })}
+                  data-testid="switch-enable-reviews" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Wishlist</Label>
+                  <p className="text-sm text-muted-foreground">Allow customers to save products to wishlist</p>
+                </div>
+                <Switch 
+                  checked={generalSettings.enableWishlist}
+                  onCheckedChange={(checked) => setGeneralSettings({ ...generalSettings, enableWishlist: checked })}
+                  data-testid="switch-enable-wishlist" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Product Compare</Label>
+                  <p className="text-sm text-muted-foreground">Allow customers to compare products</p>
+                </div>
+                <Switch 
+                  checked={generalSettings.enableCompare}
+                  onCheckedChange={(checked) => setGeneralSettings({ ...generalSettings, enableCompare: checked })}
+                  data-testid="switch-enable-compare" 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payment" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Currency Settings
+              </CardTitle>
+              <CardDescription>Configure currency display and formatting</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select 
+                  value={paymentSettings.currency} 
+                  onValueChange={(value) => {
+                    const curr = currencies.find(c => c.code === value);
+                    setPaymentSettings({ 
+                      ...paymentSettings, 
+                      currency: value,
+                      currencySymbol: curr?.symbol || "$"
+                    });
+                  }}
+                >
+                  <SelectTrigger data-testid="select-currency">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((curr) => (
+                      <SelectItem key={curr.code} value={curr.code}>
+                        {curr.symbol} - {curr.name} ({curr.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currencyPosition">Symbol Position</Label>
+                <Select 
+                  value={paymentSettings.currencyPosition} 
+                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, currencyPosition: value })}
+                >
+                  <SelectTrigger data-testid="select-currency-position">
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="before">Before amount ($100)</SelectItem>
+                    <SelectItem value="after">After amount (100$)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="thousandSeparator">Thousand Separator</Label>
+                <Select 
+                  value={paymentSettings.thousandSeparator} 
+                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, thousandSeparator: value })}
+                >
+                  <SelectTrigger data-testid="select-thousand-sep">
+                    <SelectValue placeholder="Select separator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=",">Comma (1,000)</SelectItem>
+                    <SelectItem value=".">Period (1.000)</SelectItem>
+                    <SelectItem value=" ">Space (1 000)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="decimalPlaces">Decimal Places</Label>
+                <Select 
+                  value={paymentSettings.decimalPlaces} 
+                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, decimalPlaces: value })}
+                >
+                  <SelectTrigger data-testid="select-decimal-places">
+                    <SelectValue placeholder="Select places" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0 ($100)</SelectItem>
+                    <SelectItem value="2">2 ($100.00)</SelectItem>
+                    <SelectItem value="3">3 ($100.000)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Payment Gateways
+              </CardTitle>
+              <CardDescription>Configure payment methods for your store</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-purple-500/10 p-2 rounded-lg">
+                      <CreditCard className="h-5 w-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">Stripe</Label>
+                      <p className="text-sm text-muted-foreground">Accept credit cards via Stripe</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={paymentSettings.stripeEnabled}
+                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, stripeEnabled: checked })}
+                    data-testid="switch-stripe-enabled" 
+                  />
+                </div>
+                {paymentSettings.stripeEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="stripePublicKey">Publishable Key</Label>
+                      <Input
+                        id="stripePublicKey"
+                        type="password"
+                        placeholder="pk_live_..."
+                        value={paymentSettings.stripePublicKey}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, stripePublicKey: e.target.value })}
+                        data-testid="input-stripe-public-key"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stripeSecretKey">Secret Key</Label>
+                      <Input
+                        id="stripeSecretKey"
+                        type="password"
+                        placeholder="sk_live_..."
+                        value={paymentSettings.stripeSecretKey}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, stripeSecretKey: e.target.value })}
+                        data-testid="input-stripe-secret-key"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-500/10 p-2 rounded-lg">
+                      <Wallet className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">PayPal</Label>
+                      <p className="text-sm text-muted-foreground">Accept payments via PayPal</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={paymentSettings.paypalEnabled}
+                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, paypalEnabled: checked })}
+                    data-testid="switch-paypal-enabled" 
+                  />
+                </div>
+                {paymentSettings.paypalEnabled && (
+                  <div className="grid gap-4 md:grid-cols-2 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="paypalClientId">Client ID</Label>
+                      <Input
+                        id="paypalClientId"
+                        type="password"
+                        placeholder="Enter PayPal Client ID"
+                        value={paymentSettings.paypalClientId}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, paypalClientId: e.target.value })}
+                        data-testid="input-paypal-client-id"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="paypalSecret">Secret</Label>
+                      <Input
+                        id="paypalSecret"
+                        type="password"
+                        placeholder="Enter PayPal Secret"
+                        value={paymentSettings.paypalSecret}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, paypalSecret: e.target.value })}
+                        data-testid="input-paypal-secret"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-500/10 p-2 rounded-lg">
+                      <DollarSign className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">Cash on Delivery</Label>
+                      <p className="text-sm text-muted-foreground">Accept payment upon delivery</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={paymentSettings.codEnabled}
+                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, codEnabled: checked })}
+                    data-testid="switch-cod-enabled" 
+                  />
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-orange-500/10 p-2 rounded-lg">
+                      <Building2 className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">Bank Transfer</Label>
+                      <p className="text-sm text-muted-foreground">Accept direct bank transfers</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={paymentSettings.bankTransferEnabled}
+                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, bankTransferEnabled: checked })}
+                    data-testid="switch-bank-transfer-enabled" 
+                  />
+                </div>
+                {paymentSettings.bankTransferEnabled && (
+                  <div className="grid gap-4 md:grid-cols-3 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Input
+                        id="bankName"
+                        placeholder="Enter bank name"
+                        value={paymentSettings.bankName}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bankName: e.target.value })}
+                        data-testid="input-bank-name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bankAccountNumber">Account Number</Label>
+                      <Input
+                        id="bankAccountNumber"
+                        placeholder="Enter account number"
+                        value={paymentSettings.bankAccountNumber}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bankAccountNumber: e.target.value })}
+                        data-testid="input-bank-account"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bankRoutingNumber">Routing Number</Label>
+                      <Input
+                        id="bankRoutingNumber"
+                        placeholder="Enter routing number"
+                        value={paymentSettings.bankRoutingNumber}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bankRoutingNumber: e.target.value })}
+                        data-testid="input-bank-routing"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Order Limits
+              </CardTitle>
+              <CardDescription>Set minimum and maximum order amounts</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="minOrderAmount">Minimum Order Amount</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="minOrderAmount"
+                    type="number"
+                    className="pl-7"
+                    value={paymentSettings.minOrderAmount}
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, minOrderAmount: e.target.value })}
+                    data-testid="input-min-order"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxOrderAmount">Maximum Order Amount</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="maxOrderAmount"
+                    type="number"
+                    className="pl-7"
+                    value={paymentSettings.maxOrderAmount}
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, maxOrderAmount: e.target.value })}
+                    data-testid="input-max-order"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="email" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5" />
+                SMTP Configuration
+              </CardTitle>
+              <CardDescription>Configure your email server settings</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="smtpHost">SMTP Host</Label>
+                <Input
+                  id="smtpHost"
+                  placeholder="smtp.gmail.com"
+                  value={emailSettings.smtpHost}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, smtpHost: e.target.value })}
+                  data-testid="input-smtp-host"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="smtpPort">SMTP Port</Label>
+                <Input
+                  id="smtpPort"
+                  placeholder="587"
+                  value={emailSettings.smtpPort}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
+                  data-testid="input-smtp-port"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="smtpUsername">Username</Label>
+                <Input
+                  id="smtpUsername"
+                  placeholder="your@email.com"
+                  value={emailSettings.smtpUsername}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, smtpUsername: e.target.value })}
+                  data-testid="input-smtp-username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="smtpPassword">Password</Label>
+                <Input
+                  id="smtpPassword"
+                  type="password"
+                  placeholder="Enter password"
+                  value={emailSettings.smtpPassword}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, smtpPassword: e.target.value })}
+                  data-testid="input-smtp-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="smtpEncryption">Encryption</Label>
+                <Select 
+                  value={emailSettings.smtpEncryption} 
+                  onValueChange={(value) => setEmailSettings({ ...emailSettings, smtpEncryption: value })}
+                >
+                  <SelectTrigger data-testid="select-smtp-encryption">
+                    <SelectValue placeholder="Select encryption" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="ssl">SSL</SelectItem>
+                    <SelectItem value="tls">TLS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button variant="outline" className="w-full" data-testid="button-test-smtp">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Test Connection
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Sender Information
+              </CardTitle>
+              <CardDescription>Configure the from address for outgoing emails</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="fromName">From Name</Label>
+                <Input
+                  id="fromName"
+                  placeholder="HOREQ Store"
+                  value={emailSettings.fromName}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, fromName: e.target.value })}
+                  data-testid="input-from-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fromEmail">From Email</Label>
+                <Input
+                  id="fromEmail"
+                  type="email"
+                  placeholder="noreply@horeq.com"
+                  value={emailSettings.fromEmail}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, fromEmail: e.target.value })}
+                  data-testid="input-from-email"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Email Notifications
+              </CardTitle>
+              <CardDescription>Configure which emails are sent automatically</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Order Confirmation</Label>
+                  <p className="text-sm text-muted-foreground">Send email when order is placed</p>
+                </div>
+                <Switch 
+                  checked={emailSettings.orderConfirmation}
+                  onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, orderConfirmation: checked })}
+                  data-testid="switch-order-confirmation" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Shipping Notification</Label>
+                  <p className="text-sm text-muted-foreground">Send email when order is shipped</p>
+                </div>
+                <Switch 
+                  checked={emailSettings.shippingNotification}
+                  onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, shippingNotification: checked })}
+                  data-testid="switch-shipping-notification" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Delivery Confirmation</Label>
+                  <p className="text-sm text-muted-foreground">Send email when order is delivered</p>
+                </div>
+                <Switch 
+                  checked={emailSettings.deliveryConfirmation}
+                  onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, deliveryConfirmation: checked })}
+                  data-testid="switch-delivery-confirmation" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Abandoned Cart Reminder</Label>
+                  <p className="text-sm text-muted-foreground">Send reminder for abandoned carts</p>
+                </div>
+                <Switch 
+                  checked={emailSettings.abandonedCartReminder}
+                  onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, abandonedCartReminder: checked })}
+                  data-testid="switch-abandoned-cart" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Newsletter</Label>
+                  <p className="text-sm text-muted-foreground">Allow customers to subscribe to newsletter</p>
+                </div>
+                <Switch 
+                  checked={emailSettings.newsletterEnabled}
+                  onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, newsletterEnabled: checked })}
+                  data-testid="switch-newsletter" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Welcome Email</Label>
+                  <p className="text-sm text-muted-foreground">Send email when user registers</p>
+                </div>
+                <Switch 
+                  checked={emailSettings.welcomeEmailEnabled}
+                  onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, welcomeEmailEnabled: checked })}
+                  data-testid="switch-welcome-email" 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="shipping" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Shipping Methods
+              </CardTitle>
+              <CardDescription>Configure shipping options for your store</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-500/10 p-2 rounded-lg">
+                      <Gift className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">Free Shipping</Label>
+                      <p className="text-sm text-muted-foreground">Offer free shipping over a threshold</p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary">Enabled</Badge>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="freeShippingThreshold">Free Shipping Threshold</Label>
+                  <div className="relative max-w-xs">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="freeShippingThreshold"
+                      type="number"
+                      className="pl-7"
+                      value={shippingSettings.freeShippingThreshold}
+                      onChange={(e) => setShippingSettings({ ...shippingSettings, freeShippingThreshold: e.target.value })}
+                      data-testid="input-free-shipping-threshold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-500/10 p-2 rounded-lg">
+                      <Package className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">Flat Rate Shipping</Label>
+                      <p className="text-sm text-muted-foreground">Charge a fixed shipping rate</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={shippingSettings.flatRateEnabled}
+                    onCheckedChange={(checked) => setShippingSettings({ ...shippingSettings, flatRateEnabled: checked })}
+                    data-testid="switch-flat-rate" 
+                  />
+                </div>
+                {shippingSettings.flatRateEnabled && (
+                  <div className="space-y-2">
+                    <Label htmlFor="flatRateAmount">Flat Rate Amount</Label>
+                    <div className="relative max-w-xs">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="flatRateAmount"
+                        type="number"
+                        step="0.01"
+                        className="pl-7"
+                        value={shippingSettings.flatRateAmount}
+                        onChange={(e) => setShippingSettings({ ...shippingSettings, flatRateAmount: e.target.value })}
+                        data-testid="input-flat-rate"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-purple-500/10 p-2 rounded-lg">
+                      <MapPin className="h-5 w-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <Label className="text-base">Local Pickup</Label>
+                      <p className="text-sm text-muted-foreground">Allow customers to pickup orders</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={shippingSettings.localPickupEnabled}
+                    onCheckedChange={(checked) => setShippingSettings({ ...shippingSettings, localPickupEnabled: checked })}
+                    data-testid="switch-local-pickup" 
+                  />
+                </div>
+                {shippingSettings.localPickupEnabled && (
+                  <div className="space-y-2">
+                    <Label htmlFor="localPickupAddress">Pickup Address</Label>
+                    <Textarea
+                      id="localPickupAddress"
+                      placeholder="Enter pickup address"
+                      value={shippingSettings.localPickupAddress}
+                      onChange={(e) => setShippingSettings({ ...shippingSettings, localPickupAddress: e.target.value })}
+                      data-testid="input-pickup-address"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                Shipping Zones
+              </CardTitle>
+              <CardDescription>Configure where you ship to</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="defaultCountry">Default Country</Label>
+                <Select 
+                  value={shippingSettings.defaultCountry} 
+                  onValueChange={(value) => setShippingSettings({ ...shippingSettings, defaultCountry: value })}
+                >
+                  <SelectTrigger data-testid="select-default-country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="CA">Canada</SelectItem>
+                    <SelectItem value="GB">United Kingdom</SelectItem>
+                    <SelectItem value="AU">Australia</SelectItem>
+                    <SelectItem value="DE">Germany</SelectItem>
+                    <SelectItem value="FR">France</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="allowedCountries">Allowed Countries (comma-separated)</Label>
+                <Input
+                  id="allowedCountries"
+                  placeholder="US,CA,GB,AU"
+                  value={shippingSettings.allowedCountries}
+                  onChange={(e) => setShippingSettings({ ...shippingSettings, allowedCountries: e.target.value })}
+                  data-testid="input-allowed-countries"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Additional Options
+              </CardTitle>
+              <CardDescription>Configure additional shipping options</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="handlingFee">Handling Fee</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="handlingFee"
+                      type="number"
+                      step="0.01"
+                      className="pl-7"
+                      value={shippingSettings.handlingFee}
+                      onChange={(e) => setShippingSettings({ ...shippingSettings, handlingFee: e.target.value })}
+                      data-testid="input-handling-fee"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="processingTime">Processing Time</Label>
+                  <Input
+                    id="processingTime"
+                    placeholder="1-2 business days"
+                    value={shippingSettings.processingTime}
+                    onChange={(e) => setShippingSettings({ ...shippingSettings, processingTime: e.target.value })}
+                    data-testid="input-processing-time"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weightUnit">Weight Unit</Label>
+                  <Select 
+                    value={shippingSettings.weightUnit} 
+                    onValueChange={(value) => setShippingSettings({ ...shippingSettings, weightUnit: value })}
+                  >
+                    <SelectTrigger data-testid="select-weight-unit">
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                      <SelectItem value="lb">Pounds (lb)</SelectItem>
+                      <SelectItem value="oz">Ounces (oz)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Order Tracking</Label>
+                  <p className="text-sm text-muted-foreground">Enable tracking for shipments</p>
+                </div>
+                <Switch 
+                  checked={shippingSettings.trackingEnabled}
+                  onCheckedChange={(checked) => setShippingSettings({ ...shippingSettings, trackingEnabled: checked })}
+                  data-testid="switch-tracking" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Signature Required</Label>
+                  <p className="text-sm text-muted-foreground">Require signature on delivery</p>
+                </div>
+                <Switch 
+                  checked={shippingSettings.signatureRequired}
+                  onCheckedChange={(checked) => setShippingSettings({ ...shippingSettings, signatureRequired: checked })}
+                  data-testid="switch-signature" 
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Shipping Insurance</Label>
+                  <p className="text-sm text-muted-foreground">Offer insurance for shipments</p>
+                </div>
+                <Switch 
+                  checked={shippingSettings.insuranceEnabled}
+                  onCheckedChange={(checked) => setShippingSettings({ ...shippingSettings, insuranceEnabled: checked })}
+                  data-testid="switch-insurance" 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
