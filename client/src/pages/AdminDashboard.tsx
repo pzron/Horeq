@@ -89,6 +89,8 @@ import {
   Globe,
   AlertCircle,
   FolderOpen,
+  Gift,
+  Image,
 } from "lucide-react";
 import {
   AreaChart,
@@ -108,12 +110,14 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "categories" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "settings" | "activity";
+type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "menus" | "coupons" | "settings" | "activity";
 
 const menuItems = [
   { id: "dashboard" as AdminSection, title: "Dashboard", icon: LayoutDashboard },
   { id: "products" as AdminSection, title: "Products", icon: Package },
   { id: "categories" as AdminSection, title: "Categories", icon: FolderOpen },
+  { id: "combos" as AdminSection, title: "Combo Deals", icon: Gift },
+  { id: "banners" as AdminSection, title: "Banners", icon: Image },
   { id: "orders" as AdminSection, title: "Orders", icon: ShoppingCart },
   { id: "users" as AdminSection, title: "Users", icon: Users },
   { id: "affiliates" as AdminSection, title: "Affiliates", icon: UserCheck },
@@ -230,6 +234,8 @@ export default function AdminDashboard() {
             {activeSection === "dashboard" && <DashboardOverview />}
             {activeSection === "products" && <ProductsSection />}
             {activeSection === "categories" && <CategoriesSection />}
+            {activeSection === "combos" && <CombosSection />}
+            {activeSection === "banners" && <BannersSection />}
             {activeSection === "orders" && <OrdersSection />}
             {activeSection === "users" && <UsersSection />}
             {activeSection === "affiliates" && <AffiliatesSection />}
@@ -1786,6 +1792,834 @@ function ActivitySection() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function CombosSection() {
+  const { toast } = useToast();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingCombo, setEditingCombo] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    image: "",
+    productIds: [] as string[],
+    price: "",
+    originalPrice: "",
+    savings: "",
+    isActive: true,
+    sortOrder: 0,
+  });
+
+  const { data } = useQuery({
+    queryKey: ["/api/combos"],
+  });
+  const combos = data as any[] | undefined;
+  const isLoading = !combos;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      await apiRequest("POST", "/api/admin/combos", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/combos"] });
+      setIsAddOpen(false);
+      resetForm();
+      toast({ title: "Combo Created", description: "The combo deal has been created successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create combo", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
+      await apiRequest("PATCH", `/api/admin/combos/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/combos"] });
+      setEditingCombo(null);
+      toast({ title: "Combo Updated", description: "The combo deal has been updated successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update combo", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/combos/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/combos"] });
+      setDeleteConfirm(null);
+      toast({ title: "Combo Deleted", description: "The combo deal has been deleted." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete combo", variant: "destructive" });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      slug: "",
+      description: "",
+      image: "",
+      productIds: [],
+      price: "",
+      originalPrice: "",
+      savings: "",
+      isActive: true,
+      sortOrder: 0,
+    });
+  };
+
+  const handleAdd = () => {
+    if (!formData.name || !formData.slug || !formData.image || !formData.price || !formData.originalPrice) {
+      toast({ title: "Validation Error", description: "Name, slug, image, price, and original price are required", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(formData);
+  };
+
+  const handleEdit = () => {
+    if (!editingCombo) return;
+    updateMutation.mutate({ id: editingCombo.id, data: formData });
+  };
+
+  const openEditDialog = (combo: any) => {
+    setFormData({
+      name: combo.name,
+      slug: combo.slug,
+      description: combo.description || "",
+      image: combo.image,
+      productIds: combo.productIds || [],
+      price: combo.price,
+      originalPrice: combo.originalPrice,
+      savings: combo.savings,
+      isActive: combo.isActive,
+      sortOrder: combo.sortOrder || 0,
+    });
+    setEditingCombo(combo);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search combos..." className="pl-10" data-testid="input-search-combos" />
+          </div>
+        </div>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-combo">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Combo
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add New Combo Deal</DialogTitle>
+              <DialogDescription>Create a new product combo with special pricing.</DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 py-4 pr-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
+                    placeholder="e.g. Summer Bundle"
+                    data-testid="input-combo-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="slug">Slug</Label>
+                  <Input
+                    id="slug"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    placeholder="e.g. summer-bundle"
+                    data-testid="input-combo-slug"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe this combo..."
+                    data-testid="input-combo-description"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image">Image URL</Label>
+                  <Input
+                    id="image"
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="https://..."
+                    data-testid="input-combo-image"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="originalPrice">Original Price</Label>
+                    <Input
+                      id="originalPrice"
+                      type="number"
+                      step="0.01"
+                      value={formData.originalPrice}
+                      onChange={(e) => {
+                        const orig = parseFloat(e.target.value) || 0;
+                        const price = parseFloat(formData.price) || 0;
+                        setFormData({ ...formData, originalPrice: e.target.value, savings: (orig - price).toFixed(2) });
+                      }}
+                      placeholder="99.99"
+                      data-testid="input-combo-original-price"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Sale Price</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => {
+                        const price = parseFloat(e.target.value) || 0;
+                        const orig = parseFloat(formData.originalPrice) || 0;
+                        setFormData({ ...formData, price: e.target.value, savings: (orig - price).toFixed(2) });
+                      }}
+                      placeholder="79.99"
+                      data-testid="input-combo-price"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="savings">Savings</Label>
+                    <Input
+                      id="savings"
+                      value={formData.savings}
+                      onChange={(e) => setFormData({ ...formData, savings: e.target.value })}
+                      placeholder="20.00"
+                      data-testid="input-combo-savings"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                    data-testid="switch-combo-active"
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                </div>
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleAdd} disabled={createMutation.isPending} data-testid="button-save-combo">
+                {createMutation.isPending ? "Creating..." : "Create Combo"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Image</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Savings</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Loading combos...
+                  </TableCell>
+                </TableRow>
+              ) : (combos || []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No combo deals found. Create your first combo.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (combos || []).map((combo: any) => (
+                  <TableRow key={combo.id} data-testid={`row-combo-${combo.id}`}>
+                    <TableCell>
+                      <img src={combo.image} alt={combo.name} className="w-12 h-12 object-cover rounded-md" />
+                    </TableCell>
+                    <TableCell className="font-medium">{combo.name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">${combo.price}</span>
+                        <span className="text-xs text-muted-foreground line-through">${combo.originalPrice}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">${combo.savings} off</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={combo.isActive ? "default" : "outline"}>
+                        {combo.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(combo)}
+                          data-testid={`button-edit-combo-${combo.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirm(combo.id)}
+                          data-testid={`button-delete-combo-${combo.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editingCombo} onOpenChange={(open) => !open && setEditingCombo(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Combo Deal</DialogTitle>
+            <DialogDescription>Update combo details.</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 py-4 pr-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  data-testid="input-edit-combo-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-slug">Slug</Label>
+                <Input
+                  id="edit-slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  data-testid="input-edit-combo-slug"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  data-testid="input-edit-combo-description"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-image">Image URL</Label>
+                <Input
+                  id="edit-image"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  data-testid="input-edit-combo-image"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-originalPrice">Original Price</Label>
+                  <Input
+                    id="edit-originalPrice"
+                    type="number"
+                    step="0.01"
+                    value={formData.originalPrice}
+                    onChange={(e) => {
+                      const orig = parseFloat(e.target.value) || 0;
+                      const price = parseFloat(formData.price) || 0;
+                      setFormData({ ...formData, originalPrice: e.target.value, savings: (orig - price).toFixed(2) });
+                    }}
+                    data-testid="input-edit-combo-original-price"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-price">Sale Price</Label>
+                  <Input
+                    id="edit-price"
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => {
+                      const price = parseFloat(e.target.value) || 0;
+                      const orig = parseFloat(formData.originalPrice) || 0;
+                      setFormData({ ...formData, price: e.target.value, savings: (orig - price).toFixed(2) });
+                    }}
+                    data-testid="input-edit-combo-price"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-savings">Savings</Label>
+                  <Input
+                    id="edit-savings"
+                    value={formData.savings}
+                    onChange={(e) => setFormData({ ...formData, savings: e.target.value })}
+                    data-testid="input-edit-combo-savings"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-isActive"
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  data-testid="switch-edit-combo-active"
+                />
+                <Label htmlFor="edit-isActive">Active</Label>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCombo(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending} data-testid="button-update-combo">
+              {updateMutation.isPending ? "Updating..." : "Update Combo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Combo</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this combo deal? This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteConfirm && deleteMutation.mutate(deleteConfirm)} disabled={deleteMutation.isPending} data-testid="button-confirm-delete-combo">
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function BannersSection() {
+  const { toast } = useToast();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    subtitle: "",
+    image: "",
+    link: "",
+    buttonText: "",
+    position: "hero",
+    isActive: true,
+    sortOrder: 0,
+  });
+
+  const { data } = useQuery({
+    queryKey: ["/api/banners"],
+  });
+  const banners = data as any[] | undefined;
+  const isLoading = !banners;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      await apiRequest("POST", "/api/admin/banners", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/banners"] });
+      setIsAddOpen(false);
+      resetForm();
+      toast({ title: "Banner Created", description: "The banner has been created successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create banner", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
+      await apiRequest("PATCH", `/api/admin/banners/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/banners"] });
+      setEditingBanner(null);
+      toast({ title: "Banner Updated", description: "The banner has been updated successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update banner", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/banners/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/banners"] });
+      setDeleteConfirm(null);
+      toast({ title: "Banner Deleted", description: "The banner has been deleted." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete banner", variant: "destructive" });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      subtitle: "",
+      image: "",
+      link: "",
+      buttonText: "",
+      position: "hero",
+      isActive: true,
+      sortOrder: 0,
+    });
+  };
+
+  const handleAdd = () => {
+    if (!formData.title || !formData.image) {
+      toast({ title: "Validation Error", description: "Title and image are required", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(formData);
+  };
+
+  const handleEdit = () => {
+    if (!editingBanner) return;
+    updateMutation.mutate({ id: editingBanner.id, data: formData });
+  };
+
+  const openEditDialog = (banner: any) => {
+    setFormData({
+      title: banner.title,
+      subtitle: banner.subtitle || "",
+      image: banner.image,
+      link: banner.link || "",
+      buttonText: banner.buttonText || "",
+      position: banner.position || "hero",
+      isActive: banner.isActive,
+      sortOrder: banner.sortOrder || 0,
+    });
+    setEditingBanner(banner);
+  };
+
+  const positionOptions = ["hero", "sidebar", "footer", "promotional"];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search banners..." className="pl-10" data-testid="input-search-banners" />
+          </div>
+        </div>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-banner">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Banner
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add New Banner</DialogTitle>
+              <DialogDescription>Create a new banner for your homepage.</DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 py-4 pr-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g. Holiday Sale"
+                    data-testid="input-banner-title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subtitle">Subtitle</Label>
+                  <Input
+                    id="subtitle"
+                    value={formData.subtitle}
+                    onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                    placeholder="e.g. Up to 50% off"
+                    data-testid="input-banner-subtitle"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image">Image URL</Label>
+                  <Input
+                    id="image"
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="https://..."
+                    data-testid="input-banner-image"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="link">Link URL</Label>
+                  <Input
+                    id="link"
+                    value={formData.link}
+                    onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                    placeholder="/products or https://..."
+                    data-testid="input-banner-link"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="buttonText">Button Text</Label>
+                  <Input
+                    id="buttonText"
+                    value={formData.buttonText}
+                    onChange={(e) => setFormData({ ...formData, buttonText: e.target.value })}
+                    placeholder="e.g. Shop Now"
+                    data-testid="input-banner-button-text"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Position</Label>
+                  <Select value={formData.position} onValueChange={(value) => setFormData({ ...formData, position: value })}>
+                    <SelectTrigger data-testid="select-banner-position">
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {positionOptions.map((pos) => (
+                        <SelectItem key={pos} value={pos}>{pos.charAt(0).toUpperCase() + pos.slice(1)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                    data-testid="switch-banner-active"
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                </div>
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleAdd} disabled={createMutation.isPending} data-testid="button-save-banner">
+                {createMutation.isPending ? "Creating..." : "Create Banner"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Image</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    Loading banners...
+                  </TableCell>
+                </TableRow>
+              ) : (banners || []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No banners found. Create your first banner.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (banners || []).map((banner: any) => (
+                  <TableRow key={banner.id} data-testid={`row-banner-${banner.id}`}>
+                    <TableCell>
+                      <img src={banner.image} alt={banner.title} className="w-20 h-12 object-cover rounded-md" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{banner.title}</span>
+                        {banner.subtitle && <span className="text-xs text-muted-foreground">{banner.subtitle}</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{banner.position}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={banner.isActive ? "default" : "outline"}>
+                        {banner.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(banner)}
+                          data-testid={`button-edit-banner-${banner.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirm(banner.id)}
+                          data-testid={`button-delete-banner-${banner.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editingBanner} onOpenChange={(open) => !open && setEditingBanner(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Banner</DialogTitle>
+            <DialogDescription>Update banner details.</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 py-4 pr-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Title</Label>
+                <Input
+                  id="edit-title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  data-testid="input-edit-banner-title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-subtitle">Subtitle</Label>
+                <Input
+                  id="edit-subtitle"
+                  value={formData.subtitle}
+                  onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                  data-testid="input-edit-banner-subtitle"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-image">Image URL</Label>
+                <Input
+                  id="edit-image"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  data-testid="input-edit-banner-image"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-link">Link URL</Label>
+                <Input
+                  id="edit-link"
+                  value={formData.link}
+                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                  data-testid="input-edit-banner-link"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-buttonText">Button Text</Label>
+                <Input
+                  id="edit-buttonText"
+                  value={formData.buttonText}
+                  onChange={(e) => setFormData({ ...formData, buttonText: e.target.value })}
+                  data-testid="input-edit-banner-button-text"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Position</Label>
+                <Select value={formData.position} onValueChange={(value) => setFormData({ ...formData, position: value })}>
+                  <SelectTrigger data-testid="select-edit-banner-position">
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {positionOptions.map((pos) => (
+                      <SelectItem key={pos} value={pos}>{pos.charAt(0).toUpperCase() + pos.slice(1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-isActive"
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  data-testid="switch-edit-banner-active"
+                />
+                <Label htmlFor="edit-isActive">Active</Label>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingBanner(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending} data-testid="button-update-banner">
+              {updateMutation.isPending ? "Updating..." : "Update Banner"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Banner</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this banner? This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteConfirm && deleteMutation.mutate(deleteConfirm)} disabled={deleteMutation.isPending} data-testid="button-confirm-delete-banner">
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

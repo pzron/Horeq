@@ -20,6 +20,8 @@ import {
   insertMenuItemSchema,
   insertCouponSchema,
   insertAffiliatePayoutSchema,
+  insertComboSchema,
+  insertBannerSchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 
@@ -39,6 +41,8 @@ const updateCartQuantitySchema = z.object({
 });
 const updateMenuItemSchema = insertMenuItemSchema.partial();
 const updateCouponSchema = insertCouponSchema.partial();
+const updateComboSchema = insertComboSchema.partial();
+const updateBannerSchema = insertBannerSchema.partial();
 const updatePayoutSchema = z.object({
   status: z.enum(["pending", "approved", "paid", "rejected"]).optional(),
   paymentMethod: z.string().optional(),
@@ -1408,6 +1412,116 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Coupon usage limit reached" });
       }
       res.json(coupon);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Combos - Public routes
+  app.get("/api/combos", async (_req, res) => {
+    try {
+      const combos = await storage.getAllCombos();
+      res.json(combos);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/combos/:id", async (req, res) => {
+    try {
+      const combo = await storage.getComboById(req.params.id);
+      if (!combo) {
+        return res.status(404).json({ message: "Combo not found" });
+      }
+      res.json(combo);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Combos - Admin routes
+  app.post("/api/admin/combos", isAdmin, async (req, res) => {
+    try {
+      const comboData = insertComboSchema.parse(req.body);
+      const combo = await storage.createCombo(comboData);
+      res.status(201).json(combo);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/combos/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateComboSchema.parse(req.body);
+      const combo = await storage.updateCombo(req.params.id, validatedData);
+      if (!combo) {
+        return res.status(404).json({ message: "Combo not found" });
+      }
+      res.json(combo);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/combos/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteCombo(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Banners - Public routes
+  app.get("/api/banners", async (_req, res) => {
+    try {
+      const banners = await storage.getAllBanners();
+      res.json(banners);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/banners/:id", async (req, res) => {
+    try {
+      const banner = await storage.getBannerById(req.params.id);
+      if (!banner) {
+        return res.status(404).json({ message: "Banner not found" });
+      }
+      res.json(banner);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Banners - Admin routes
+  app.post("/api/admin/banners", isAdmin, async (req, res) => {
+    try {
+      const bannerData = insertBannerSchema.parse(req.body);
+      const banner = await storage.createBanner(bannerData);
+      res.status(201).json(banner);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/banners/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateBannerSchema.parse(req.body);
+      const banner = await storage.updateBanner(req.params.id, validatedData);
+      if (!banner) {
+        return res.status(404).json({ message: "Banner not found" });
+      }
+      res.json(banner);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/banners/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteBanner(req.params.id);
+      res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

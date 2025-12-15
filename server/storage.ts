@@ -35,6 +35,10 @@ import {
   type InsertCoupon,
   type Notification,
   type InsertNotification,
+  type Combo,
+  type InsertCombo,
+  type Banner,
+  type InsertBanner,
   users,
   products,
   categories,
@@ -53,6 +57,8 @@ import {
   affiliatePayouts,
   coupons,
   notifications,
+  combos,
+  banners,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, like } from "drizzle-orm";
@@ -186,6 +192,20 @@ export interface IStorage {
     totalProducts: number;
     totalRevenue: string;
   }>;
+
+  // Combos
+  getAllCombos(): Promise<Combo[]>;
+  getComboById(id: string): Promise<Combo | undefined>;
+  createCombo(combo: InsertCombo): Promise<Combo>;
+  updateCombo(id: string, data: Partial<InsertCombo>): Promise<Combo | undefined>;
+  deleteCombo(id: string): Promise<void>;
+
+  // Banners
+  getAllBanners(): Promise<Banner[]>;
+  getBannerById(id: string): Promise<Banner | undefined>;
+  createBanner(banner: InsertBanner): Promise<Banner>;
+  updateBanner(id: string, data: Partial<InsertBanner>): Promise<Banner | undefined>;
+  deleteBanner(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -637,6 +657,54 @@ export class DbStorage implements IStorage {
       totalProducts: productsCount?.count || 0,
       totalRevenue: revenueResult?.total || "0",
     };
+  }
+
+  // Combos
+  async getAllCombos(): Promise<Combo[]> {
+    return await db.select().from(combos).orderBy(combos.sortOrder);
+  }
+
+  async getComboById(id: string): Promise<Combo | undefined> {
+    const result = await db.select().from(combos).where(eq(combos.id, id));
+    return result[0];
+  }
+
+  async createCombo(combo: InsertCombo): Promise<Combo> {
+    const result = await db.insert(combos).values(combo).returning();
+    return result[0];
+  }
+
+  async updateCombo(id: string, data: Partial<InsertCombo>): Promise<Combo | undefined> {
+    const result = await db.update(combos).set(data).where(eq(combos.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteCombo(id: string): Promise<void> {
+    await db.delete(combos).where(eq(combos.id, id));
+  }
+
+  // Banners
+  async getAllBanners(): Promise<Banner[]> {
+    return await db.select().from(banners).orderBy(banners.sortOrder);
+  }
+
+  async getBannerById(id: string): Promise<Banner | undefined> {
+    const result = await db.select().from(banners).where(eq(banners.id, id));
+    return result[0];
+  }
+
+  async createBanner(banner: InsertBanner): Promise<Banner> {
+    const result = await db.insert(banners).values(banner).returning();
+    return result[0];
+  }
+
+  async updateBanner(id: string, data: Partial<InsertBanner>): Promise<Banner | undefined> {
+    const result = await db.update(banners).set(data).where(eq(banners.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteBanner(id: string): Promise<void> {
+    await db.delete(banners).where(eq(banners.id, id));
   }
 }
 
