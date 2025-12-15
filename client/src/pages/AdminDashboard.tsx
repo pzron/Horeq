@@ -1325,11 +1325,64 @@ function CategoriesSection() {
 }
 
 function OrdersSection() {
+  const { toast } = useToast();
+  const [viewingOrder, setViewingOrder] = useState<any | null>(null);
+  const [statusOrder, setStatusOrder] = useState<any | null>(null);
+  const [newStatus, setNewStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const { data } = useQuery({
     queryKey: ["/api/admin/orders"],
   });
   const orders = data as any[] | undefined;
   const isLoading = !orders;
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/orders/${id}`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/orders"] });
+      toast({ title: "Success", description: "Order status updated successfully" });
+      setStatusOrder(null);
+      setNewStatus("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleUpdateStatus = () => {
+    if (statusOrder && newStatus) {
+      updateStatusMutation.mutate({ id: statusOrder.id, status: newStatus });
+    }
+  };
+
+  const openStatusDialog = (order: any) => {
+    setStatusOrder(order);
+    setNewStatus(order.status);
+  };
+
+  const filteredOrders = (orders || []).filter((order: any) => {
+    const matchesSearch = !searchQuery || 
+      order.id?.toString().includes(searchQuery) ||
+      order.customerName?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+      case "processing": return "bg-blue-500/10 text-blue-600 dark:text-blue-400";
+      case "shipped": return "bg-purple-500/10 text-purple-600 dark:text-purple-400";
+      case "delivered": return "bg-green-500/10 text-green-600 dark:text-green-400";
+      case "cancelled": return "bg-red-500/10 text-red-600 dark:text-red-400";
+      default: return "";
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1337,10 +1390,16 @@ function OrdersSection() {
         <div className="flex items-center gap-2 flex-1 max-w-sm">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search orders..." className="pl-10" data-testid="input-search-orders" />
+            <Input 
+              placeholder="Search orders..." 
+              className="pl-10" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-search-orders" 
+            />
           </div>
         </div>
-        <Select defaultValue="all">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40" data-testid="select-order-status">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
@@ -1376,24 +1435,21 @@ function OrdersSection() {
                     Loading orders...
                   </TableCell>
                 </TableRow>
-              ) : (orders || []).length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No orders found
                   </TableCell>
                 </TableRow>
               ) : (
-                (orders || []).map((order: any) => (
+                filteredOrders.map((order: any) => (
                   <TableRow key={order.id} data-testid={`row-order-${order.id}`}>
                     <TableCell className="font-medium">#{order.id}</TableCell>
                     <TableCell>{order.customerName || "Customer"}</TableCell>
                     <TableCell>{order.items?.length || 0} items</TableCell>
                     <TableCell>{formatCurrency(order.totalAmount || 0)}</TableCell>
                     <TableCell>
-                      <Badge variant={
-                        order.status === "delivered" ? "default" :
-                        order.status === "cancelled" ? "destructive" : "secondary"
-                      }>
+                      <Badge className={getStatusColor(order.status)}>
                         {order.status}
                       </Badge>
                     </TableCell>
@@ -1402,10 +1458,20 @@ function OrdersSection() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" data-testid={`button-view-order-${order.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setViewingOrder(order)}
+                          data-testid={`button-view-order-${order.id}`}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-order-${order.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => openStatusDialog(order)}
+                          data-testid={`button-edit-order-${order.id}`}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1417,6 +1483,122 @@ function OrdersSection() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewingOrder} onOpenChange={(open) => !open && setViewingOrder(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Order Details #{viewingOrder?.id}</DialogTitle>
+            <DialogDescription>
+              Order placed on {viewingOrder?.createdAt ? new Date(viewingOrder.createdAt).toLocaleDateString() : "-"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-muted-foreground">Customer</Label>
+                <p className="font-medium">{viewingOrder?.customerName || "Customer"}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Status</Label>
+                <Badge className={getStatusColor(viewingOrder?.status || "")}>
+                  {viewingOrder?.status}
+                </Badge>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Shipping Address</Label>
+                <p className="text-sm">{viewingOrder?.shippingAddress || "Not provided"}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Payment Method</Label>
+                <p className="text-sm">{viewingOrder?.paymentMethod || "Not specified"}</p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <Label className="text-muted-foreground mb-2 block">Order Items</Label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {viewingOrder?.items?.length > 0 ? (
+                  viewingOrder.items.map((item: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{item.productName || item.name || "Product"}</p>
+                          <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No items in this order</p>
+                )}
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Total Amount</span>
+              <span className="text-xl font-bold">{formatCurrency(viewingOrder?.totalAmount || 0)}</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingOrder(null)}>Close</Button>
+            <Button onClick={() => { setViewingOrder(null); openStatusDialog(viewingOrder); }}>
+              Update Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!statusOrder} onOpenChange={(open) => !open && setStatusOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Order Status</DialogTitle>
+            <DialogDescription>
+              Change the status for Order #{statusOrder?.id}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Status</Label>
+              <Badge className={getStatusColor(statusOrder?.status || "")}>
+                {statusOrder?.status}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <Label>New Status</Label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger data-testid="select-new-order-status">
+                  <SelectValue placeholder="Select new status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusOrder(null)}>Cancel</Button>
+            <Button 
+              onClick={handleUpdateStatus} 
+              disabled={updateStatusMutation.isPending || !newStatus || newStatus === statusOrder?.status}
+              data-testid="button-update-order-status"
+            >
+              {updateStatusMutation.isPending ? "Updating..." : "Update Status"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
