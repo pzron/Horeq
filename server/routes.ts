@@ -726,6 +726,39 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const { username, email, password, role, name } = req.body;
+      
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      const userData = insertUserSchema.parse({
+        username,
+        email,
+        password: hashedPassword,
+        role: role || "customer",
+        name: name || username,
+      });
+
+      const user = await storage.createUser(userData);
+      const { password: _, ...userWithoutPassword } = user;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
       const validatedData = updateUserSchema.parse(req.body);

@@ -231,7 +231,7 @@ export default function AdminDashboard() {
           </header>
 
           <main className="flex-1 overflow-auto p-6 bg-muted/30">
-            {activeSection === "dashboard" && <DashboardOverview />}
+            {activeSection === "dashboard" && <DashboardOverview onNavigate={setActiveSection} />}
             {activeSection === "products" && <ProductsSection />}
             {activeSection === "categories" && <CategoriesSection />}
             {activeSection === "combos" && <CombosSection />}
@@ -279,7 +279,11 @@ const trafficData = [
   { name: "Sun", desktop: 1700, mobile: 1200, tablet: 320 },
 ];
 
-function DashboardOverview() {
+interface DashboardOverviewProps {
+  onNavigate: (section: AdminSection) => void;
+}
+
+function DashboardOverview({ onNavigate }: DashboardOverviewProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/stats"],
   });
@@ -506,27 +510,27 @@ function DashboardOverview() {
             <CardDescription>Common admin tasks</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="justify-start" data-testid="button-add-product">
+            <Button variant="outline" className="justify-start" onClick={() => onNavigate("products")} data-testid="button-add-product">
               <Plus className="h-4 w-4 mr-2" />
               Add Product
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-view-orders">
+            <Button variant="outline" className="justify-start" onClick={() => onNavigate("orders")} data-testid="button-view-orders">
               <ShoppingCart className="h-4 w-4 mr-2" />
               View Orders
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-manage-users">
+            <Button variant="outline" className="justify-start" onClick={() => onNavigate("users")} data-testid="button-manage-users">
               <Users className="h-4 w-4 mr-2" />
               Manage Users
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-site-settings">
+            <Button variant="outline" className="justify-start" onClick={() => onNavigate("settings")} data-testid="button-site-settings">
               <Settings className="h-4 w-4 mr-2" />
               Site Settings
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-manage-coupons">
+            <Button variant="outline" className="justify-start" onClick={() => onNavigate("coupons")} data-testid="button-manage-coupons">
               <Tag className="h-4 w-4 mr-2" />
               Manage Coupons
             </Button>
-            <Button variant="outline" className="justify-start" data-testid="button-view-reports">
+            <Button variant="outline" className="justify-start" onClick={() => onNavigate("activity")} data-testid="button-view-reports">
               <BarChart3 className="h-4 w-4 mr-2" />
               View Reports
             </Button>
@@ -1604,11 +1608,45 @@ function OrdersSection() {
 }
 
 function UsersSection() {
+  const { toast } = useToast();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    name: "",
+    role: "customer" as "customer" | "admin" | "affiliate",
+  });
+
   const { data } = useQuery({
     queryKey: ["/api/admin/users"],
   });
   const users = data as any[] | undefined;
   const isLoading = !users;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      await apiRequest("POST", "/api/admin/users", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "User created successfully" });
+      setIsAddOpen(false);
+      setFormData({ username: "", email: "", password: "", name: "", role: "customer" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create user", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.username || !formData.email || !formData.password) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(formData);
+  };
 
   return (
     <div className="space-y-4">
@@ -1619,17 +1657,96 @@ function UsersSection() {
             <Input placeholder="Search users..." className="pl-10" data-testid="input-search-users" />
           </div>
         </div>
-        <Select defaultValue="all">
-          <SelectTrigger className="w-40" data-testid="select-user-role">
-            <SelectValue placeholder="Filter by role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Users</SelectItem>
-            <SelectItem value="customer">Customers</SelectItem>
-            <SelectItem value="affiliate">Affiliates</SelectItem>
-            <SelectItem value="admin">Admins</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select defaultValue="all">
+            <SelectTrigger className="w-40" data-testid="select-user-role">
+              <SelectValue placeholder="Filter by role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="customer">Customers</SelectItem>
+              <SelectItem value="affiliate">Affiliates</SelectItem>
+              <SelectItem value="admin">Admins</SelectItem>
+            </SelectContent>
+          </Select>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-user">
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+                <DialogDescription>Add a new user with specific role and access permissions.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username *</Label>
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    placeholder="Enter username"
+                    data-testid="input-new-username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter full name"
+                    data-testid="input-new-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="Enter email"
+                    data-testid="input-new-email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter password"
+                    data-testid="input-new-password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role & Access Level</Label>
+                  <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v as any })}>
+                    <SelectTrigger data-testid="select-new-role">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customer">Customer - Basic shopping access</SelectItem>
+                      <SelectItem value="affiliate">Affiliate - Referral & earnings access</SelectItem>
+                      <SelectItem value="admin">Admin - Full system access</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                  <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-user">
+                    {createMutation.isPending ? "Creating..." : "Create User"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
