@@ -22,6 +22,11 @@ import {
   insertAffiliatePayoutSchema,
   insertComboSchema,
   insertBannerSchema,
+  insertRoleSchema,
+  insertAffiliateTierSchema,
+  insertAffiliateLinkSchema,
+  insertCommissionLedgerSchema,
+  insertFeatureFlagSchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 
@@ -49,6 +54,23 @@ const updatePayoutSchema = z.object({
   transactionId: z.string().optional(),
   notes: z.string().optional(),
   processedBy: z.string().optional(),
+});
+const updateRoleSchema = insertRoleSchema.partial();
+const updateAffiliateTierSchema = insertAffiliateTierSchema.partial();
+const updateAffiliateLinkSchema = insertAffiliateLinkSchema.partial();
+const updateFeatureFlagSchema = insertFeatureFlagSchema.partial();
+
+// Schema for admin user creation
+const createAdminUserSchema = z.object({
+  username: z.string().min(3),
+  email: z.string().email(),
+  password: z.string().min(6),
+  role: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  phone: z.string().optional(),
+  department: z.string().optional(),
+  status: z.enum(["active", "inactive", "suspended"]).default("active"),
 });
 
 // Helper to determine error status code
@@ -1554,6 +1576,294 @@ export async function registerRoutes(
   app.delete("/api/admin/banners/:id", isAdmin, async (req, res) => {
     try {
       await storage.deleteBanner(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // ADMIN USER MANAGEMENT ROUTES
+  // =====================================================
+
+  // Admin create user with role assignment
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const userData = createAdminUserSchema.parse(req.body);
+      
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const existingEmail = await storage.getUserByEmail(userData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const adminId = (req.user as any).id;
+      
+      const user = await storage.createUser({
+        ...userData,
+        password: hashedPassword,
+        createdBy: adminId,
+      });
+      
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  // Update user status
+  app.patch("/api/admin/users/:id/status", isAdmin, async (req, res) => {
+    try {
+      const { status } = z.object({ status: z.enum(["active", "inactive", "suspended"]) }).parse(req.body);
+      const user = await storage.updateUser(req.params.id, { status });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  // Search users
+  app.get("/api/admin/users/search", isAdmin, async (req, res) => {
+    try {
+      const query = req.query.q as string || "";
+      const users = await storage.searchUsers(query);
+      const usersWithoutPasswords = users.map(({ password, ...rest }) => rest);
+      res.json(usersWithoutPasswords);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get users count
+  app.get("/api/admin/users/count", isAdmin, async (req, res) => {
+    try {
+      const count = await storage.getUsersCount();
+      res.json({ count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // ROLES MANAGEMENT ROUTES
+  // =====================================================
+
+  app.get("/api/admin/roles", isAdmin, async (_req, res) => {
+    try {
+      const roles = await storage.getAllRoles();
+      res.json(roles);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/roles", isAdmin, async (req, res) => {
+    try {
+      const roleData = insertRoleSchema.parse(req.body);
+      const role = await storage.createRole(roleData);
+      res.status(201).json(role);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/roles/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateRoleSchema.parse(req.body);
+      const role = await storage.updateRole(req.params.id, validatedData);
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      res.json(role);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/roles/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteRole(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // AFFILIATE TIERS ROUTES
+  // =====================================================
+
+  app.get("/api/admin/affiliate-tiers", isAdmin, async (_req, res) => {
+    try {
+      const tiers = await storage.getAllAffiliateTiers();
+      res.json(tiers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/affiliate-tiers", isAdmin, async (req, res) => {
+    try {
+      const tierData = insertAffiliateTierSchema.parse(req.body);
+      const tier = await storage.createAffiliateTier(tierData);
+      res.status(201).json(tier);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/affiliate-tiers/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateAffiliateTierSchema.parse(req.body);
+      const tier = await storage.updateAffiliateTier(req.params.id, validatedData);
+      if (!tier) {
+        return res.status(404).json({ message: "Tier not found" });
+      }
+      res.json(tier);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/affiliate-tiers/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteAffiliateTier(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // AFFILIATE LINKS ROUTES
+  // =====================================================
+
+  app.get("/api/affiliates/:affiliateId/links", isApprovedAffiliate, async (req, res) => {
+    try {
+      const affiliate = await storage.getAffiliateById(req.params.affiliateId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      
+      const userId = (req.user as any).id;
+      const userRole = (req.user as any).role;
+      if (affiliate.userId !== userId && userRole !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const links = await storage.getAffiliateLinksByAffiliateId(req.params.affiliateId);
+      res.json(links);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/affiliates/:affiliateId/links", isApprovedAffiliate, async (req, res) => {
+    try {
+      const affiliate = await storage.getAffiliateById(req.params.affiliateId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      
+      const userId = (req.user as any).id;
+      const userRole = (req.user as any).role;
+      if (affiliate.userId !== userId && userRole !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const linkData = insertAffiliateLinkSchema.parse({
+        ...req.body,
+        affiliateId: req.params.affiliateId,
+      });
+      const link = await storage.createAffiliateLink(linkData);
+      res.status(201).json(link);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/affiliate-links/:id", isApprovedAffiliate, async (req, res) => {
+    try {
+      await storage.deleteAffiliateLink(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // COMMISSION LEDGER ROUTES
+  // =====================================================
+
+  app.get("/api/affiliates/:affiliateId/ledger", isApprovedAffiliate, async (req, res) => {
+    try {
+      const affiliate = await storage.getAffiliateById(req.params.affiliateId);
+      if (!affiliate) {
+        return res.status(404).json({ message: "Affiliate not found" });
+      }
+      
+      const userId = (req.user as any).id;
+      const userRole = (req.user as any).role;
+      if (affiliate.userId !== userId && userRole !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const ledger = await storage.getCommissionLedger(req.params.affiliateId);
+      res.json(ledger);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // FEATURE FLAGS ROUTES
+  // =====================================================
+
+  app.get("/api/admin/feature-flags", isAdmin, async (_req, res) => {
+    try {
+      const flags = await storage.getAllFeatureFlags();
+      res.json(flags);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/feature-flags", isAdmin, async (req, res) => {
+    try {
+      const flagData = insertFeatureFlagSchema.parse(req.body);
+      const flag = await storage.createFeatureFlag(flagData);
+      res.status(201).json(flag);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/feature-flags/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateFeatureFlagSchema.parse(req.body);
+      const flag = await storage.updateFeatureFlag(req.params.id, validatedData);
+      if (!flag) {
+        return res.status(404).json({ message: "Feature flag not found" });
+      }
+      res.json(flag);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/feature-flags/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteFeatureFlag(req.params.id);
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
