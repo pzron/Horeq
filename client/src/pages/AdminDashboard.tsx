@@ -661,6 +661,10 @@ function ProductsSection() {
     stock: 0,
     featured: false,
     comboAvailable: false,
+    affiliateEnabled: true,
+    affiliateCommissionType: "percentage",
+    affiliateCommissionValue: "10.00",
+    affiliatePoints: 0,
   };
   const [formData, setFormData] = useState(initialFormData);
 
@@ -755,6 +759,10 @@ function ProductsSection() {
       stock: product.stock || 0,
       featured: product.featured || false,
       comboAvailable: product.comboAvailable || false,
+      affiliateEnabled: product.affiliateEnabled ?? true,
+      affiliateCommissionType: product.affiliateCommissionType || "percentage",
+      affiliateCommissionValue: product.affiliateCommissionValue?.toString() || "10.00",
+      affiliatePoints: product.affiliatePoints || 0,
     });
     setEditingProduct(product);
   };
@@ -871,7 +879,7 @@ function ProductsSection() {
           </div>
         )}
       </div>
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 flex-wrap">
         <div className="flex items-center gap-2">
           <Switch
             id="product-featured"
@@ -890,6 +898,73 @@ function ProductsSection() {
           />
           <Label htmlFor="product-combo">Available for Combos</Label>
         </div>
+      </div>
+      
+      <Separator className="my-4" />
+      
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-medium">Affiliate Settings</h4>
+            <p className="text-xs text-muted-foreground">Configure commission for this product</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="product-affiliate-enabled"
+              checked={formData.affiliateEnabled}
+              onCheckedChange={(checked) => setFormData({ ...formData, affiliateEnabled: checked })}
+              data-testid="switch-product-affiliate-enabled"
+            />
+            <Label htmlFor="product-affiliate-enabled">Active for Affiliates</Label>
+          </div>
+        </div>
+        
+        {formData.affiliateEnabled && (
+          <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-muted/50">
+            <div className="space-y-2">
+              <Label htmlFor="affiliate-commission-type">Commission Type</Label>
+              <Select 
+                value={formData.affiliateCommissionType} 
+                onValueChange={(value) => setFormData({ ...formData, affiliateCommissionType: value })}
+              >
+                <SelectTrigger data-testid="select-affiliate-commission-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                  <SelectItem value="points">Points</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="affiliate-commission-value">
+                {formData.affiliateCommissionType === "percentage" ? "Commission %" : 
+                 formData.affiliateCommissionType === "fixed" ? "Amount ($)" : "Points Value"}
+              </Label>
+              <Input
+                id="affiliate-commission-value"
+                type="number"
+                step="0.01"
+                value={formData.affiliateCommissionValue}
+                onChange={(e) => setFormData({ ...formData, affiliateCommissionValue: e.target.value })}
+                placeholder={formData.affiliateCommissionType === "percentage" ? "10.00" : "5.00"}
+                data-testid="input-affiliate-commission-value"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="affiliate-points">Bonus Points</Label>
+              <Input
+                id="affiliate-points"
+                type="number"
+                value={formData.affiliatePoints}
+                onChange={(e) => setFormData({ ...formData, affiliatePoints: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+                data-testid="input-affiliate-points"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

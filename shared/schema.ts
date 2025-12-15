@@ -187,6 +187,10 @@ export const products = pgTable("products", {
   reviewCount: integer("review_count").notNull().default(0),
   comboAvailable: boolean("combo_available").notNull().default(false),
   featured: boolean("featured").notNull().default(false),
+  affiliateEnabled: boolean("affiliate_enabled").notNull().default(true),
+  affiliateCommissionType: text("affiliate_commission_type").notNull().default("percentage"),
+  affiliateCommissionValue: decimal("affiliate_commission_value", { precision: 10, scale: 2 }).notNull().default("10.00"),
+  affiliatePoints: integer("affiliate_points").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
