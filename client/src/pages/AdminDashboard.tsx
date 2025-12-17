@@ -8990,17 +8990,17 @@ function ToolsSection() {
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" />Database</CardTitle><CardDescription>Database maintenance and optimization</CardDescription></CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Optimize Database")} disabled={systemAction === "Optimize Database"} data-testid="button-optimize-db"><Zap className="h-4 w-4 mr-2" />{systemAction === "Optimize Database" ? "Optimizing..." : "Optimize Database"}</Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Clear Cache")} disabled={systemAction === "Clear Cache"} data-testid="button-clear-cache"><RefreshCw className="h-4 w-4 mr-2" />{systemAction === "Clear Cache" ? "Clearing..." : "Clear Cache"}</Button>
-                <Button variant="outline" className="w-full justify-start text-red-600 dark:text-red-400" onClick={() => handleSystemAction("Reset Demo Data")} disabled={systemAction === "Reset Demo Data"} data-testid="button-reset-demo"><AlertTriangle className="h-4 w-4 mr-2" />{systemAction === "Reset Demo Data" ? "Resetting..." : "Reset Demo Data"}</Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Optimize Database")} disabled={!!systemAction} data-testid="button-optimize-db">{systemAction === "Optimize Database" ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}{systemAction === "Optimize Database" ? "Optimizing..." : "Optimize Database"}</Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Clear Cache")} disabled={!!systemAction} data-testid="button-clear-cache">{systemAction === "Clear Cache" ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}{systemAction === "Clear Cache" ? "Clearing..." : "Clear Cache"}</Button>
+                <Button variant="outline" className="w-full justify-start text-red-600 dark:text-red-400" onClick={() => handleSystemAction("Reset Demo Data")} disabled={!!systemAction} data-testid="button-reset-demo">{systemAction === "Reset Demo Data" ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-2" />}{systemAction === "Reset Demo Data" ? "Resetting..." : "Reset Demo Data"}</Button>
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Security</CardTitle><CardDescription>Security settings and audit</CardDescription></CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Security Scan")} disabled={systemAction === "Security Scan"} data-testid="button-security-scan"><Shield className="h-4 w-4 mr-2" />{systemAction === "Security Scan" ? "Scanning..." : "Run Security Scan"}</Button>
-                <Button variant="outline" className="w-full justify-start" data-testid="button-view-sessions"><Users className="h-4 w-4 mr-2" />View Active Sessions</Button>
-                <Button variant="outline" className="w-full justify-start" data-testid="button-api-keys"><Key className="h-4 w-4 mr-2" />API Keys</Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Security Scan")} disabled={!!systemAction} data-testid="button-security-scan">{systemAction === "Security Scan" ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Shield className="h-4 w-4 mr-2" />}{systemAction === "Security Scan" ? "Scanning..." : "Run Security Scan"}</Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("View Sessions")} disabled={!!systemAction} data-testid="button-view-sessions">{systemAction === "View Sessions" ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Users className="h-4 w-4 mr-2" />}{systemAction === "View Sessions" ? "Loading..." : "View Active Sessions"}</Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("API Keys")} disabled={!!systemAction} data-testid="button-api-keys">{systemAction === "API Keys" ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Key className="h-4 w-4 mr-2" />}{systemAction === "API Keys" ? "Loading..." : "API Keys"}</Button>
               </CardContent>
             </Card>
           </div>
