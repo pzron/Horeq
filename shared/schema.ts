@@ -734,3 +734,132 @@ export const updateRoleSchema = createInsertSchema(roles).partial().omit({
 });
 
 export type UpdateRole = z.infer<typeof updateRoleSchema>;
+
+// Transactions Table - All types of financial transactions
+export const transactions = pgTable("transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  transactionNumber: text("transaction_number").notNull().unique(),
+  type: text("type").notNull(), // payment, refund, payout, adjustment, withdrawal, deposit, commission, fee
+  category: text("category").notNull(), // order, affiliate, subscription, manual
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed, cancelled, reversed
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  fee: decimal("fee", { precision: 10, scale: 2 }).default("0"),
+  netAmount: decimal("net_amount", { precision: 10, scale: 2 }),
+  currency: text("currency").notNull().default("USD"),
+  paymentMethod: text("payment_method"), // credit_card, debit_card, paypal, bank_transfer, crypto, wallet
+  paymentProvider: text("payment_provider"), // stripe, paypal, square, manual
+  providerTransactionId: text("provider_transaction_id"),
+  orderId: varchar("order_id"),
+  userId: varchar("user_id"),
+  affiliateId: varchar("affiliate_id"),
+  description: text("description"),
+  metadata: text("metadata"), // JSON for additional data
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  failureReason: text("failure_reason"),
+  refundedAmount: decimal("refunded_amount", { precision: 10, scale: 2 }).default("0"),
+  isPartialRefund: boolean("is_partial_refund").default(false),
+  parentTransactionId: varchar("parent_transaction_id"), // For refunds linking to original
+  processedBy: varchar("processed_by"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;
+
+// Inventory Records Table - Stock movements and history
+export const inventoryRecords = pgTable("inventory_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recordNumber: text("record_number").notNull().unique(),
+  productId: varchar("product_id").notNull(),
+  type: text("type").notNull(), // stock_in, stock_out, return, adjustment, transfer, damaged, expired
+  reason: text("reason").notNull(), // purchase, sale, return, manual_adjustment, supplier_return, defective, expired, promotional, other
+  quantity: integer("quantity").notNull(),
+  previousStock: integer("previous_stock").notNull(),
+  newStock: integer("new_stock").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
+  supplierId: varchar("supplier_id"),
+  supplierName: text("supplier_name"),
+  purchaseOrderNumber: text("purchase_order_number"),
+  orderId: varchar("order_id"),
+  batchNumber: text("batch_number"),
+  expiryDate: timestamp("expiry_date"),
+  warehouseLocation: text("warehouse_location"),
+  notes: text("notes"),
+  attachments: text("attachments"), // JSON array of file URLs
+  processedBy: varchar("processed_by").notNull(),
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  status: text("status").notNull().default("pending"), // pending, approved, completed, cancelled
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertInventoryRecordSchema = createInsertSchema(inventoryRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertInventoryRecord = z.infer<typeof insertInventoryRecordSchema>;
+export type InventoryRecord = typeof inventoryRecords.$inferSelect;
+
+// Suppliers Table - For inventory management
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  country: text("country"),
+  contactPerson: text("contact_person"),
+  paymentTerms: text("payment_terms"),
+  status: text("status").notNull().default("active"), // active, inactive, blacklisted
+  rating: integer("rating").default(0),
+  notes: text("notes"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
+export type Supplier = typeof suppliers.$inferSelect;
+
+// Stock Alerts Table - Low stock notifications
+export const stockAlerts = pgTable("stock_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  alertType: text("alert_type").notNull(), // low_stock, out_of_stock, overstock, expiring_soon
+  threshold: integer("threshold"),
+  currentStock: integer("current_stock").notNull(),
+  status: text("status").notNull().default("active"), // active, acknowledged, resolved
+  acknowledgedBy: varchar("acknowledged_by"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertStockAlertSchema = createInsertSchema(stockAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStockAlert = z.infer<typeof insertStockAlertSchema>;
+export type StockAlert = typeof stockAlerts.$inferSelect;
