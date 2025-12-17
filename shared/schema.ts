@@ -181,12 +181,15 @@ export const products = pgTable("products", {
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   image: text("image").notNull(),
   categoryId: varchar("category_id").notNull(),
+  brandId: varchar("brand_id"),
+  vendorStoreId: varchar("vendor_store_id"),
   stock: integer("stock").notNull().default(0),
   sold: integer("sold").notNull().default(0),
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
   reviewCount: integer("review_count").notNull().default(0),
   comboAvailable: boolean("combo_available").notNull().default(false),
   featured: boolean("featured").notNull().default(false),
+  isPublished: boolean("is_published").notNull().default(true),
   affiliateEnabled: boolean("affiliate_enabled").notNull().default(true),
   affiliateCommissionType: text("affiliate_commission_type").notNull().default("percentage"),
   affiliateCommissionValue: decimal("affiliate_commission_value", { precision: 10, scale: 2 }).notNull().default("10.00"),
@@ -863,3 +866,93 @@ export const insertStockAlertSchema = createInsertSchema(stockAlerts).omit({
 
 export type InsertStockAlert = z.infer<typeof insertStockAlertSchema>;
 export type StockAlert = typeof stockAlerts.$inferSelect;
+
+// Brands Table
+export const brands = pgTable("brands", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  description: text("description"),
+  website: text("website"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBrandSchema = createInsertSchema(brands).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBrand = z.infer<typeof insertBrandSchema>;
+export type Brand = typeof brands.$inferSelect;
+
+// Vendor Stores Table
+export const vendorStores = pgTable("vendor_stores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  storeName: text("store_name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  logo: text("logo"),
+  banner: text("banner"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  country: text("country"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull().default("10.00"),
+  paymentMethod: text("payment_method"),
+  paymentDetails: text("payment_details"),
+  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
+  pendingPayout: decimal("pending_payout", { precision: 10, scale: 2 }).notNull().default("0"),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
+  reviewCount: integer("review_count").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  isVerified: boolean("is_verified").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertVendorStoreSchema = createInsertSchema(vendorStores).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertVendorStore = z.infer<typeof insertVendorStoreSchema>;
+export type VendorStore = typeof vendorStores.$inferSelect;
+
+// Vendor Applications Table
+export const vendorApplications = pgTable("vendor_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  storeName: text("store_name").notNull(),
+  businessName: text("business_name"),
+  businessType: text("business_type"),
+  description: text("description"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  country: text("country"),
+  website: text("website"),
+  socialMedia: text("social_media"),
+  productCategories: text("product_categories"),
+  estimatedProducts: integer("estimated_products"),
+  reason: text("reason"),
+  status: text("status").notNull().default("pending"),
+  rejectionReason: text("rejection_reason"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertVendorApplicationSchema = createInsertSchema(vendorApplications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertVendorApplication = z.infer<typeof insertVendorApplicationSchema>;
+export type VendorApplication = typeof vendorApplications.$inferSelect;

@@ -59,6 +59,12 @@ import {
   type InsertSupplier,
   type StockAlert,
   type InsertStockAlert,
+  type Brand,
+  type InsertBrand,
+  type VendorStore,
+  type InsertVendorStore,
+  type VendorApplication,
+  type InsertVendorApplication,
   users,
   products,
   categories,
@@ -89,6 +95,9 @@ import {
   inventoryRecords,
   suppliers,
   stockAlerts,
+  brands,
+  vendorStores,
+  vendorApplications,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, like } from "drizzle-orm";
@@ -275,6 +284,34 @@ export interface IStorage {
   // Search Users
   searchUsers(query: string): Promise<User[]>;
   getUsersCount(): Promise<number>;
+
+  // Brands
+  getAllBrands(): Promise<Brand[]>;
+  getBrandById(id: string): Promise<Brand | undefined>;
+  getBrandBySlug(slug: string): Promise<Brand | undefined>;
+  createBrand(brand: InsertBrand): Promise<Brand>;
+  updateBrand(id: string, data: Partial<InsertBrand>): Promise<Brand | undefined>;
+  deleteBrand(id: string): Promise<void>;
+
+  // Vendor Stores
+  getAllVendorStores(): Promise<VendorStore[]>;
+  getVendorStoreById(id: string): Promise<VendorStore | undefined>;
+  getVendorStoreByUserId(userId: string): Promise<VendorStore | undefined>;
+  getVendorStoreBySlug(slug: string): Promise<VendorStore | undefined>;
+  createVendorStore(store: InsertVendorStore): Promise<VendorStore>;
+  updateVendorStore(id: string, data: Partial<InsertVendorStore>): Promise<VendorStore | undefined>;
+  deleteVendorStore(id: string): Promise<void>;
+
+  // Vendor Applications
+  getAllVendorApplications(): Promise<VendorApplication[]>;
+  getVendorApplicationById(id: string): Promise<VendorApplication | undefined>;
+  getVendorApplicationByUserId(userId: string): Promise<VendorApplication | undefined>;
+  createVendorApplication(application: InsertVendorApplication): Promise<VendorApplication>;
+  updateVendorApplication(id: string, data: Partial<InsertVendorApplication>): Promise<VendorApplication | undefined>;
+
+  // Vendor Products
+  getProductsByVendorStore(vendorStoreId: string): Promise<Product[]>;
+  getProductsByBrand(brandId: string): Promise<Product[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -1024,6 +1061,103 @@ export class DbStorage implements IStorage {
   async updateStockAlert(id: string, data: Partial<InsertStockAlert>): Promise<StockAlert | undefined> {
     const result = await db.update(stockAlerts).set(data).where(eq(stockAlerts.id, id)).returning();
     return result[0];
+  }
+
+  // Brands
+  async getAllBrands(): Promise<Brand[]> {
+    return await db.select().from(brands).orderBy(brands.sortOrder);
+  }
+
+  async getBrandById(id: string): Promise<Brand | undefined> {
+    const result = await db.select().from(brands).where(eq(brands.id, id));
+    return result[0];
+  }
+
+  async getBrandBySlug(slug: string): Promise<Brand | undefined> {
+    const result = await db.select().from(brands).where(eq(brands.slug, slug));
+    return result[0];
+  }
+
+  async createBrand(brand: InsertBrand): Promise<Brand> {
+    const result = await db.insert(brands).values(brand).returning();
+    return result[0];
+  }
+
+  async updateBrand(id: string, data: Partial<InsertBrand>): Promise<Brand | undefined> {
+    const result = await db.update(brands).set(data).where(eq(brands.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteBrand(id: string): Promise<void> {
+    await db.delete(brands).where(eq(brands.id, id));
+  }
+
+  // Vendor Stores
+  async getAllVendorStores(): Promise<VendorStore[]> {
+    return await db.select().from(vendorStores).orderBy(desc(vendorStores.createdAt));
+  }
+
+  async getVendorStoreById(id: string): Promise<VendorStore | undefined> {
+    const result = await db.select().from(vendorStores).where(eq(vendorStores.id, id));
+    return result[0];
+  }
+
+  async getVendorStoreByUserId(userId: string): Promise<VendorStore | undefined> {
+    const result = await db.select().from(vendorStores).where(eq(vendorStores.userId, userId));
+    return result[0];
+  }
+
+  async getVendorStoreBySlug(slug: string): Promise<VendorStore | undefined> {
+    const result = await db.select().from(vendorStores).where(eq(vendorStores.slug, slug));
+    return result[0];
+  }
+
+  async createVendorStore(store: InsertVendorStore): Promise<VendorStore> {
+    const result = await db.insert(vendorStores).values(store).returning();
+    return result[0];
+  }
+
+  async updateVendorStore(id: string, data: Partial<InsertVendorStore>): Promise<VendorStore | undefined> {
+    const result = await db.update(vendorStores).set({ ...data, updatedAt: new Date() }).where(eq(vendorStores.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteVendorStore(id: string): Promise<void> {
+    await db.delete(vendorStores).where(eq(vendorStores.id, id));
+  }
+
+  // Vendor Applications
+  async getAllVendorApplications(): Promise<VendorApplication[]> {
+    return await db.select().from(vendorApplications).orderBy(desc(vendorApplications.createdAt));
+  }
+
+  async getVendorApplicationById(id: string): Promise<VendorApplication | undefined> {
+    const result = await db.select().from(vendorApplications).where(eq(vendorApplications.id, id));
+    return result[0];
+  }
+
+  async getVendorApplicationByUserId(userId: string): Promise<VendorApplication | undefined> {
+    const result = await db.select().from(vendorApplications).where(eq(vendorApplications.userId, userId));
+    return result[0];
+  }
+
+  async createVendorApplication(application: InsertVendorApplication): Promise<VendorApplication> {
+    const result = await db.insert(vendorApplications).values(application).returning();
+    return result[0];
+  }
+
+  async updateVendorApplication(id: string, data: Partial<InsertVendorApplication>): Promise<VendorApplication | undefined> {
+    const result = await db.update(vendorApplications).set(data).where(eq(vendorApplications.id, id)).returning();
+    return result[0];
+  }
+
+  // Vendor Products
+  async getProductsByVendorStore(vendorStoreId: string): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.vendorStoreId, vendorStoreId)).orderBy(desc(products.createdAt));
+  }
+
+  async getProductsByBrand(brandId: string): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.brandId, brandId)).orderBy(desc(products.createdAt));
   }
 }
 

@@ -31,6 +31,9 @@ import {
   insertInventoryRecordSchema,
   insertSupplierSchema,
   insertStockAlertSchema,
+  insertBrandSchema,
+  insertVendorStoreSchema,
+  insertVendorApplicationSchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 
@@ -67,6 +70,9 @@ const updateTransactionSchema = insertTransactionSchema.partial();
 const updateInventoryRecordSchema = insertInventoryRecordSchema.partial();
 const updateSupplierSchema = insertSupplierSchema.partial();
 const updateStockAlertSchema = insertStockAlertSchema.partial();
+const updateBrandSchema = insertBrandSchema.partial();
+const updateVendorStoreSchema = insertVendorStoreSchema.partial();
+const updateVendorApplicationSchema = insertVendorApplicationSchema.partial();
 
 // Schema for admin user creation
 const createAdminUserSchema = z.object({
@@ -127,6 +133,34 @@ async function isApprovedAffiliate(req: Request, res: Response, next: NextFuncti
     return res.status(403).json({ message: "Your affiliate account is pending approval" });
   }
   return res.status(403).json({ message: "Affiliate access required" });
+}
+
+// Middleware to check if user is a vendor
+function isVendor(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated() && ((req.user as any)?.role === "vendor" || (req.user as any)?.role === "admin")) {
+    return next();
+  }
+  return res.status(403).json({ message: "Vendor access required" });
+}
+
+// Middleware to check if vendor has an active store
+async function hasVendorStore(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const userRole = (req.user as any)?.role;
+  if (userRole === "admin") {
+    return next();
+  }
+  if (userRole === "vendor") {
+    const store = await storage.getVendorStoreByUserId((req.user as any).id);
+    if (store && store.status === "active") {
+      (req as any).vendorStore = store;
+      return next();
+    }
+    return res.status(403).json({ message: "Vendor store not found or inactive" });
+  }
+  return res.status(403).json({ message: "Vendor access required" });
 }
 
 export async function registerRoutes(
@@ -2222,6 +2256,348 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Stock alert not found" });
       }
       res.json(alert);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // BRANDS ROUTES (PUBLIC)
+  // =====================================================
+
+  app.get("/api/brands", async (_req, res) => {
+    try {
+      const allBrands = await storage.getAllBrands();
+      res.json(allBrands);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/brands/:slug", async (req, res) => {
+    try {
+      const brand = await storage.getBrandBySlug(req.params.slug);
+      if (!brand) {
+        return res.status(404).json({ message: "Brand not found" });
+      }
+      res.json(brand);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/brands/:slug/products", async (req, res) => {
+    try {
+      const brand = await storage.getBrandBySlug(req.params.slug);
+      if (!brand) {
+        return res.status(404).json({ message: "Brand not found" });
+      }
+      const brandProducts = await storage.getProductsByBrand(brand.id);
+      res.json(brandProducts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // ADMIN BRANDS ROUTES
+  // =====================================================
+
+  app.post("/api/admin/brands", isAdmin, async (req, res) => {
+    try {
+      const brandData = insertBrandSchema.parse(req.body);
+      const brand = await storage.createBrand(brandData);
+      res.status(201).json(brand);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/brands/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateBrandSchema.parse(req.body);
+      const brand = await storage.updateBrand(req.params.id, validatedData);
+      if (!brand) {
+        return res.status(404).json({ message: "Brand not found" });
+      }
+      res.json(brand);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/brands/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteBrand(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // VENDOR STORES ROUTES (PUBLIC)
+  // =====================================================
+
+  app.get("/api/vendor-stores", async (_req, res) => {
+    try {
+      const stores = await storage.getAllVendorStores();
+      res.json(stores.filter(s => s.status === "active"));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/vendor-stores/:slug", async (req, res) => {
+    try {
+      const store = await storage.getVendorStoreBySlug(req.params.slug);
+      if (!store || store.status !== "active") {
+        return res.status(404).json({ message: "Vendor store not found" });
+      }
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/vendor-stores/:slug/products", async (req, res) => {
+    try {
+      const store = await storage.getVendorStoreBySlug(req.params.slug);
+      if (!store || store.status !== "active") {
+        return res.status(404).json({ message: "Vendor store not found" });
+      }
+      const storeProducts = await storage.getProductsByVendorStore(store.id);
+      res.json(storeProducts.filter(p => p.isPublished));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // VENDOR APPLICATION ROUTES
+  // =====================================================
+
+  app.post("/api/vendor/apply", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      
+      const existingApplication = await storage.getVendorApplicationByUserId(userId);
+      if (existingApplication) {
+        return res.status(400).json({ message: "You already have a vendor application", application: existingApplication });
+      }
+
+      const existingStore = await storage.getVendorStoreByUserId(userId);
+      if (existingStore) {
+        return res.status(400).json({ message: "You already have a vendor store" });
+      }
+
+      const applicationData = insertVendorApplicationSchema.parse({
+        ...req.body,
+        userId,
+        status: "pending",
+      });
+
+      const application = await storage.createVendorApplication(applicationData);
+      res.status(201).json(application);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/vendor/application", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const application = await storage.getVendorApplicationByUserId(userId);
+      if (!application) {
+        return res.status(404).json({ message: "No application found" });
+      }
+      res.json(application);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // VENDOR DASHBOARD ROUTES (VENDOR ONLY)
+  // =====================================================
+
+  app.get("/api/vendor/me", isVendor, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const store = await storage.getVendorStoreByUserId(userId);
+      if (!store) {
+        return res.status(404).json({ message: "Vendor store not found" });
+      }
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/vendor/store", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const validatedData = updateVendorStoreSchema.parse(req.body);
+      const updatedStore = await storage.updateVendorStore(store.id, validatedData);
+      res.json(updatedStore);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/vendor/products", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const vendorProducts = await storage.getProductsByVendorStore(store.id);
+      res.json(vendorProducts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/vendor/products", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const { vendorStoreId: _, ...productBody } = req.body;
+      const productData = insertProductSchema.parse({
+        ...productBody,
+        vendorStoreId: store.id,
+        isPublished: false,
+      });
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/vendor/products/:id", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const product = await storage.getProductById(req.params.id);
+      if (!product || product.vendorStoreId !== store.id) {
+        return res.status(404).json({ message: "Product not found or access denied" });
+      }
+      const { vendorStoreId: _, ...updateBody } = req.body;
+      const validatedData = updateProductSchema.parse(updateBody);
+      const updatedProduct = await storage.updateProduct(req.params.id, validatedData);
+      res.json(updatedProduct);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/vendor/products/:id", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const product = await storage.getProductById(req.params.id);
+      if (!product || product.vendorStoreId !== store.id) {
+        return res.status(404).json({ message: "Product not found or access denied" });
+      }
+      await storage.deleteProduct(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // ADMIN VENDOR MANAGEMENT ROUTES
+  // =====================================================
+
+  app.get("/api/admin/vendor-applications", isAdmin, async (_req, res) => {
+    try {
+      const applications = await storage.getAllVendorApplications();
+      res.json(applications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/vendor-applications/:id/approve", isAdmin, async (req, res) => {
+    try {
+      const application = await storage.getVendorApplicationById(req.params.id);
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      if (application.status !== "pending") {
+        return res.status(400).json({ message: "Application already processed" });
+      }
+
+      const userId = application.userId;
+      const adminId = (req.user as any).id;
+
+      await storage.updateVendorApplication(req.params.id, {
+        status: "approved",
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+      });
+
+      await storage.updateUser(userId, { role: "vendor" });
+
+      const slug = application.storeName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+      const store = await storage.createVendorStore({
+        userId,
+        storeName: application.storeName,
+        slug: slug + "-" + Date.now(),
+        description: application.description || undefined,
+        phone: application.phone || undefined,
+        address: application.address || undefined,
+        city: application.city || undefined,
+        country: application.country || undefined,
+        commissionRate: req.body.commissionRate || "10.00",
+      });
+
+      res.json({ message: "Application approved", store });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/vendor-applications/:id/reject", isAdmin, async (req, res) => {
+    try {
+      const application = await storage.getVendorApplicationById(req.params.id);
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      const adminId = (req.user as any).id;
+
+      await storage.updateVendorApplication(req.params.id, {
+        status: "rejected",
+        rejectionReason: req.body.reason || "Application rejected",
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+      });
+
+      res.json({ message: "Application rejected" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/vendor-stores", isAdmin, async (_req, res) => {
+    try {
+      const stores = await storage.getAllVendorStores();
+      res.json(stores);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/vendor-stores/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateVendorStoreSchema.parse(req.body);
+      const store = await storage.updateVendorStore(req.params.id, validatedData);
+      if (!store) {
+        return res.status(404).json({ message: "Vendor store not found" });
+      }
+      res.json(store);
     } catch (error: any) {
       res.status(getErrorStatusCode(error)).json({ message: error.message });
     }

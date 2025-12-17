@@ -21,6 +21,9 @@ import AffiliateAuth from "@/pages/AffiliateAuth";
 import AdminAuth from "@/pages/AdminAuth";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AffiliateDashboard from "@/pages/AffiliateDashboard";
+import VendorAuth from "@/pages/VendorAuth";
+import VendorDashboard from "@/pages/VendorDashboard";
+import Brands, { BrandDetail, VendorStorePage } from "@/pages/Brands";
 import Profile from "@/pages/Profile";
 import Deals from "@/pages/Deals";
 import Search from "@/pages/Search";
@@ -56,6 +59,15 @@ function Router() {
           <AffiliateDashboard />
         </ProtectedRoute>
       </Route>
+      <Route path="/sweet/vendor" component={VendorAuth} />
+      <Route path="/vendor">
+        <ProtectedRoute requiredRole="vendor" redirectTo="/sweet/vendor">
+          <VendorDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/brands" component={Brands} />
+      <Route path="/brands/:slug" component={BrandDetail} />
+      <Route path="/store/:slug" component={VendorStorePage} />
       <Route component={NotFound} />
     </Switch>
   );

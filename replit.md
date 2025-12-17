@@ -6,6 +6,9 @@ Horeq is a full-stack e-commerce platform built with React frontend and Express 
 
 ## Recent Updates (December 2024)
 
+- **Vendor Marketplace System**: Multi-vendor support with branded storefronts, vendor applications, product management
+- **Brands System**: Brand management with logo, description, and product association
+- **Vendor Dashboard**: Dedicated vendor portal for product CRUD, store settings, earnings tracking
 - **Navbar Redesign**: Single-line navigation with Shop, Combo Deals, Flash Deals and integrated search
 - **120 Categories**: Expanded category catalog with infinite auto-scrolling animation on homepage
 - **New Shop Page**: Full-featured product listing with 1000+ unique products, filters, sorting, grid/list view, pagination
@@ -63,9 +66,12 @@ Preferred communication style: Simple, everyday language.
 - **Migrations**: Drizzle Kit for database migrations (output to `./migrations`)
 
 ### Data Models
-- Users (with roles: customer, admin, affiliate)
-- Products (with categories, pricing, inventory tracking)
+- Users (with roles: customer, admin, affiliate, vendor)
+- Products (with categories, pricing, inventory tracking, vendor/brand associations)
 - Categories (with slugs, colors, icons)
+- Brands (with logos, descriptions, websites)
+- Vendor Stores (with commission rates, verification status, earnings tracking)
+- Vendor Applications (approval workflow for new vendors)
 - Orders and Order Items
 - Cart Items
 - Reviews
