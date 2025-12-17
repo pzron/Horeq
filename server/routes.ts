@@ -27,6 +27,10 @@ import {
   insertAffiliateLinkSchema,
   insertCommissionLedgerSchema,
   insertFeatureFlagSchema,
+  insertTransactionSchema,
+  insertInventoryRecordSchema,
+  insertSupplierSchema,
+  insertStockAlertSchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 
@@ -59,6 +63,10 @@ const updateRoleSchema = insertRoleSchema.partial();
 const updateAffiliateTierSchema = insertAffiliateTierSchema.partial();
 const updateAffiliateLinkSchema = insertAffiliateLinkSchema.partial();
 const updateFeatureFlagSchema = insertFeatureFlagSchema.partial();
+const updateTransactionSchema = insertTransactionSchema.partial();
+const updateInventoryRecordSchema = insertInventoryRecordSchema.partial();
+const updateSupplierSchema = insertSupplierSchema.partial();
+const updateStockAlertSchema = insertStockAlertSchema.partial();
 
 // Schema for admin user creation
 const createAdminUserSchema = z.object({
@@ -1977,6 +1985,245 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // TRANSACTIONS ROUTES (TransT)
+  // =====================================================
+
+  app.get("/api/admin/transactions", isAdmin, async (req, res) => {
+    try {
+      const { type, status } = req.query;
+      let txList;
+      if (type && typeof type === "string") {
+        txList = await storage.getTransactionsByType(type);
+      } else if (status && typeof status === "string") {
+        txList = await storage.getTransactionsByStatus(status);
+      } else {
+        txList = await storage.getAllTransactions();
+      }
+      res.json(txList);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/transactions/stats", isAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getTransactionStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/transactions/:id", isAdmin, async (req, res) => {
+    try {
+      const transaction = await storage.getTransactionById(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/transactions", isAdmin, async (req, res) => {
+    try {
+      const txNumber = `TX-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      const transactionData = insertTransactionSchema.parse({
+        ...req.body,
+        transactionNumber: txNumber,
+      });
+      const transaction = await storage.createTransaction(transactionData);
+      res.status(201).json(transaction);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/transactions/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateTransactionSchema.parse(req.body);
+      const transaction = await storage.updateTransaction(req.params.id, validatedData);
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // INVENTORY ROUTES
+  // =====================================================
+
+  app.get("/api/admin/inventory", isAdmin, async (req, res) => {
+    try {
+      const { type, productId } = req.query;
+      let records;
+      if (type && typeof type === "string") {
+        records = await storage.getInventoryRecordsByType(type);
+      } else if (productId && typeof productId === "string") {
+        records = await storage.getInventoryRecordsByProduct(productId);
+      } else {
+        records = await storage.getAllInventoryRecords();
+      }
+      res.json(records);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/inventory/stats", isAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getInventoryStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/inventory/:id", isAdmin, async (req, res) => {
+    try {
+      const record = await storage.getInventoryRecordById(req.params.id);
+      if (!record) {
+        return res.status(404).json({ message: "Inventory record not found" });
+      }
+      res.json(record);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/inventory", isAdmin, async (req, res) => {
+    try {
+      const recordNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      const userId = (req.user as any).id;
+      const recordData = insertInventoryRecordSchema.parse({
+        ...req.body,
+        recordNumber,
+        processedBy: userId,
+      });
+      const record = await storage.createInventoryRecord(recordData);
+      res.status(201).json(record);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/inventory/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateInventoryRecordSchema.parse(req.body);
+      const record = await storage.updateInventoryRecord(req.params.id, validatedData);
+      if (!record) {
+        return res.status(404).json({ message: "Inventory record not found" });
+      }
+      res.json(record);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SUPPLIERS ROUTES
+  // =====================================================
+
+  app.get("/api/admin/suppliers", isAdmin, async (_req, res) => {
+    try {
+      const supplierList = await storage.getAllSuppliers();
+      res.json(supplierList);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/suppliers/:id", isAdmin, async (req, res) => {
+    try {
+      const supplier = await storage.getSupplierById(req.params.id);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json(supplier);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/suppliers", isAdmin, async (req, res) => {
+    try {
+      const supplierData = insertSupplierSchema.parse(req.body);
+      const supplier = await storage.createSupplier(supplierData);
+      res.status(201).json(supplier);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/suppliers/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateSupplierSchema.parse(req.body);
+      const supplier = await storage.updateSupplier(req.params.id, validatedData);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json(supplier);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/suppliers/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSupplier(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // STOCK ALERTS ROUTES
+  // =====================================================
+
+  app.get("/api/admin/stock-alerts", isAdmin, async (req, res) => {
+    try {
+      const { active } = req.query;
+      let alerts;
+      if (active === "true") {
+        alerts = await storage.getActiveStockAlerts();
+      } else {
+        alerts = await storage.getAllStockAlerts();
+      }
+      res.json(alerts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/stock-alerts", isAdmin, async (req, res) => {
+    try {
+      const alertData = insertStockAlertSchema.parse(req.body);
+      const alert = await storage.createStockAlert(alertData);
+      res.status(201).json(alert);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/stock-alerts/:id", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateStockAlertSchema.parse(req.body);
+      const alert = await storage.updateStockAlert(req.params.id, validatedData);
+      if (!alert) {
+        return res.status(404).json({ message: "Stock alert not found" });
+      }
+      res.json(alert);
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
     }
   });
 

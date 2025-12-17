@@ -51,6 +51,14 @@ import {
   type InsertFeatureFlag,
   type PageRevision,
   type InsertPageRevision,
+  type Transaction,
+  type InsertTransaction,
+  type InventoryRecord,
+  type InsertInventoryRecord,
+  type Supplier,
+  type InsertSupplier,
+  type StockAlert,
+  type InsertStockAlert,
   users,
   products,
   categories,
@@ -77,6 +85,10 @@ import {
   commissionLedger,
   featureFlags,
   pageRevisions,
+  transactions,
+  inventoryRecords,
+  suppliers,
+  stockAlerts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, like } from "drizzle-orm";
@@ -886,6 +898,132 @@ export class DbStorage implements IStorage {
   async getUsersCount(): Promise<number> {
     const [result] = await db.select({ count: count() }).from(users);
     return result?.count || 0;
+  }
+
+  // Transactions
+  async getAllTransactions(): Promise<Transaction[]> {
+    return await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionById(id: string): Promise<Transaction | undefined> {
+    const result = await db.select().from(transactions).where(eq(transactions.id, id));
+    return result[0];
+  }
+
+  async getTransactionsByType(type: string): Promise<Transaction[]> {
+    return await db.select().from(transactions).where(eq(transactions.type, type)).orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByStatus(status: string): Promise<Transaction[]> {
+    return await db.select().from(transactions).where(eq(transactions.status, status)).orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByUser(userId: string): Promise<Transaction[]> {
+    return await db.select().from(transactions).where(eq(transactions.userId, userId)).orderBy(desc(transactions.createdAt));
+  }
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const result = await db.insert(transactions).values(transaction).returning();
+    return result[0];
+  }
+
+  async updateTransaction(id: string, data: Partial<InsertTransaction>): Promise<Transaction | undefined> {
+    const result = await db.update(transactions).set({ ...data, updatedAt: new Date() }).where(eq(transactions.id, id)).returning();
+    return result[0];
+  }
+
+  async getTransactionStats(): Promise<{ totalTransactions: number; totalAmount: string; pendingAmount: string; completedAmount: string }> {
+    const allTx = await db.select().from(transactions);
+    const total = allTx.reduce((sum, t) => sum + parseFloat(t.amount || "0"), 0);
+    const pending = allTx.filter(t => t.status === "pending").reduce((sum, t) => sum + parseFloat(t.amount || "0"), 0);
+    const completed = allTx.filter(t => t.status === "completed").reduce((sum, t) => sum + parseFloat(t.amount || "0"), 0);
+    return {
+      totalTransactions: allTx.length,
+      totalAmount: total.toFixed(2),
+      pendingAmount: pending.toFixed(2),
+      completedAmount: completed.toFixed(2),
+    };
+  }
+
+  // Inventory Records
+  async getAllInventoryRecords(): Promise<InventoryRecord[]> {
+    return await db.select().from(inventoryRecords).orderBy(desc(inventoryRecords.createdAt));
+  }
+
+  async getInventoryRecordById(id: string): Promise<InventoryRecord | undefined> {
+    const result = await db.select().from(inventoryRecords).where(eq(inventoryRecords.id, id));
+    return result[0];
+  }
+
+  async getInventoryRecordsByProduct(productId: string): Promise<InventoryRecord[]> {
+    return await db.select().from(inventoryRecords).where(eq(inventoryRecords.productId, productId)).orderBy(desc(inventoryRecords.createdAt));
+  }
+
+  async getInventoryRecordsByType(type: string): Promise<InventoryRecord[]> {
+    return await db.select().from(inventoryRecords).where(eq(inventoryRecords.type, type)).orderBy(desc(inventoryRecords.createdAt));
+  }
+
+  async createInventoryRecord(record: InsertInventoryRecord): Promise<InventoryRecord> {
+    const result = await db.insert(inventoryRecords).values(record).returning();
+    return result[0];
+  }
+
+  async updateInventoryRecord(id: string, data: Partial<InsertInventoryRecord>): Promise<InventoryRecord | undefined> {
+    const result = await db.update(inventoryRecords).set({ ...data, updatedAt: new Date() }).where(eq(inventoryRecords.id, id)).returning();
+    return result[0];
+  }
+
+  async getInventoryStats(): Promise<{ totalRecords: number; stockInCount: number; stockOutCount: number; returnCount: number }> {
+    const allRecords = await db.select().from(inventoryRecords);
+    return {
+      totalRecords: allRecords.length,
+      stockInCount: allRecords.filter(r => r.type === "stock_in").length,
+      stockOutCount: allRecords.filter(r => r.type === "stock_out").length,
+      returnCount: allRecords.filter(r => r.type === "return").length,
+    };
+  }
+
+  // Suppliers
+  async getAllSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+  }
+
+  async getSupplierById(id: string): Promise<Supplier | undefined> {
+    const result = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    return result[0];
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const result = await db.insert(suppliers).values(supplier).returning();
+    return result[0];
+  }
+
+  async updateSupplier(id: string, data: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    const result = await db.update(suppliers).set({ ...data, updatedAt: new Date() }).where(eq(suppliers.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteSupplier(id: string): Promise<void> {
+    await db.delete(suppliers).where(eq(suppliers.id, id));
+  }
+
+  // Stock Alerts
+  async getAllStockAlerts(): Promise<StockAlert[]> {
+    return await db.select().from(stockAlerts).orderBy(desc(stockAlerts.createdAt));
+  }
+
+  async getActiveStockAlerts(): Promise<StockAlert[]> {
+    return await db.select().from(stockAlerts).where(eq(stockAlerts.status, "active")).orderBy(desc(stockAlerts.createdAt));
+  }
+
+  async createStockAlert(alert: InsertStockAlert): Promise<StockAlert> {
+    const result = await db.insert(stockAlerts).values(alert).returning();
+    return result[0];
+  }
+
+  async updateStockAlert(id: string, data: Partial<InsertStockAlert>): Promise<StockAlert | undefined> {
+    const result = await db.update(stockAlerts).set(data).where(eq(stockAlerts.id, id)).returning();
+    return result[0];
   }
 }
 
