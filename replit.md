@@ -30,6 +30,9 @@ Horeq is a full-stack e-commerce platform built with React frontend and Express 
 - **System Settings**: General, Payment, Email, and Shipping configuration tabs
 - **Roles & Permissions**: Role management (Admin, Manager, Editor, Support, Viewer) with granular CRUD permission matrix for 10 modules
 - **Reports Dashboard**: Sales, Products, Customers, and Traffic analytics with export options (CSV, PDF, Excel, JSON)
+- **Enhanced Coupons Section**: Full CRUD operations, search filters (code/type/status), affiliate coupon support, dialog-based create/edit
+- **Enhanced TransT Section**: Date range filters (today/7d/30d/custom), earn vs cost analysis, money source tracking, tabbed interface (Overview/Records)
+- **Enhanced Tools Section**: Import/export functionality, activity log monitoring, reports generation, system diagnostics with loading states
 
 ## User Preferences
 
