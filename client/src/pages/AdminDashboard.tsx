@@ -3162,7 +3162,7 @@ function PagesSection() {
             variant="outline" 
             onClick={async () => {
               try {
-                const res = await apiRequest("/api/admin/pages/seed-system", { method: "POST" });
+                const res = await apiRequest("POST", "/api/admin/pages/seed-system");
                 const data = await res.json();
                 toast({ title: "System Pages Seeded", description: data.message });
                 queryClient.invalidateQueries({ queryKey: ["/api/admin/pages"] });
@@ -3300,7 +3300,7 @@ function PagesSection() {
                           onClick={async () => {
                             if (page.isSystemPage) return;
                             try {
-                              await apiRequest(`/api/admin/pages/${page.id}`, { method: "DELETE" });
+                              await apiRequest("DELETE", `/api/admin/pages/${page.id}`);
                               toast({ title: "Page Deleted", description: `"${page.title}" has been deleted.` });
                               queryClient.invalidateQueries({ queryKey: ["/api/admin/pages"] });
                             } catch (error: any) {
@@ -3942,28 +3942,211 @@ function MenusSection() {
 }
 
 function CouponsSection() {
-  const { data } = useQuery({
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<any>(null);
+
+  const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/coupons"],
   });
   const coupons = data as any[] | undefined;
-  const isLoading = !coupons;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 max-w-sm">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search coupons..." className="pl-10" data-testid="input-search-coupons" />
+  const { data: affiliatesData } = useQuery({
+    queryKey: ["/api/admin/affiliates"],
+  });
+  const affiliates = affiliatesData as any[] | undefined;
+
+  const createCouponMutation = useMutation({
+    mutationFn: async (couponData: any) => {
+      return await apiRequest("POST", "/api/admin/coupons", couponData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
+      toast({ title: "Coupon created successfully" });
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create coupon", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateCouponMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return await apiRequest("PATCH", `/api/admin/coupons/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
+      toast({ title: "Coupon updated successfully" });
+      setEditingCoupon(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update coupon", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteCouponMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/admin/coupons/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
+      toast({ title: "Coupon deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete coupon", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const toggleCouponStatus = async (coupon: any) => {
+    updateCouponMutation.mutate({ id: coupon.id, data: { isActive: !coupon.isActive } });
+  };
+
+  const filteredCoupons = (coupons || []).filter((coupon: any) => {
+    const matchesSearch = !searchQuery || 
+      coupon.code?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === "all" || 
+      (filterStatus === "active" && coupon.isActive) ||
+      (filterStatus === "inactive" && !coupon.isActive) ||
+      (filterStatus === "expired" && coupon.expiresAt && new Date(coupon.expiresAt) < new Date());
+    const matchesType = filterType === "all" || coupon.discountType === filterType;
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const stats = {
+    total: (coupons || []).length,
+    active: (coupons || []).filter((c: any) => c.isActive).length,
+    expired: (coupons || []).filter((c: any) => c.expiresAt && new Date(c.expiresAt) < new Date()).length,
+    totalUsage: (coupons || []).reduce((acc: number, c: any) => acc + (c.usedCount || 0), 0),
+  };
+
+  const CouponForm = ({ coupon, onSubmit, onCancel }: { coupon?: any; onSubmit: (data: any) => void; onCancel: () => void }) => {
+    const [formData, setFormData] = useState({
+      code: coupon?.code || "",
+      discountType: coupon?.discountType || "percentage",
+      discountValue: coupon?.discountValue || "",
+      minPurchase: coupon?.minPurchase || "0",
+      maxUses: coupon?.maxUses || "",
+      startsAt: coupon?.startsAt ? new Date(coupon.startsAt).toISOString().split("T")[0] : "",
+      expiresAt: coupon?.expiresAt ? new Date(coupon.expiresAt).toISOString().split("T")[0] : "",
+      isActive: coupon?.isActive ?? true,
+      affiliateId: coupon?.affiliateId || "",
+    });
+
+    return (
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Coupon Code</Label>
+            <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} placeholder="SUMMER20" required data-testid="input-coupon-code" />
+          </div>
+          <div className="space-y-2">
+            <Label>Discount Type</Label>
+            <Select value={formData.discountType} onValueChange={(val) => setFormData({ ...formData, discountType: val })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percentage">Percentage (%)</SelectItem>
+                <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-        <Button data-testid="button-add-coupon">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Coupon
-        </Button>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Discount Value</Label>
+            <Input type="number" step="0.01" value={formData.discountValue} onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })} placeholder={formData.discountType === "percentage" ? "20" : "10.00"} required data-testid="input-coupon-value" />
+          </div>
+          <div className="space-y-2">
+            <Label>Minimum Purchase</Label>
+            <Input type="number" step="0.01" value={formData.minPurchase} onChange={(e) => setFormData({ ...formData, minPurchase: e.target.value })} placeholder="0.00" data-testid="input-coupon-min" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Max Uses (leave empty for unlimited)</Label>
+            <Input type="number" value={formData.maxUses} onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })} placeholder="Unlimited" data-testid="input-coupon-max-uses" />
+          </div>
+          <div className="space-y-2">
+            <Label>Affiliate (optional)</Label>
+            <Select value={formData.affiliateId} onValueChange={(val) => setFormData({ ...formData, affiliateId: val })}>
+              <SelectTrigger><SelectValue placeholder="Select affiliate" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No affiliate</SelectItem>
+                {(affiliates || []).map((aff: any) => (
+                  <SelectItem key={aff.id} value={aff.id}>{aff.username || aff.code}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Start Date</Label>
+            <Input type="date" value={formData.startsAt} onChange={(e) => setFormData({ ...formData, startsAt: e.target.value })} data-testid="input-coupon-start" />
+          </div>
+          <div className="space-y-2">
+            <Label>Expiry Date</Label>
+            <Input type="date" value={formData.expiresAt} onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })} data-testid="input-coupon-expiry" />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={formData.isActive} onCheckedChange={(val) => setFormData({ ...formData, isActive: val })} data-testid="switch-coupon-active" />
+          <Label>Active</Label>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={createCouponMutation.isPending || updateCouponMutation.isPending}>
+            {coupon ? "Update Coupon" : "Create Coupon"}
+          </Button>
+        </DialogFooter>
+      </form>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Tag className="h-6 w-6" />Coupon Management</h2>
+          <p className="text-muted-foreground">Create and manage discount codes for your store</p>
+        </div>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-coupon"><Plus className="h-4 w-4 mr-2" />Add Coupon</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Coupon</DialogTitle>
+              <DialogDescription>Add a new discount code for your customers</DialogDescription>
+            </DialogHeader>
+            <CouponForm 
+              onSubmit={(data) => createCouponMutation.mutate({ ...data, createdBy: "admin" })} 
+              onCancel={() => setShowCreateDialog(false)} 
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Tag className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div><div><p className="text-sm text-muted-foreground">Total Coupons</p><p className="text-2xl font-bold">{stats.total}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><Check className="h-5 w-5 text-green-600 dark:text-green-400" /></div><div><p className="text-sm text-muted-foreground">Active Coupons</p><p className="text-2xl font-bold text-green-600">{stats.active}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30"><Clock className="h-5 w-5 text-red-600 dark:text-red-400" /></div><div><p className="text-sm text-muted-foreground">Expired</p><p className="text-2xl font-bold text-red-600">{stats.expired}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" /></div><div><p className="text-sm text-muted-foreground">Total Uses</p><p className="text-2xl font-bold">{stats.totalUsage}</p></div></div></CardContent></Card>
       </div>
 
       <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <CardTitle>All Coupons</CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search codes..." className="pl-9 w-48" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-coupons" /></div>
+              <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-28"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem><SelectItem value="expired">Expired</SelectItem></SelectContent></Select>
+              <Select value={filterType} onValueChange={setFilterType}><SelectTrigger className="w-28"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="percentage">Percentage</SelectItem><SelectItem value="fixed">Fixed</SelectItem></SelectContent></Select>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -3971,60 +4154,58 @@ function CouponsSection() {
                 <TableHead>Code</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Value</TableHead>
+                <TableHead>Min Purchase</TableHead>
                 <TableHead>Uses</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Expires</TableHead>
+                <TableHead>Valid Period</TableHead>
+                <TableHead>Affiliate</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    Loading coupons...
-                  </TableCell>
-                </TableRow>
-              ) : (coupons || []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No coupons found. Create your first coupon.
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8">Loading coupons...</TableCell></TableRow>
+              ) : filteredCoupons.length === 0 ? (
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground"><Tag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" /><p>No coupons found</p></TableCell></TableRow>
               ) : (
-                (coupons || []).map((coupon: any) => (
-                  <TableRow key={coupon.id} data-testid={`row-coupon-${coupon.id}`}>
-                    <TableCell className="font-mono font-medium">{coupon.code}</TableCell>
-                    <TableCell>{coupon.discountType}</TableCell>
-                    <TableCell>
-                      {coupon.discountType === "percentage" 
-                        ? `${coupon.discountValue}%` 
-                        : formatCurrency(coupon.discountValue)}
-                    </TableCell>
-                    <TableCell>
-                      {coupon.usageCount || 0} / {coupon.usageLimit || "Unlimited"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={coupon.isActive ? "default" : "secondary"}>
-                        {coupon.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {coupon.expiresAt 
-                        ? new Date(coupon.expiresAt).toLocaleDateString() 
-                        : "Never"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-coupon-${coupon.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-delete-coupon-${coupon.id}`}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredCoupons.map((coupon: any) => {
+                  const isExpired = coupon.expiresAt && new Date(coupon.expiresAt) < new Date();
+                  return (
+                    <TableRow key={coupon.id} data-testid={`row-coupon-${coupon.id}`}>
+                      <TableCell className="font-mono font-medium">{coupon.code}</TableCell>
+                      <TableCell><Badge variant="outline">{coupon.discountType}</Badge></TableCell>
+                      <TableCell className="font-semibold">{coupon.discountType === "percentage" ? `${coupon.discountValue}%` : formatCurrency(parseFloat(coupon.discountValue))}</TableCell>
+                      <TableCell>{parseFloat(coupon.minPurchase || 0) > 0 ? formatCurrency(parseFloat(coupon.minPurchase)) : "-"}</TableCell>
+                      <TableCell>{coupon.usedCount || 0} / {coupon.maxUses || "∞"}</TableCell>
+                      <TableCell>
+                        <Badge variant={isExpired ? "destructive" : coupon.isActive ? "default" : "secondary"}>
+                          {isExpired ? "Expired" : coupon.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {coupon.startsAt ? new Date(coupon.startsAt).toLocaleDateString() : "Now"} - {coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : "Never"}
+                      </TableCell>
+                      <TableCell>{coupon.affiliateId ? <Badge variant="outline">Affiliate</Badge> : "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => toggleCouponStatus(coupon)} title={coupon.isActive ? "Deactivate" : "Activate"} data-testid={`button-toggle-coupon-${coupon.id}`}>
+                            {coupon.isActive ? <Eye className="h-4 w-4" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                          </Button>
+                          <Dialog open={editingCoupon?.id === coupon.id} onOpenChange={(open) => !open && setEditingCoupon(null)}>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setEditingCoupon(coupon)} data-testid={`button-edit-coupon-${coupon.id}`}><Edit className="h-4 w-4" /></Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader><DialogTitle>Edit Coupon</DialogTitle><DialogDescription>Modify coupon details</DialogDescription></DialogHeader>
+                              <CouponForm coupon={coupon} onSubmit={(data) => updateCouponMutation.mutate({ id: coupon.id, data })} onCancel={() => setEditingCoupon(null)} />
+                            </DialogContent>
+                          </Dialog>
+                          <Button variant="ghost" size="icon" onClick={() => deleteCouponMutation.mutate(coupon.id)} data-testid={`button-delete-coupon-${coupon.id}`}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -8398,7 +8579,7 @@ function AllPagesSection() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{page.createdBy || "Admin"}</TableCell>
-                  <TableCell><Badge variant="outline" size="sm">0 views</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs">0 views</Badge></TableCell>
                   <TableCell><Badge className={page.status === "published" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"}>{page.status}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(page.createdAt).toLocaleDateString()}</TableCell>
                 </TableRow>
@@ -8548,7 +8729,7 @@ function PatternsSection() {
               <Card key={pattern.id} className="overflow-hidden cursor-pointer hover-elevate" data-testid={`pattern-${pattern.id}`}>
                 <div className={`h-32 ${pattern.preview}`} />
                 <CardContent className="p-4">
-                  <Badge variant="outline" size="sm" className="mb-2">{pattern.category}</Badge>
+                  <Badge variant="outline" className="mb-2 text-xs">{pattern.category}</Badge>
                   <h3 className="font-medium">{pattern.name}</h3>
                 </CardContent>
               </Card>
@@ -8675,8 +8856,11 @@ function ToolsSection() {
 function TransactionsSection() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDateRange, setFilterDateRange] = useState<string>("all");
+  const [filterMoneySource, setFilterMoneySource] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const { toast } = useToast();
 
   const { data: transactionsData, isLoading } = useQuery({
@@ -8718,14 +8902,39 @@ function TransactionsSection() {
     },
   });
 
+  const getDateRangeFilter = (range: string) => {
+    const now = new Date();
+    switch (range) {
+      case "today": return new Date(now.setHours(0, 0, 0, 0));
+      case "7days": return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case "30days": return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case "90days": return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      case "year": return new Date(now.getFullYear(), 0, 1);
+      default: return null;
+    }
+  };
+
   const filteredTransactions = (transactions || []).filter((tx: any) => {
     const matchesType = filterType === "all" || tx.type === filterType;
     const matchesStatus = filterStatus === "all" || tx.status === filterStatus;
     const matchesSearch = !searchQuery || 
       tx.transactionNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesStatus && matchesSearch;
+    const matchesMoneySource = filterMoneySource === "all" || tx.paymentMethod === filterMoneySource;
+    const dateFilter = getDateRangeFilter(filterDateRange);
+    const matchesDate = !dateFilter || (tx.createdAt && new Date(tx.createdAt) >= dateFilter);
+    return matchesType && matchesStatus && matchesSearch && matchesMoneySource && matchesDate;
   });
+
+  const earnTypes = ["payment", "commission"];
+  const costTypes = ["refund", "payout", "fee"];
+  const completedTx = filteredTransactions.filter((tx: any) => tx.status === "completed");
+  const totalEarnings = completedTx.filter((tx: any) => earnTypes.includes(tx.type)).reduce((sum: number, tx: any) => sum + parseFloat(tx.amount || 0), 0);
+  const totalCosts = completedTx.filter((tx: any) => costTypes.includes(tx.type)).reduce((sum: number, tx: any) => sum + parseFloat(tx.amount || 0), 0);
+  const netProfit = totalEarnings - totalCosts;
+  const profitMargin = totalEarnings > 0 ? ((netProfit / totalEarnings) * 100).toFixed(1) : "0.0";
+
+  const moneySources = [...new Set((transactions || []).map((tx: any) => tx.paymentMethod).filter(Boolean))];
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
@@ -8737,7 +8946,7 @@ function TransactionsSection() {
       cancelled: { variant: "destructive", label: "Cancelled" },
     };
     const s = statusMap[status] || { variant: "outline" as const, label: status };
-    return <Badge variant={s.variant} size="sm">{s.label}</Badge>;
+    return <Badge variant={s.variant} className="text-xs">{s.label}</Badge>;
   };
 
   const getTypeBadge = (type: string) => {
@@ -8758,68 +8967,143 @@ function TransactionsSection() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2"><Receipt className="h-6 w-6" />TransT - Transaction History</h2>
-          <p className="text-muted-foreground">Comprehensive financial transaction tracking and reporting</p>
+          <p className="text-muted-foreground">Comprehensive financial transaction tracking with earn/cost analysis</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-transaction"><Plus className="h-4 w-4 mr-2" />Record Transaction</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Record New Transaction</DialogTitle>
-              <DialogDescription>Add a manual transaction record</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              createTransactionMutation.mutate({
-                type: formData.get("type"),
-                category: formData.get("category") || "manual",
-                amount: formData.get("amount"),
-                status: formData.get("status") || "completed",
-                description: formData.get("description"),
-                paymentMethod: formData.get("paymentMethod"),
-              });
-            }}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label>Type</Label><Select name="type" defaultValue="payment"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="payment">Payment</SelectItem><SelectItem value="refund">Refund</SelectItem><SelectItem value="payout">Payout</SelectItem><SelectItem value="commission">Commission</SelectItem><SelectItem value="fee">Fee</SelectItem><SelectItem value="adjustment">Adjustment</SelectItem></SelectContent></Select></div>
-                  <div><Label>Status</Label><Select name="status" defaultValue="completed"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="processing">Processing</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectContent></Select></div>
+        <div className="flex items-center gap-2">
+          <Select value={filterDateRange} onValueChange={setFilterDateRange}>
+            <SelectTrigger className="w-36"><Calendar className="h-4 w-4 mr-2" /><SelectValue placeholder="Time Period" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="7days">Last 7 Days</SelectItem>
+              <SelectItem value="30days">Last 30 Days</SelectItem>
+              <SelectItem value="90days">Last 90 Days</SelectItem>
+              <SelectItem value="year">This Year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-transaction"><Plus className="h-4 w-4 mr-2" />Record Transaction</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Record New Transaction</DialogTitle>
+                <DialogDescription>Add a manual transaction record</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                createTransactionMutation.mutate({
+                  type: formData.get("type"),
+                  category: formData.get("category") || "manual",
+                  amount: formData.get("amount"),
+                  status: formData.get("status") || "completed",
+                  description: formData.get("description"),
+                  paymentMethod: formData.get("paymentMethod"),
+                  moneySource: formData.get("moneySource"),
+                });
+              }}>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Type</Label><Select name="type" defaultValue="payment"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="payment">Payment (Earn)</SelectItem><SelectItem value="refund">Refund (Cost)</SelectItem><SelectItem value="payout">Payout (Cost)</SelectItem><SelectItem value="commission">Commission (Earn)</SelectItem><SelectItem value="fee">Fee (Cost)</SelectItem><SelectItem value="adjustment">Adjustment</SelectItem></SelectContent></Select></div>
+                    <div><Label>Status</Label><Select name="status" defaultValue="completed"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="processing">Processing</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectContent></Select></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Amount</Label><Input name="amount" type="number" step="0.01" placeholder="0.00" required data-testid="input-tx-amount" /></div>
+                    <div><Label>Payment Method / Source</Label><Input name="paymentMethod" placeholder="e.g. Stripe, PayPal, Bank" data-testid="input-tx-method" /></div>
+                  </div>
+                  <div><Label>Description</Label><Textarea name="description" placeholder="Transaction description..." data-testid="input-tx-description" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label>Amount</Label><Input name="amount" type="number" step="0.01" placeholder="0.00" required data-testid="input-tx-amount" /></div>
-                  <div><Label>Payment Method</Label><Input name="paymentMethod" placeholder="e.g. Credit Card" data-testid="input-tx-method" /></div>
-                </div>
-                <div><Label>Description</Label><Textarea name="description" placeholder="Transaction description..." data-testid="input-tx-description" /></div>
-              </div>
-              <DialogFooter className="mt-4">
-                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-                <Button type="submit" disabled={createTransactionMutation.isPending}>{createTransactionMutation.isPending ? "Creating..." : "Create Transaction"}</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter className="mt-4">
+                  <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+                  <Button type="submit" disabled={createTransactionMutation.isPending}>{createTransactionMutation.isPending ? "Creating..." : "Create Transaction"}</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div><div><p className="text-sm text-muted-foreground">Total Transactions</p><p className="text-2xl font-bold" data-testid="text-total-transactions">{stats?.totalTransactions || 0}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" /></div><div><p className="text-sm text-muted-foreground">Total Amount</p><p className="text-2xl font-bold" data-testid="text-total-amount">${stats?.totalAmount || "0.00"}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30"><Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" /></div><div><p className="text-sm text-muted-foreground">Pending</p><p className="text-2xl font-bold" data-testid="text-pending-amount">${stats?.pendingAmount || "0.00"}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /></div><div><p className="text-sm text-muted-foreground">Completed</p><p className="text-2xl font-bold" data-testid="text-completed-amount">${stats?.completedAmount || "0.00"}</p></div></div></CardContent></Card>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview" data-testid="tab-tx-overview"><BarChart2 className="h-4 w-4 mr-2" />Overview</TabsTrigger>
+          <TabsTrigger value="records" data-testid="tab-tx-records"><Receipt className="h-4 w-4 mr-2" />Records</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <CardTitle>Transaction Records</CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search transactions..." className="pl-9 w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-transactions" /></div>
-              <Select value={filterType} onValueChange={setFilterType}><SelectTrigger className="w-32"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="payment">Payment</SelectItem><SelectItem value="refund">Refund</SelectItem><SelectItem value="payout">Payout</SelectItem><SelectItem value="commission">Commission</SelectItem></SelectContent></Select>
-              <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-32"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectContent></Select>
-              <Button variant="outline" size="icon"><Download className="h-4 w-4" /></Button>
-            </div>
+        <TabsContent value="overview" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" /></div><div><p className="text-sm text-muted-foreground">Total Earnings</p><p className="text-2xl font-bold text-green-600" data-testid="text-total-earnings">${totalEarnings.toFixed(2)}</p><p className="text-xs text-muted-foreground">Payments + Commissions</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30"><TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" /></div><div><p className="text-sm text-muted-foreground">Total Costs</p><p className="text-2xl font-bold text-red-600" data-testid="text-total-costs">${totalCosts.toFixed(2)}</p><p className="text-xs text-muted-foreground">Refunds + Payouts + Fees</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div><div><p className="text-sm text-muted-foreground">Net Profit</p><p className={`text-2xl font-bold ${netProfit >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-net-profit">${netProfit.toFixed(2)}</p><p className="text-xs text-muted-foreground">Margin: {profitMargin}%</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><Receipt className="h-5 w-5 text-purple-600 dark:text-purple-400" /></div><div><p className="text-sm text-muted-foreground">Transactions</p><p className="text-2xl font-bold" data-testid="text-tx-count">{filteredTransactions.length}</p><p className="text-xs text-muted-foreground">{filterDateRange === "all" ? "All time" : filterDateRange}</p></div></div></CardContent></Card>
           </div>
-        </CardHeader>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" />Money Sources</CardTitle><CardDescription>Transaction breakdown by payment method</CardDescription></CardHeader>
+              <CardContent>
+                {moneySources.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">No payment methods recorded yet</div>
+                ) : (
+                  <div className="space-y-3">
+                    {moneySources.map((source) => {
+                      const sourceTx = filteredTransactions.filter((tx: any) => tx.paymentMethod === source);
+                      const sourceAmount = sourceTx.reduce((sum: number, tx: any) => sum + parseFloat(tx.amount || 0), 0);
+                      const percentage = totalEarnings > 0 ? (sourceAmount / totalEarnings * 100) : 0;
+                      return (
+                        <div key={source} className="space-y-1">
+                          <div className="flex items-center justify-between"><span className="text-sm font-medium">{source}</span><span className="text-sm text-muted-foreground">${sourceAmount.toFixed(2)} ({percentage.toFixed(1)}%)</span></div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><PieChart className="h-5 w-5" />Transaction Types</CardTitle><CardDescription>Volume by transaction type</CardDescription></CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {["payment", "refund", "payout", "commission", "fee"].map((type) => {
+                    const typeTx = filteredTransactions.filter((tx: any) => tx.type === type);
+                    const typeAmount = typeTx.reduce((sum: number, tx: any) => sum + parseFloat(tx.amount || 0), 0);
+                    const total = filteredTransactions.reduce((sum: number, tx: any) => sum + parseFloat(tx.amount || 0), 0);
+                    const percentage = total > 0 ? (typeAmount / total * 100) : 0;
+                    const isEarn = earnTypes.includes(type);
+                    return (
+                      <div key={type} className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${isEarn ? "bg-green-500" : "bg-red-500"}`} />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between"><span className="text-sm capitalize">{type}</span><span className="text-xs text-muted-foreground">{typeTx.length} tx</span></div>
+                        </div>
+                        <span className={`text-sm font-medium ${isEarn ? "text-green-600" : "text-red-600"}`}>${typeAmount.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="records" className="mt-4">
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle>Transaction Records</CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search transactions..." className="pl-9 w-48" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-transactions" /></div>
+                  <Select value={filterType} onValueChange={setFilterType}><SelectTrigger className="w-28"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="payment">Payment</SelectItem><SelectItem value="refund">Refund</SelectItem><SelectItem value="payout">Payout</SelectItem><SelectItem value="commission">Commission</SelectItem><SelectItem value="fee">Fee</SelectItem></SelectContent></Select>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-28"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectContent></Select>
+                  {moneySources.length > 0 && (
+                    <Select value={filterMoneySource} onValueChange={setFilterMoneySource}><SelectTrigger className="w-28"><SelectValue placeholder="Source" /></SelectTrigger><SelectContent><SelectItem value="all">All Sources</SelectItem>{moneySources.map((src) => (<SelectItem key={src} value={src}>{src}</SelectItem>))}</SelectContent></Select>
+                  )}
+                  <Button variant="outline" size="icon" data-testid="button-export-tx"><Download className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading transactions...</div>
@@ -8859,10 +9143,12 @@ function TransactionsSection() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  </div>
+);
 }
 
 // Inventory Management Section
@@ -8939,7 +9225,7 @@ function InventorySection() {
       rejected: { variant: "destructive", label: "Rejected" },
     };
     const s = statusMap[status] || { variant: "outline" as const, label: status };
-    return <Badge variant={s.variant} size="sm">{s.label}</Badge>;
+    return <Badge variant={s.variant} className="text-xs">{s.label}</Badge>;
   };
 
   return (
@@ -9198,7 +9484,7 @@ function SuppliersSection() {
                     <TableCell>{supplier.contactPerson || "-"}</TableCell>
                     <TableCell>{supplier.email || "-"}</TableCell>
                     <TableCell>{supplier.phone || "-"}</TableCell>
-                    <TableCell><Badge variant={supplier.status === "active" ? "default" : "secondary"} size="sm">{supplier.status}</Badge></TableCell>
+                    <TableCell><Badge variant={supplier.status === "active" ? "default" : "secondary"} className="text-xs">{supplier.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" data-testid={`button-edit-supplier-${supplier.id}`}><Edit className="h-4 w-4" /></Button>
