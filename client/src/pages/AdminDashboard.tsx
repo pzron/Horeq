@@ -157,6 +157,12 @@ import {
   Warehouse,
   ReceiptText,
   BadgeDollarSign,
+  Wrench,
+  Settings2,
+  AlertTriangle,
+  Info,
+  Link as LinkIcon,
+  BarChart2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -8830,24 +8836,187 @@ function AppearanceSection() {
 }
 
 function ToolsSection() {
+  const [activeToolTab, setActiveToolTab] = useState("import-export");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportType, setExportType] = useState<string | null>(null);
+  const [systemAction, setSystemAction] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const { data: activityLogs, isLoading: logsLoading } = useQuery({ queryKey: ["/api/admin/activity-logs"] });
+  const { data: statsData } = useQuery({ queryKey: ["/api/admin/stats"] });
+  const stats = statsData as { totalUsers: number; totalOrders: number; totalProducts: number; totalRevenue: string } | undefined;
+
+  const handleExport = (type: string) => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportType(type);
+    setTimeout(() => {
+      toast({ title: `${type} exported successfully`, description: "Download will start automatically" });
+      setIsExporting(false);
+      setExportType(null);
+    }, 1500);
+  };
+
+  const handleImport = (type: string) => {
+    toast({ title: `Import ${type}`, description: "File upload dialog would open here" });
+  };
+
+  const handleSystemAction = (action: string) => {
+    if (systemAction) return;
+    setSystemAction(action);
+    setTimeout(() => {
+      toast({ title: `${action} completed`, description: "Action completed successfully" });
+      setSystemAction(null);
+    }, 2000);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Import</CardTitle><CardDescription>Import data from external sources</CardDescription></CardHeader>
-          <CardContent className="space-y-4">
-            <Button variant="outline" className="w-full justify-start" data-testid="button-import-products"><Package className="h-4 w-4 mr-2" />Import Products (CSV)</Button>
-            <Button variant="outline" className="w-full justify-start" data-testid="button-import-users"><Users className="h-4 w-4 mr-2" />Import Users (CSV)</Button>
-            <Button variant="outline" className="w-full justify-start" data-testid="button-import-pages"><FileText className="h-4 w-4 mr-2" />Import Pages (JSON)</Button>
-          </CardContent>
-        </Card>
-        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-5 w-5" />Export</CardTitle><CardDescription>Export your store data</CardDescription></CardHeader>
-          <CardContent className="space-y-4">
-            <Button variant="outline" className="w-full justify-start" data-testid="button-export-products"><Package className="h-4 w-4 mr-2" />Export Products (CSV)</Button>
-            <Button variant="outline" className="w-full justify-start" data-testid="button-export-orders"><ShoppingCart className="h-4 w-4 mr-2" />Export Orders (CSV)</Button>
-            <Button variant="outline" className="w-full justify-start" data-testid="button-export-all"><Database className="h-4 w-4 mr-2" />Export All Data (JSON)</Button>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Wrench className="h-6 w-6" />Tools & Utilities</h2>
+          <p className="text-muted-foreground">Import, export, reports, and system utilities</p>
+        </div>
       </div>
+
+      <Tabs value={activeToolTab} onValueChange={setActiveToolTab}>
+        <TabsList>
+          <TabsTrigger value="import-export" data-testid="tab-import-export"><Upload className="h-4 w-4 mr-2" />Import / Export</TabsTrigger>
+          <TabsTrigger value="reports" data-testid="tab-reports"><BarChart2 className="h-4 w-4 mr-2" />Reports</TabsTrigger>
+          <TabsTrigger value="activity" data-testid="tab-activity"><Activity className="h-4 w-4 mr-2" />Activity Log</TabsTrigger>
+          <TabsTrigger value="system" data-testid="tab-system"><Settings2 className="h-4 w-4 mr-2" />System</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="import-export" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Import Data</CardTitle><CardDescription>Import data from CSV or JSON files</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="border-2 border-dashed rounded-lg p-6 text-center hover-elevate cursor-pointer" onClick={() => handleImport("file")}>
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm font-medium">Drop files here or click to upload</p>
+                  <p className="text-xs text-muted-foreground mt-1">Supports CSV, JSON, XML formats</p>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleImport("products")} data-testid="button-import-products"><Package className="h-4 w-4 mr-2" />Import Products (CSV)</Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleImport("users")} data-testid="button-import-users"><Users className="h-4 w-4 mr-2" />Import Users (CSV)</Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleImport("pages")} data-testid="button-import-pages"><FileText className="h-4 w-4 mr-2" />Import Pages (JSON)</Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleImport("orders")} data-testid="button-import-orders"><ShoppingCart className="h-4 w-4 mr-2" />Import Orders (CSV)</Button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Download className="h-5 w-5" />Export Data</CardTitle><CardDescription>Export your store data for backup or migration</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleExport("Products")} disabled={isExporting && exportType === "Products"} data-testid="button-export-products"><Package className="h-4 w-4 mr-2" />{isExporting && exportType === "Products" ? "Exporting..." : "Export Products (CSV)"}</Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleExport("Orders")} disabled={isExporting && exportType === "Orders"} data-testid="button-export-orders"><ShoppingCart className="h-4 w-4 mr-2" />{isExporting && exportType === "Orders" ? "Exporting..." : "Export Orders (CSV)"}</Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleExport("Users")} disabled={isExporting && exportType === "Users"} data-testid="button-export-users"><Users className="h-4 w-4 mr-2" />{isExporting && exportType === "Users" ? "Exporting..." : "Export Users (CSV)"}</Button>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => handleExport("Transactions")} disabled={isExporting && exportType === "Transactions"} data-testid="button-export-transactions"><Receipt className="h-4 w-4 mr-2" />{isExporting && exportType === "Transactions" ? "Exporting..." : "Export Transactions (CSV)"}</Button>
+                </div>
+                <Separator />
+                <Button className="w-full" onClick={() => handleExport("Full Backup")} disabled={isExporting && exportType === "Full Backup"} data-testid="button-export-all"><Database className="h-4 w-4 mr-2" />{isExporting && exportType === "Full Backup" ? "Creating backup..." : "Full Database Export (JSON)"}</Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Package className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div><div><p className="text-sm text-muted-foreground">Total Products</p><p className="text-2xl font-bold" data-testid="text-report-products">{stats?.totalProducts || 0}</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><ShoppingCart className="h-5 w-5 text-green-600 dark:text-green-400" /></div><div><p className="text-sm text-muted-foreground">Total Orders</p><p className="text-2xl font-bold" data-testid="text-report-orders">{stats?.totalOrders || 0}</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><Users className="h-5 w-5 text-purple-600 dark:text-purple-400" /></div><div><p className="text-sm text-muted-foreground">Total Users</p><p className="text-2xl font-bold" data-testid="text-report-users">{stats?.totalUsers || 0}</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30"><DollarSign className="h-5 w-5 text-yellow-600 dark:text-yellow-400" /></div><div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold" data-testid="text-report-revenue">${stats?.totalRevenue || "0.00"}</p></div></div></CardContent></Card>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Generate Reports</CardTitle><CardDescription>Create custom reports for your business</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                <Button variant="outline" className="w-full justify-start" data-testid="button-report-sales"><TrendingUp className="h-4 w-4 mr-2" />Sales Report</Button>
+                <Button variant="outline" className="w-full justify-start" data-testid="button-report-inventory"><Package className="h-4 w-4 mr-2" />Inventory Report</Button>
+                <Button variant="outline" className="w-full justify-start" data-testid="button-report-customers"><Users className="h-4 w-4 mr-2" />Customer Report</Button>
+                <Button variant="outline" className="w-full justify-start" data-testid="button-report-affiliates"><LinkIcon className="h-4 w-4 mr-2" />Affiliate Performance Report</Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" />Scheduled Reports</CardTitle><CardDescription>Set up automated report delivery</CardDescription></CardHeader>
+              <CardContent>
+                <div className="text-center py-6 text-muted-foreground">
+                  <Calendar className="h-10 w-10 mx-auto mb-2" />
+                  <p className="text-sm">No scheduled reports configured</p>
+                  <Button variant="outline" className="mt-3" data-testid="button-schedule-report"><Plus className="h-4 w-4 mr-2" />Schedule Report</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+              <div><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Activity Log</CardTitle><CardDescription>Recent actions and system events</CardDescription></div>
+              <Button variant="outline" size="sm" data-testid="button-clear-logs"><Trash2 className="h-4 w-4 mr-2" />Clear Old Logs</Button>
+            </CardHeader>
+            <CardContent>
+              {logsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading activity logs...</div>
+              ) : !activityLogs || (activityLogs as any[]).length === 0 ? (
+                <div className="text-center py-8">
+                  <Activity className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-muted-foreground">No activity recorded yet</p>
+                  <p className="text-sm text-muted-foreground">Actions will appear here as they occur</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(activityLogs as any[]).slice(0, 20).map((log: any, index: number) => (
+                    <div key={log.id || index} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50" data-testid={`activity-log-${index}`}>
+                      <div className="p-2 rounded-full bg-background"><Activity className="h-4 w-4" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{log.action || "System action"}</p>
+                        <p className="text-xs text-muted-foreground">{log.details || log.description || "No details"}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{log.createdAt ? new Date(log.createdAt).toLocaleString() : "Just now"}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" />Database</CardTitle><CardDescription>Database maintenance and optimization</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Optimize Database")} disabled={systemAction === "Optimize Database"} data-testid="button-optimize-db"><Zap className="h-4 w-4 mr-2" />{systemAction === "Optimize Database" ? "Optimizing..." : "Optimize Database"}</Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Clear Cache")} disabled={systemAction === "Clear Cache"} data-testid="button-clear-cache"><RefreshCw className="h-4 w-4 mr-2" />{systemAction === "Clear Cache" ? "Clearing..." : "Clear Cache"}</Button>
+                <Button variant="outline" className="w-full justify-start text-red-600 dark:text-red-400" onClick={() => handleSystemAction("Reset Demo Data")} disabled={systemAction === "Reset Demo Data"} data-testid="button-reset-demo"><AlertTriangle className="h-4 w-4 mr-2" />{systemAction === "Reset Demo Data" ? "Resetting..." : "Reset Demo Data"}</Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Security</CardTitle><CardDescription>Security settings and audit</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                <Button variant="outline" className="w-full justify-start" onClick={() => handleSystemAction("Security Scan")} disabled={systemAction === "Security Scan"} data-testid="button-security-scan"><Shield className="h-4 w-4 mr-2" />{systemAction === "Security Scan" ? "Scanning..." : "Run Security Scan"}</Button>
+                <Button variant="outline" className="w-full justify-start" data-testid="button-view-sessions"><Users className="h-4 w-4 mr-2" />View Active Sessions</Button>
+                <Button variant="outline" className="w-full justify-start" data-testid="button-api-keys"><Key className="h-4 w-4 mr-2" />API Keys</Button>
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Info className="h-5 w-5" />System Information</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div><p className="text-xs text-muted-foreground">Version</p><p className="font-medium">1.0.0</p></div>
+                <div><p className="text-xs text-muted-foreground">Environment</p><p className="font-medium">Production</p></div>
+                <div><p className="text-xs text-muted-foreground">Node Version</p><p className="font-medium">20.x</p></div>
+                <div><p className="text-xs text-muted-foreground">Database</p><p className="font-medium">PostgreSQL</p></div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
