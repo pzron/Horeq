@@ -147,6 +147,16 @@ import {
   Languages,
   Calendar,
   Upload,
+  Receipt,
+  Boxes,
+  PackageCheck,
+  PackageMinus,
+  PackagePlus,
+  RotateCcw,
+  TrendingDown,
+  Warehouse,
+  ReceiptText,
+  BadgeDollarSign,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -167,7 +177,7 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools";
+type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools" | "transactions" | "inventory" | "suppliers";
 
 interface MenuGroup {
   id: string;
@@ -195,6 +205,23 @@ const menuGroups: MenuGroup[] = [
       { id: "combos", title: "Combo Deals", icon: Gift },
       { id: "orders", title: "Orders", icon: ShoppingCart },
       { id: "coupons", title: "Coupons", icon: Tag },
+    ],
+  },
+  {
+    id: "finance-group",
+    title: "Finance",
+    icon: BadgeDollarSign,
+    items: [
+      { id: "transactions", title: "TransT", icon: Receipt },
+    ],
+  },
+  {
+    id: "inventory-group",
+    title: "Inventory",
+    icon: Warehouse,
+    items: [
+      { id: "inventory", title: "Stock Management", icon: Boxes },
+      { id: "suppliers", title: "Suppliers", icon: Truck },
     ],
   },
   {
@@ -419,6 +446,9 @@ export default function AdminDashboard() {
             {activeSection === "activity" && <ActivitySection />}
             {activeSection === "appearance" && <AppearanceSection />}
             {activeSection === "tools" && <ToolsSection />}
+            {activeSection === "transactions" && <TransactionsSection />}
+            {activeSection === "inventory" && <InventorySection />}
+            {activeSection === "suppliers" && <SuppliersSection />}
           </main>
         </div>
       </div>
@@ -8639,4 +8669,554 @@ function ToolsSection() {
       </div>
     </div>
   );
+}
+
+// TransT - Comprehensive Transaction History Section
+function TransactionsSection() {
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const { toast } = useToast();
+
+  const { data: transactionsData, isLoading } = useQuery({
+    queryKey: ["/api/admin/transactions"],
+  });
+  const transactions = transactionsData as any[] | undefined;
+
+  const { data: statsData } = useQuery({
+    queryKey: ["/api/admin/transactions/stats"],
+  });
+  const stats = statsData as { totalTransactions: number; totalAmount: string; pendingAmount: string; completedAmount: string } | undefined;
+
+  const createTransactionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/admin/transactions", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/transactions/stats"] });
+      toast({ title: "Transaction created successfully" });
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create transaction", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateTransactionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return await apiRequest("PATCH", `/api/admin/transactions/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/transactions/stats"] });
+      toast({ title: "Transaction updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update transaction", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const filteredTransactions = (transactions || []).filter((tx: any) => {
+    const matchesType = filterType === "all" || tx.type === filterType;
+    const matchesStatus = filterStatus === "all" || tx.status === filterStatus;
+    const matchesSearch = !searchQuery || 
+      tx.transactionNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesStatus && matchesSearch;
+  });
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
+      pending: { variant: "secondary", label: "Pending" },
+      processing: { variant: "outline", label: "Processing" },
+      completed: { variant: "default", label: "Completed" },
+      failed: { variant: "destructive", label: "Failed" },
+      refunded: { variant: "secondary", label: "Refunded" },
+      cancelled: { variant: "destructive", label: "Cancelled" },
+    };
+    const s = statusMap[status] || { variant: "outline" as const, label: status };
+    return <Badge variant={s.variant} size="sm">{s.label}</Badge>;
+  };
+
+  const getTypeBadge = (type: string) => {
+    const typeMap: Record<string, { color: string; label: string }> = {
+      payment: { color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", label: "Payment" },
+      refund: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", label: "Refund" },
+      payout: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", label: "Payout" },
+      commission: { color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300", label: "Commission" },
+      fee: { color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", label: "Fee" },
+      adjustment: { color: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300", label: "Adjustment" },
+    };
+    const t = typeMap[type] || { color: "bg-gray-100 text-gray-800", label: type };
+    return <span className={`px-2 py-1 rounded-md text-xs font-medium ${t.color}`}>{t.label}</span>;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Receipt className="h-6 w-6" />TransT - Transaction History</h2>
+          <p className="text-muted-foreground">Comprehensive financial transaction tracking and reporting</p>
+        </div>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-create-transaction"><Plus className="h-4 w-4 mr-2" />Record Transaction</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Record New Transaction</DialogTitle>
+              <DialogDescription>Add a manual transaction record</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              createTransactionMutation.mutate({
+                type: formData.get("type"),
+                category: formData.get("category") || "manual",
+                amount: formData.get("amount"),
+                status: formData.get("status") || "completed",
+                description: formData.get("description"),
+                paymentMethod: formData.get("paymentMethod"),
+              });
+            }}>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Type</Label><Select name="type" defaultValue="payment"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="payment">Payment</SelectItem><SelectItem value="refund">Refund</SelectItem><SelectItem value="payout">Payout</SelectItem><SelectItem value="commission">Commission</SelectItem><SelectItem value="fee">Fee</SelectItem><SelectItem value="adjustment">Adjustment</SelectItem></SelectContent></Select></div>
+                  <div><Label>Status</Label><Select name="status" defaultValue="completed"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="processing">Processing</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectContent></Select></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Amount</Label><Input name="amount" type="number" step="0.01" placeholder="0.00" required data-testid="input-tx-amount" /></div>
+                  <div><Label>Payment Method</Label><Input name="paymentMethod" placeholder="e.g. Credit Card" data-testid="input-tx-method" /></div>
+                </div>
+                <div><Label>Description</Label><Textarea name="description" placeholder="Transaction description..." data-testid="input-tx-description" /></div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+                <Button type="submit" disabled={createTransactionMutation.isPending}>{createTransactionMutation.isPending ? "Creating..." : "Create Transaction"}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div><div><p className="text-sm text-muted-foreground">Total Transactions</p><p className="text-2xl font-bold" data-testid="text-total-transactions">{stats?.totalTransactions || 0}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" /></div><div><p className="text-sm text-muted-foreground">Total Amount</p><p className="text-2xl font-bold" data-testid="text-total-amount">${stats?.totalAmount || "0.00"}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30"><Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" /></div><div><p className="text-sm text-muted-foreground">Pending</p><p className="text-2xl font-bold" data-testid="text-pending-amount">${stats?.pendingAmount || "0.00"}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /></div><div><p className="text-sm text-muted-foreground">Completed</p><p className="text-2xl font-bold" data-testid="text-completed-amount">${stats?.completedAmount || "0.00"}</p></div></div></CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle>Transaction Records</CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search transactions..." className="pl-9 w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-transactions" /></div>
+              <Select value={filterType} onValueChange={setFilterType}><SelectTrigger className="w-32"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="payment">Payment</SelectItem><SelectItem value="refund">Refund</SelectItem><SelectItem value="payout">Payout</SelectItem><SelectItem value="commission">Commission</SelectItem></SelectContent></Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}><SelectTrigger className="w-32"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem></SelectContent></Select>
+              <Button variant="outline" size="icon"><Download className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading transactions...</div>
+          ) : filteredTransactions.length === 0 ? (
+            <div className="text-center py-8">
+              <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No transactions found</p>
+              <p className="text-sm text-muted-foreground">Create your first transaction to get started</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Transaction ID</TableHead><TableHead>Type</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead><TableHead>Payment Method</TableHead><TableHead>Date</TableHead><TableHead>Actions</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTransactions.map((tx: any) => (
+                  <TableRow key={tx.id} data-testid={`transaction-row-${tx.id}`}>
+                    <TableCell className="font-mono text-sm">{tx.transactionNumber}</TableCell>
+                    <TableCell>{getTypeBadge(tx.type)}</TableCell>
+                    <TableCell className={tx.type === "refund" ? "text-red-600" : "text-green-600"}>
+                      {tx.type === "refund" ? "-" : ""}${parseFloat(tx.amount || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                    <TableCell>{tx.paymentMethod || "-"}</TableCell>
+                    <TableCell>{tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" data-testid={`button-view-tx-${tx.id}`}><Eye className="h-4 w-4" /></Button>
+                        <Select value={tx.status} onValueChange={(val) => updateTransactionMutation.mutate({ id: tx.id, data: { status: val } })}>
+                          <SelectTrigger className="w-8 h-8 p-0 border-0"><Edit className="h-4 w-4" /></SelectTrigger>
+                          <SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="processing">Processing</SelectItem><SelectItem value="completed">Completed</SelectItem><SelectItem value="failed">Failed</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Inventory Management Section
+function InventorySection() {
+  const [filterType, setFilterType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedRecordType, setSelectedRecordType] = useState<"stock_in" | "stock_out" | "return" | "adjustment">("stock_in");
+  const { toast } = useToast();
+
+  const { data: inventoryData, isLoading } = useQuery({
+    queryKey: ["/api/admin/inventory"],
+  });
+  const inventoryRecords = inventoryData as any[] | undefined;
+
+  const { data: statsData } = useQuery({
+    queryKey: ["/api/admin/inventory/stats"],
+  });
+  const stats = statsData as { totalRecords: number; stockInCount: number; stockOutCount: number; returnCount: number } | undefined;
+
+  const { data: productsData } = useQuery({
+    queryKey: ["/api/products"],
+  });
+  const products = productsData as any[] | undefined;
+
+  const createInventoryMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/admin/inventory", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/stats"] });
+      toast({ title: "Inventory record created successfully" });
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create inventory record", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const filteredRecords = (inventoryRecords || []).filter((rec: any) => {
+    const matchesType = filterType === "all" || rec.type === filterType;
+    const matchesSearch = !searchQuery || 
+      rec.recordNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rec.notes?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "stock_in": return <PackagePlus className="h-4 w-4 text-green-600" />;
+      case "stock_out": return <PackageMinus className="h-4 w-4 text-red-600" />;
+      case "return": return <RotateCcw className="h-4 w-4 text-blue-600" />;
+      case "adjustment": return <RefreshCw className="h-4 w-4 text-orange-600" />;
+      default: return <Package className="h-4 w-4" />;
+    }
+  };
+
+  const getTypeBadge = (type: string) => {
+    const typeMap: Record<string, { color: string; label: string }> = {
+      stock_in: { color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", label: "Stock In" },
+      stock_out: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", label: "Stock Out" },
+      return: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", label: "Return" },
+      adjustment: { color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", label: "Adjustment" },
+    };
+    const t = typeMap[type] || { color: "bg-gray-100 text-gray-800", label: type };
+    return <span className={`px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 ${t.color}`}>{getTypeIcon(type)}{t.label}</span>;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
+      pending: { variant: "secondary", label: "Pending" },
+      approved: { variant: "default", label: "Approved" },
+      rejected: { variant: "destructive", label: "Rejected" },
+    };
+    const s = statusMap[status] || { variant: "outline" as const, label: status };
+    return <Badge variant={s.variant} size="sm">{s.label}</Badge>;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Boxes className="h-6 w-6" />Inventory Management</h2>
+          <p className="text-muted-foreground">Track stock movements, returns, and adjustments</p>
+        </div>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-create-inventory"><Plus className="h-4 w-4 mr-2" />Add Stock Movement</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Record Stock Movement</DialogTitle>
+              <DialogDescription>Add a new inventory record</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              createInventoryMutation.mutate({
+                productId: formData.get("productId"),
+                type: selectedRecordType,
+                reason: formData.get("reason"),
+                quantity: parseInt(formData.get("quantity") as string),
+                previousStock: parseInt(formData.get("previousStock") as string) || 0,
+                newStock: parseInt(formData.get("newStock") as string) || 0,
+                notes: formData.get("notes"),
+                unitCost: formData.get("unitCost"),
+                supplierName: formData.get("supplierName"),
+                warehouseLocation: formData.get("warehouseLocation"),
+              });
+            }}>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {(["stock_in", "stock_out", "return", "adjustment"] as const).map((type) => (
+                    <Button key={type} type="button" variant={selectedRecordType === type ? "default" : "outline"} className="justify-start" onClick={() => setSelectedRecordType(type)}>
+                      {getTypeIcon(type)}<span className="ml-2 capitalize">{type.replace("_", " ")}</span>
+                    </Button>
+                  ))}
+                </div>
+                <div><Label>Product</Label><Select name="productId" required><SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger><SelectContent>{(products || []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div><Label>Quantity</Label><Input name="quantity" type="number" required data-testid="input-inv-quantity" /></div>
+                  <div><Label>Previous Stock</Label><Input name="previousStock" type="number" data-testid="input-inv-prev-stock" /></div>
+                  <div><Label>New Stock</Label><Input name="newStock" type="number" data-testid="input-inv-new-stock" /></div>
+                </div>
+                <div><Label>Reason</Label><Select name="reason" required><SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger><SelectContent><SelectItem value="purchase">Purchase</SelectItem><SelectItem value="sale">Sale</SelectItem><SelectItem value="customer_return">Customer Return</SelectItem><SelectItem value="damaged">Damaged</SelectItem><SelectItem value="expired">Expired</SelectItem><SelectItem value="transfer">Transfer</SelectItem><SelectItem value="correction">Inventory Correction</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select></div>
+                {selectedRecordType === "stock_in" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Unit Cost</Label><Input name="unitCost" type="number" step="0.01" placeholder="0.00" data-testid="input-inv-cost" /></div>
+                    <div><Label>Supplier</Label><Input name="supplierName" placeholder="Supplier name" data-testid="input-inv-supplier" /></div>
+                  </div>
+                )}
+                <div><Label>Warehouse Location</Label><Input name="warehouseLocation" placeholder="e.g. Warehouse A, Shelf B3" data-testid="input-inv-location" /></div>
+                <div><Label>Notes</Label><Textarea name="notes" placeholder="Additional notes..." data-testid="input-inv-notes" /></div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+                <Button type="submit" disabled={createInventoryMutation.isPending}>{createInventoryMutation.isPending ? "Creating..." : "Create Record"}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Boxes className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div><div><p className="text-sm text-muted-foreground">Total Records</p><p className="text-2xl font-bold" data-testid="text-total-records">{stats?.totalRecords || 0}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30"><PackagePlus className="h-5 w-5 text-green-600 dark:text-green-400" /></div><div><p className="text-sm text-muted-foreground">Stock In</p><p className="text-2xl font-bold" data-testid="text-stock-in">{stats?.stockInCount || 0}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30"><PackageMinus className="h-5 w-5 text-red-600 dark:text-red-400" /></div><div><p className="text-sm text-muted-foreground">Stock Out</p><p className="text-2xl font-bold" data-testid="text-stock-out">{stats?.stockOutCount || 0}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><RotateCcw className="h-5 w-5 text-purple-600 dark:text-purple-400" /></div><div><p className="text-sm text-muted-foreground">Returns</p><p className="text-2xl font-bold" data-testid="text-returns">{stats?.returnCount || 0}</p></div></div></CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle>Stock Movement Records</CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search records..." className="pl-9 w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-inventory" /></div>
+              <Select value={filterType} onValueChange={setFilterType}><SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="stock_in">Stock In</SelectItem><SelectItem value="stock_out">Stock Out</SelectItem><SelectItem value="return">Return</SelectItem><SelectItem value="adjustment">Adjustment</SelectItem></SelectContent></Select>
+              <Button variant="outline" size="icon"><Download className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading inventory records...</div>
+          ) : filteredRecords.length === 0 ? (
+            <div className="text-center py-8">
+              <Boxes className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No inventory records found</p>
+              <p className="text-sm text-muted-foreground">Create your first stock movement to get started</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Record ID</TableHead><TableHead>Type</TableHead><TableHead>Quantity</TableHead><TableHead>Stock Change</TableHead><TableHead>Reason</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead>Actions</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.map((rec: any) => (
+                  <TableRow key={rec.id} data-testid={`inventory-row-${rec.id}`}>
+                    <TableCell className="font-mono text-sm">{rec.recordNumber}</TableCell>
+                    <TableCell>{getTypeBadge(rec.type)}</TableCell>
+                    <TableCell className="font-semibold">{rec.quantity}</TableCell>
+                    <TableCell>{rec.previousStock} <ArrowRight className="inline h-3 w-3" /> {rec.newStock}</TableCell>
+                    <TableCell className="capitalize">{rec.reason?.replace("_", " ") || "-"}</TableCell>
+                    <TableCell>{getStatusBadge(rec.status)}</TableCell>
+                    <TableCell>{rec.createdAt ? new Date(rec.createdAt).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" data-testid={`button-view-inv-${rec.id}`}><Eye className="h-4 w-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Suppliers Management Section
+function SuppliersSection() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+
+  const { data: suppliersData, isLoading } = useQuery({
+    queryKey: ["/api/admin/suppliers"],
+  });
+  const suppliers = suppliersData as any[] | undefined;
+
+  const createSupplierMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/admin/suppliers", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/suppliers"] });
+      toast({ title: "Supplier created successfully" });
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create supplier", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteSupplierMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/admin/suppliers/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/suppliers"] });
+      toast({ title: "Supplier deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete supplier", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const filteredSuppliers = (suppliers || []).filter((s: any) => {
+    return !searchQuery || 
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.email?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Truck className="h-6 w-6" />Suppliers</h2>
+          <p className="text-muted-foreground">Manage your product suppliers and vendors</p>
+        </div>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-create-supplier"><Plus className="h-4 w-4 mr-2" />Add Supplier</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add New Supplier</DialogTitle>
+              <DialogDescription>Register a new supplier in the system</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              createSupplierMutation.mutate({
+                name: formData.get("name"),
+                code: formData.get("code"),
+                email: formData.get("email"),
+                phone: formData.get("phone"),
+                address: formData.get("address"),
+                city: formData.get("city"),
+                country: formData.get("country"),
+                contactPerson: formData.get("contactPerson"),
+                paymentTerms: formData.get("paymentTerms"),
+                notes: formData.get("notes"),
+              });
+            }}>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Supplier Name</Label><Input name="name" required data-testid="input-supplier-name" /></div>
+                  <div><Label>Supplier Code</Label><Input name="code" required placeholder="e.g. SUP-001" data-testid="input-supplier-code" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Email</Label><Input name="email" type="email" data-testid="input-supplier-email" /></div>
+                  <div><Label>Phone</Label><Input name="phone" data-testid="input-supplier-phone" /></div>
+                </div>
+                <div><Label>Contact Person</Label><Input name="contactPerson" data-testid="input-supplier-contact" /></div>
+                <div><Label>Address</Label><Input name="address" data-testid="input-supplier-address" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>City</Label><Input name="city" data-testid="input-supplier-city" /></div>
+                  <div><Label>Country</Label><Input name="country" data-testid="input-supplier-country" /></div>
+                </div>
+                <div><Label>Payment Terms</Label><Select name="paymentTerms"><SelectTrigger><SelectValue placeholder="Select terms" /></SelectTrigger><SelectContent><SelectItem value="net_30">Net 30</SelectItem><SelectItem value="net_60">Net 60</SelectItem><SelectItem value="cod">Cash on Delivery</SelectItem><SelectItem value="prepaid">Prepaid</SelectItem></SelectContent></Select></div>
+                <div><Label>Notes</Label><Textarea name="notes" placeholder="Additional notes..." data-testid="input-supplier-notes" /></div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+                <Button type="submit" disabled={createSupplierMutation.isPending}>{createSupplierMutation.isPending ? "Creating..." : "Add Supplier"}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle>All Suppliers</CardTitle>
+            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search suppliers..." className="pl-9 w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-suppliers" /></div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading suppliers...</div>
+          ) : filteredSuppliers.length === 0 ? (
+            <div className="text-center py-8">
+              <Truck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No suppliers found</p>
+              <p className="text-sm text-muted-foreground">Add your first supplier to get started</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Contact</TableHead><TableHead>Email</TableHead><TableHead>Phone</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSuppliers.map((supplier: any) => (
+                  <TableRow key={supplier.id} data-testid={`supplier-row-${supplier.id}`}>
+                    <TableCell className="font-mono text-sm">{supplier.code}</TableCell>
+                    <TableCell className="font-medium">{supplier.name}</TableCell>
+                    <TableCell>{supplier.contactPerson || "-"}</TableCell>
+                    <TableCell>{supplier.email || "-"}</TableCell>
+                    <TableCell>{supplier.phone || "-"}</TableCell>
+                    <TableCell><Badge variant={supplier.status === "active" ? "default" : "secondary"} size="sm">{supplier.status}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" data-testid={`button-edit-supplier-${supplier.id}`}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteSupplierMutation.mutate(supplier.id)} data-testid={`button-delete-supplier-${supplier.id}`}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Add missing ArrowRight icon for inventory section
+function ArrowRight({ className }: { className?: string }) {
+  return <ChevronRight className={className} />;
 }
