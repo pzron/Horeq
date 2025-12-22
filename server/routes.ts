@@ -2775,5 +2775,145 @@ export async function registerRoutes(
     }
   });
 
+  // Get vendor notifications
+  app.get("/api/vendor/notifications", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      // Get notifications for vendor user
+      const notifications = await storage.getUserNotifications(store.userId);
+      res.json(notifications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create vendor notification
+  app.post("/api/vendor/notifications", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const { title, message, type } = req.body;
+      
+      const notification = await storage.createNotification({
+        userId: store.userId,
+        title,
+        message,
+        type: type || "info",
+      });
+      
+      res.status(201).json(notification);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/vendor/notifications/:id/read", hasVendorStore, async (req, res) => {
+    try {
+      await storage.markNotificationRead(req.params.id);
+      res.json({ message: "Notification marked as read" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get vendor orders/sales with real data
+  app.get("/api/vendor/orders", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const allOrders = await storage.getAllOrders();
+      
+      // Filter orders that contain products from this vendor store
+      const vendorProducts = await storage.getProductsByVendorStore(store.id);
+      const vendorProductIds = new Set(vendorProducts.map(p => p.id));
+      
+      const vendorOrders = [];
+      for (const order of allOrders) {
+        const items = await storage.getOrderItems(order.id);
+        const vendorItems = items.filter(item => vendorProductIds.has(item.productId));
+        
+        if (vendorItems.length > 0) {
+          const user = await storage.getUser(order.userId);
+          vendorOrders.push({
+            ...order,
+            items: vendorItems,
+            buyerName: user?.username || "Unknown",
+            buyerEmail: user?.email,
+          });
+        }
+      }
+      
+      res.json(vendorOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get vendor product reviews
+  app.get("/api/vendor/reviews", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const vendorProducts = await storage.getProductsByVendorStore(store.id);
+      
+      const reviews = [];
+      for (const product of vendorProducts) {
+        const productReviews = await storage.getReviewsByProduct(product.id);
+        for (const review of productReviews) {
+          const user = await storage.getUser(review.userId);
+          reviews.push({
+            ...review,
+            productName: product.name,
+            reviewerName: user?.username || "Anonymous",
+            reviewerAvatar: user?.avatar,
+          });
+        }
+      }
+      
+      res.json(reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get vendor stock levels and alerts
+  app.get("/api/vendor/stock", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const products = await storage.getProductsByVendorStore(store.id);
+      
+      const stockData = products.map(p => ({
+        id: p.id,
+        name: p.name,
+        stock: p.stock,
+        sold: p.sold,
+        category: p.categoryId,
+        isLowStock: p.stock < 10,
+        lastUpdated: new Date(),
+      }));
+      
+      res.json(stockData);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Share order tracking link
+  app.post("/api/vendor/share-tracking/:orderId", hasVendorStore, async (req, res) => {
+    try {
+      const order = await storage.getOrderById(req.params.orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      const shareLink = `/order-tracking/${req.params.orderId}?share=true`;
+      res.json({ 
+        shareLink,
+        orderId: req.params.orderId,
+        sharableUrl: `${process.env.BASE_URL || 'http://localhost:5000'}${shareLink}`
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

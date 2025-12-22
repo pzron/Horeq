@@ -21,7 +21,7 @@ import {
   Copy, Check, AlertTriangle, Upload, Share2, Zap, TrendingDown, Calendar, Hash, 
   AreaChart as AreaChartIcon, PieChart as PieChartIcon, LineChart as LineChartIcon,
   Eye as EyeIcon, EyeOff, Lock, Image as ImageIcon, Download, Wallet, ArrowDown, ArrowUp,
-  TrendingUp as TrendingUpIcon, Activity, Target, Award, AlertCircle, Gift, MousePointerClick
+  TrendingUp as TrendingUpIcon, Activity, Target, Award, AlertCircle, Gift, MousePointerClick, Bell
 } from "lucide-react";
 import type { VendorStore, Product, Category } from "@shared/schema";
 import {
@@ -171,6 +171,26 @@ export default function VendorDashboard() {
 
   const { data: analytics = {} } = useQuery({
     queryKey: ["/api/vendor/analytics"],
+    enabled: !!store,
+  });
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["/api/vendor/notifications"],
+    enabled: !!store,
+  });
+
+  const { data: vendorOrders = [] } = useQuery({
+    queryKey: ["/api/vendor/orders"],
+    enabled: !!store,
+  });
+
+  const { data: vendorReviews = [] } = useQuery({
+    queryKey: ["/api/vendor/reviews"],
+    enabled: !!store,
+  });
+
+  const { data: stockData = [] } = useQuery({
+    queryKey: ["/api/vendor/stock"],
     enabled: !!store,
   });
 
@@ -503,6 +523,10 @@ export default function VendorDashboard() {
             <TabsList className="w-full inline-flex">
               <TabsTrigger value="overview" data-testid="tab-vendor-overview">Overview</TabsTrigger>
               <TabsTrigger value="products" data-testid="tab-vendor-products">Products</TabsTrigger>
+              <TabsTrigger value="orders" data-testid="tab-vendor-orders">Orders</TabsTrigger>
+              <TabsTrigger value="reviews" data-testid="tab-vendor-reviews">Reviews</TabsTrigger>
+              <TabsTrigger value="notifications" data-testid="tab-vendor-notifications">Notifications</TabsTrigger>
+              <TabsTrigger value="stock" data-testid="tab-vendor-stock">Stock</TabsTrigger>
               <TabsTrigger value="combos" data-testid="tab-vendor-combos">Combos</TabsTrigger>
               <TabsTrigger value="affiliates" data-testid="tab-vendor-affiliates">Affiliates</TabsTrigger>
               <TabsTrigger value="commissions" data-testid="tab-vendor-commissions">Commissions</TabsTrigger>
@@ -780,6 +804,160 @@ export default function VendorDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-6">
+            <h2 className="text-2xl font-bold">Your Orders</h2>
+            {(vendorOrders as any[]).length === 0 ? (
+              <Card className="text-center py-12">
+                <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No orders yet</p>
+              </Card>
+            ) : (
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Buyer</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(vendorOrders as any[]).map((order) => (
+                      <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
+                        <TableCell className="font-mono text-sm">{order.id.substring(0, 8)}...</TableCell>
+                        <TableCell>{order.buyerName}</TableCell>
+                        <TableCell className="font-bold">${parseFloat(order.total).toFixed(2)}</TableCell>
+                        <TableCell>{order.items?.length || 0}</TableCell>
+                        <TableCell><Badge>{order.status}</Badge></TableCell>
+                        <TableCell className="text-sm">{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Button size="sm" variant="ghost" title="Share tracking" data-testid={`button-share-order-${order.id}`}>
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title="View details" data-testid={`button-view-order-${order.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews" className="space-y-6">
+            <h2 className="text-2xl font-bold">Customer Reviews</h2>
+            {(vendorReviews as any[]).length === 0 ? (
+              <Card className="text-center py-12">
+                <Award className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No reviews yet</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {(vendorReviews as any[]).map((review) => (
+                  <Card key={review.id} data-testid={`review-card-${review.id}`}>
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-semibold">{review.reviewerName}</p>
+                          <p className="text-sm text-muted-foreground">{review.productName}</p>
+                        </div>
+                        <Badge variant={review.rating >= 4 ? "default" : review.rating >= 3 ? "secondary" : "destructive"}>
+                          {review.rating}/5
+                        </Badge>
+                      </div>
+                      <p className="text-sm mb-3">{review.title}</p>
+                      <p className="text-sm text-muted-foreground">{review.comment}</p>
+                      <p className="text-xs text-muted-foreground mt-3">{new Date(review.createdAt).toLocaleDateString()}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <h2 className="text-2xl font-bold">Notifications</h2>
+            <div className="space-y-3">
+              {(notifications as any[]).length === 0 ? (
+                <Card className="text-center py-12">
+                  <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No notifications</p>
+                </Card>
+              ) : (
+                (notifications as any[]).map((notif) => (
+                  <Card key={notif.id} className={notif.isRead ? "opacity-60" : ""} data-testid={`notification-${notif.id}`}>
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-semibold">{notif.title}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
+                          <p className="text-xs text-muted-foreground mt-2">{new Date(notif.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <Badge variant={notif.type === "success" ? "default" : notif.type === "error" ? "destructive" : "secondary"}>
+                          {notif.type}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Stock Management Tab */}
+          <TabsContent value="stock" className="space-y-6">
+            <h2 className="text-2xl font-bold">Stock Management</h2>
+            {(stockData as any[]).length === 0 ? (
+              <Card className="text-center py-12">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No products</p>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {(stockData as any[]).map((item) => (
+                  <Card key={item.id} data-testid={`stock-card-${item.id}`}>
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-semibold">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">Current Stock</p>
+                        </div>
+                        {item.isLowStock && (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Low Stock
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-2xl font-bold text-blue-600">{item.stock}</p>
+                          <p className="text-xs text-muted-foreground">In Stock</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-green-600">{item.sold}</p>
+                          <p className="text-xs text-muted-foreground">Sold</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Updated</p>
+                          <p className="text-sm">{new Date(item.lastUpdated).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>
