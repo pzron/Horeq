@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { 
   Store, Package, DollarSign, TrendingUp, Settings, Plus, 
-  Edit, Trash2, Eye, LogOut, BarChart3, ShoppingCart 
+  Edit, Trash2, Eye, LogOut, BarChart3, ShoppingCart, Link2, Users, CreditCard
 } from "lucide-react";
 import type { VendorStore, Product, Category } from "@shared/schema";
 
@@ -216,10 +216,13 @@ export default function VendorDashboard() {
 
       <main className="container py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="overview" data-testid="tab-vendor-overview">Overview</TabsTrigger>
             <TabsTrigger value="products" data-testid="tab-vendor-products">Products</TabsTrigger>
-            <TabsTrigger value="settings" data-testid="tab-vendor-settings">Store Settings</TabsTrigger>
+            <TabsTrigger value="combos" data-testid="tab-vendor-combos">Combos</TabsTrigger>
+            <TabsTrigger value="affiliates" data-testid="tab-vendor-affiliates">Affiliates</TabsTrigger>
+            <TabsTrigger value="commissions" data-testid="tab-vendor-commissions">Commissions</TabsTrigger>
+            <TabsTrigger value="settings" data-testid="tab-vendor-settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -486,6 +489,77 @@ export default function VendorDashboard() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="combos">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" /> Combo Deals
+                </CardTitle>
+                <CardDescription>Create and manage combo bundles for your products</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Combo management coming soon</p>
+                  <p className="text-sm mt-2">Bundle multiple products together for special pricing</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="affiliates">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" /> Affiliate Program
+                </CardTitle>
+                <CardDescription>Manage your store's affiliate partners</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Affiliate management coming soon</p>
+                  <p className="text-sm mt-2">Recruit and track affiliate partners selling your products</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="commissions">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" /> Commission & Payouts
+                </CardTitle>
+                <CardDescription>Track and manage your commission earnings</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground mb-2">Total Earnings</p>
+                    <p className="text-2xl font-bold">${totalEarnings.toFixed(2)}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground mb-2">Pending Payout</p>
+                    <p className="text-2xl font-bold">${pendingPayout.toFixed(2)}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground mb-2">Commission Rate</p>
+                    <p className="text-2xl font-bold">{commissionRate}%</p>
+                  </Card>
+                </div>
+                <Card className="p-4">
+                  <h3 className="font-semibold mb-3">Commission History</h3>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No commission records yet</p>
+                    <p className="text-sm mt-2">Commission entries will appear as you make sales</p>
+                  </div>
+                </Card>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="settings">

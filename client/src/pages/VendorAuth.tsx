@@ -23,6 +23,10 @@ export default function VendorAuth() {
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [logo, setLogo] = useState("");
   const [storeName, setStoreName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
@@ -59,21 +63,11 @@ export default function VendorAuth() {
 
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please login to your account first before applying as a vendor.",
-        variant: "destructive"
-      });
-      setLocation("/auth");
-      return;
-    }
 
-    if (!storeName.trim()) {
+    if (!username.trim() || !email.trim() || !password.trim() || !storeName.trim()) {
       toast({
-        title: "Store Name Required",
-        description: "Please enter a name for your store.",
+        title: "Required Fields Missing",
+        description: "Please fill in username, email, password, and store name.",
         variant: "destructive"
       });
       return;
@@ -82,8 +76,12 @@ export default function VendorAuth() {
     setLoading(true);
     
     try {
-      const response = await apiRequest("POST", "/api/vendor/apply", {
+      const response = await apiRequest("POST", "/api/vendor/signup", {
+        username,
+        email,
+        password,
         storeName,
+        logo: logo || undefined,
         businessName: businessName || undefined,
         businessType: businessType || undefined,
         description: description || undefined,
@@ -96,11 +94,15 @@ export default function VendorAuth() {
       });
       
       toast({
-        title: "Application Submitted!",
-        description: "Your vendor application has been submitted for review. We will contact you soon.",
+        title: "Account Created & Application Submitted!",
+        description: "Your vendor account has been created. Please wait for admin approval.",
         className: "bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-none"
       });
       
+      setUsername("");
+      setEmail("");
+      setPassword("");
+      setLogo("");
       setStoreName("");
       setBusinessName("");
       setBusinessType("");
@@ -111,6 +113,7 @@ export default function VendorAuth() {
       setCountry("");
       setProductCategories("");
       setReason("");
+      setActiveTab("login");
       
     } catch (error: any) {
       toast({
@@ -250,6 +253,56 @@ export default function VendorAuth() {
                   <TabsContent value="apply" className="mt-0">
                     <form onSubmit={handleApply} className="space-y-4">
                       <div className="space-y-2">
+                        <Label htmlFor="username">Username *</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="username" 
+                            placeholder="Your username" 
+                            className="pl-10"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            data-testid="input-vendor-signup-username"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email *</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            placeholder="Your email" 
+                            className="pl-10"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            data-testid="input-vendor-signup-email"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password *</Label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="password" 
+                            type="password" 
+                            placeholder="Choose a password" 
+                            className="pl-10"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            data-testid="input-vendor-signup-password"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor="store-name">Store Name *</Label>
                         <div className="relative">
                           <Store className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -263,6 +316,18 @@ export default function VendorAuth() {
                             data-testid="input-vendor-store-name"
                           />
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="logo">Store Logo (URL)</Label>
+                        <Input 
+                          id="logo" 
+                          type="url" 
+                          placeholder="https://example.com/logo.png"
+                          value={logo}
+                          onChange={(e) => setLogo(e.target.value)}
+                          data-testid="input-vendor-logo"
+                        />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
@@ -350,17 +415,11 @@ export default function VendorAuth() {
                         type="submit" 
                         className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600"
                         disabled={loading}
-                        data-testid="button-vendor-apply"
+                        data-testid="button-vendor-signup"
                       >
-                        {loading ? "Submitting..." : "Submit Application"}
+                        {loading ? "Creating Account..." : "Create Vendor Account"}
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
-                      
-                      {!user && (
-                        <p className="text-xs text-center text-muted-foreground">
-                          You must be logged in to apply. <a href="/auth" className="text-teal-500 hover:underline">Login here</a>
-                        </p>
-                      )}
                     </form>
                   </TabsContent>
                 </CardContent>

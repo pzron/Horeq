@@ -2377,6 +2377,55 @@ export async function registerRoutes(
   // VENDOR APPLICATION ROUTES
   // =====================================================
 
+  app.post("/api/vendor/signup", async (req, res) => {
+    try {
+      const { username, email, password, storeName, logo, businessName, businessType, description, phone, address, city, country, productCategories, reason } = req.body;
+      
+      if (!username || !email || !password || !storeName) {
+        return res.status(400).json({ message: "Username, email, password, and store name are required" });
+      }
+
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        username,
+        email,
+        password: hashedPassword,
+        role: "vendor",
+      });
+
+      const applicationData = insertVendorApplicationSchema.parse({
+        userId: user.id,
+        storeName,
+        logo: logo || undefined,
+        businessName: businessName || undefined,
+        businessType: businessType || undefined,
+        description: description || undefined,
+        phone: phone || undefined,
+        address: address || undefined,
+        city: city || undefined,
+        country: country || undefined,
+        productCategories: productCategories || undefined,
+        reason: reason || undefined,
+        status: "pending",
+      });
+
+      const application = await storage.createVendorApplication(applicationData);
+      res.status(201).json({ message: "Vendor account created and application submitted", user, application });
+    } catch (error: any) {
+      res.status(getErrorStatusCode(error)).json({ message: error.message });
+    }
+  });
+
   app.post("/api/vendor/apply", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
