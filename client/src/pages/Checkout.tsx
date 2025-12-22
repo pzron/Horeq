@@ -64,6 +64,13 @@ export default function Checkout() {
     { id: 'economy', label: 'Economy Shipping', price: 0, time: '7-10 business days', icon: Clock },
   ];
 
+  const paymentMethods = [
+    { id: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
+    { id: 'mobile_banking', label: 'Mobile Banking (bKash, Nagad, Rocket)', icon: '📱' },
+    { id: 'cash_on_delivery', label: 'Cash on Delivery', icon: '💵' },
+    { id: 'card', label: 'Debit/Credit Card', icon: '💳' },
+  ];
+
   const subtotal = getSubtotal();
   const shippingCost = shippingOptions.find(o => o.id === shippingOption)?.price || 0;
   const discount = couponApplied ? 500 : 0;

@@ -101,6 +101,9 @@ export default function VendorDashboard() {
   const [productStock, setProductStock] = useState("");
   const [productIsPublished, setProductIsPublished] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [productColors, setProductColors] = useState("");
+  const [productSizes, setProductSizes] = useState("");
+  const [productVideoUrl, setProductVideoUrl] = useState("");
 
   // Combo states
   const [comboDialogOpen, setComboDialogOpen] = useState(false);
@@ -338,6 +341,9 @@ export default function VendorDashboard() {
     setProductCategoryId("");
     setProductStock("");
     setProductIsPublished(false);
+    setProductColors("");
+    setProductSizes("");
+    setProductVideoUrl("");
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -745,8 +751,24 @@ export default function VendorDashboard() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="stock">Stock</Label>
-                      <Input id="stock" type="number" value={productStock} onChange={(e) => setProductStock(e.target.value)} />
+                      <Label htmlFor="stock">Stock *</Label>
+                      <Input id="stock" type="number" value={productStock} onChange={(e) => setProductStock(e.target.value)} required />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="colors">Available Colors</Label>
+                        <Input id="colors" placeholder="e.g., Red, Blue, Black" value={productColors} onChange={(e) => setProductColors(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sizes">Available Sizes</Label>
+                        <Input id="sizes" placeholder="e.g., S, M, L, XL" value={productSizes} onChange={(e) => setProductSizes(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="video">Product Video URL</Label>
+                      <Input id="video" type="url" placeholder="https://example.com/video.mp4" value={productVideoUrl} onChange={(e) => setProductVideoUrl(e.target.value)} />
                     </div>
 
                     <div className="space-y-2">
