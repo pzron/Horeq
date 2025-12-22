@@ -183,7 +183,7 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools" | "transactions" | "inventory" | "suppliers";
+type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools" | "transactions" | "inventory" | "suppliers" | "vendor-applications" | "vendor-stores";
 
 interface MenuGroup {
   id: string;
@@ -248,6 +248,15 @@ const menuGroups: MenuGroup[] = [
       { id: "add-page", title: "Add New", icon: Plus },
       { id: "blocks", title: "Blocks", icon: Grid3X3 },
       { id: "patterns", title: "Patterns", icon: Layout },
+    ],
+  },
+  {
+    id: "vendors-group",
+    title: "Vendors",
+    icon: Store,
+    items: [
+      { id: "vendor-applications", title: "Applications", icon: FileText },
+      { id: "vendor-stores", title: "All Vendors", icon: Store },
     ],
   },
   {
@@ -455,6 +464,8 @@ export default function AdminDashboard() {
             {activeSection === "transactions" && <TransactionsSection />}
             {activeSection === "inventory" && <InventorySection />}
             {activeSection === "suppliers" && <SuppliersSection />}
+            {activeSection === "vendor-applications" && <VendorApplicationsSection />}
+            {activeSection === "vendor-stores" && <VendorStoresSection />}
           </main>
         </div>
       </div>
@@ -9660,6 +9671,156 @@ function SuppliersSection() {
                         <Button variant="ghost" size="icon" onClick={() => deleteSupplierMutation.mutate(supplier.id)} data-testid={`button-delete-supplier-${supplier.id}`}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Vendor Applications Section
+function VendorApplicationsSection() {
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  
+  const { data: applications = [], isLoading } = useQuery({
+    queryKey: ["/api/admin/vendor-applications"],
+  });
+
+  const filteredApps = applications.filter((app: any) => statusFilter === "all" || app.status === statusFilter);
+
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("POST", `/api/admin/vendor-applications/${id}/approve`, { commissionRate: "10.00" });
+      if (!response.ok) throw new Error("Failed to approve");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/vendor-applications"] });
+      toast({ title: "Vendor approved successfully!" });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const response = await apiRequest("POST", `/api/admin/vendor-applications/${id}/reject`, { reason });
+      if (!response.ok) throw new Error("Failed to reject");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/vendor-applications"] });
+      toast({ title: "Vendor application rejected" });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div><h2 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-6 w-6" />Vendor Applications</h2><p className="text-muted-foreground">Review and manage vendor applications</p></div>
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle>Pending Applications</CardTitle>
+            <div className="flex gap-2">
+              {["all", "pending", "approved", "rejected"].map((status) => (
+                <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(status)} className="capitalize" data-testid={`button-filter-${status}`}>{status}</Button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : filteredApps.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground"><FileText className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No applications found</p></div>
+          ) : (
+            <div className="space-y-4">
+              {filteredApps.map((app: any) => (
+                <Card key={app.id} className="p-4 border">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold">{app.storeName}</h3>
+                      <p className="text-sm text-muted-foreground">{app.businessName}</p>
+                    </div>
+                    <Badge variant={app.status === "pending" ? "default" : app.status === "approved" ? "secondary" : "destructive"} className="capitalize">{app.status}</Badge>
+                  </div>
+                  <p className="text-sm mb-3"><span className="font-medium">Description:</span> {app.description || "N/A"}</p>
+                  {app.status === "pending" && (
+                    <div className="flex gap-2">
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate(app.id)} disabled={approveMutation.isPending} data-testid={`button-approve-vendor-${app.id}`}>
+                        <Check className="h-4 w-4 mr-2" /> Approve
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => rejectMutation.mutate({ id: app.id, reason: "Application rejected by admin" })} disabled={rejectMutation.isPending} data-testid={`button-reject-vendor-${app.id}`}>
+                        <AlertTriangle className="h-4 w-4 mr-2" /> Reject
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Vendor Stores Section
+function VendorStoresSection() {
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const { data: stores = [], isLoading } = useQuery({
+    queryKey: ["/api/admin/vendor-stores"],
+  });
+
+  const filteredStores = stores.filter((store: any) => 
+    store.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    store.slug?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const updateStoreMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/admin/vendor-stores/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/vendor-stores"] });
+      toast({ title: "Vendor updated successfully!" });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div><h2 className="text-2xl font-bold flex items-center gap-2"><Store className="h-6 w-6" />Vendor Stores</h2><p className="text-muted-foreground">Manage all active vendor stores</p></div>
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle>All Vendors</CardTitle>
+            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search vendors..." className="pl-9 w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-testid="input-search-vendors" /></div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading vendors...</div>
+          ) : filteredStores.length === 0 ? (
+            <div className="text-center py-8"><Store className="h-12 w-12 mx-auto mb-4 text-muted-foreground" /><p className="text-muted-foreground">No vendors found</p></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Store Name</TableHead><TableHead>Commission Rate</TableHead><TableHead>Status</TableHead><TableHead>Verified</TableHead><TableHead>Total Sales</TableHead><TableHead>Actions</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStores.map((store: any) => (
+                  <TableRow key={store.id} data-testid={`vendor-row-${store.id}`}>
+                    <TableCell className="font-medium">{store.storeName}</TableCell>
+                    <TableCell>{store.commissionRate}%</TableCell>
+                    <TableCell><Badge variant={store.status === "active" ? "default" : "secondary"} className="capitalize">{store.status}</Badge></TableCell>
+                    <TableCell><Badge variant={store.isVerified ? "default" : "outline"}>{store.isVerified ? "Yes" : "No"}</Badge></TableCell>
+                    <TableCell>${parseFloat(store.totalSales || 0).toFixed(2)}</TableCell>
+                    <TableCell><Button variant="ghost" size="icon" data-testid={`button-view-vendor-${store.id}`}><Eye className="h-4 w-4" /></Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
