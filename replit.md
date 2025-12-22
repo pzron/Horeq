@@ -37,6 +37,33 @@ Horeq is a full-stack e-commerce platform built with React frontend and Express 
 - **Enhanced TransT Section**: Date range filters (today/7d/30d/custom), earn vs cost analysis, money source tracking, tabbed interface (Overview/Records)
 - **Enhanced Tools Section**: Import/export functionality, activity log monitoring, reports generation, system diagnostics with loading states
 
+### Advanced Vendor Dashboard (December 2024)
+- **Complete Dashboard Redesign**: Modern, responsive UI with clean gradient design
+- **Image Upload System**: Drag-and-drop image upload for product management with visual preview
+- **Advanced Product Management**: Full CRUD operations with price, stock, categories, publish status
+- **Combo Builder**: Create product bundles with multiple product selection, automatic pricing calculations, savings display
+- **Affiliate Product Management**: 
+  - Add products to affiliate program with per-product settings
+  - Configure commission type (percentage or fixed amount) per product
+  - Track affiliate performance (clicks, sales, commission earned)
+  - Activate/deactivate products for affiliates
+- **Commission Tracking Dashboard**: 
+  - View total commissions earned
+  - See commission history with status tracking
+  - Commission rate display
+- **Payment & Payout Management**:
+  - Current balance display
+  - Request payout functionality
+  - Payment method configuration (Bank Transfer, PayPal, Stripe, Crypto)
+  - Payout history tracking
+- **Store Settings**:
+  - Update store name and description
+  - Configure payment method and details
+  - View store statistics (products, combos, affiliates, rating)
+- **Product Sharing**: One-click copy-to-clipboard product links for easy sharing
+- **Responsive Design**: Fully responsive across desktop, tablet, and mobile devices
+- **7 Tab Interface**: Overview, Products, Combos, Affiliates, Commissions, Payment, Settings
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -77,6 +104,9 @@ Preferred communication style: Simple, everyday language.
 - Reviews
 - Wishlist
 - Affiliates
+- Transactions (comprehensive financial tracking)
+- Commission Ledger (affiliate commission history)
+- Combos (product bundles)
 
 ### Build System
 - **Development**: Vite dev server with HMR on port 5000
@@ -88,7 +118,7 @@ Preferred communication style: Simple, everyday language.
 ├── client/           # Frontend React application
 │   ├── src/
 │   │   ├── components/  # UI components (layout, ui)
-│   │   ├── pages/       # Route page components
+│   │   ├── pages/       # Route page components (VendorDashboard, etc.)
 │   │   ├── hooks/       # Custom React hooks
 │   │   └── lib/         # Utilities and mock data
 ├── server/           # Backend Express application
@@ -110,6 +140,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Third-Party Services
 - **Google Fonts**: Outfit and Inter font families loaded via CDN
+- **Stripe**: Payment processing integration (available, not yet configured)
 
 ### Key NPM Packages
 - `drizzle-orm` / `drizzle-kit`: Database ORM and migration tooling
