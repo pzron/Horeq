@@ -87,6 +87,7 @@ export default function VendorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Product states
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -385,6 +386,27 @@ export default function VendorDashboard() {
       toast({ title: "Logo upload failed", variant: "destructive" });
     } finally {
       setLogoUploading(false);
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await apiRequest("POST", "/api/upload", formData);
+      if (!response.ok) throw new Error("Upload failed");
+      const { url } = await response.json();
+      setProductVideoUrl(url);
+      toast({ title: "Video uploaded successfully!" });
+    } catch (error) {
+      toast({ title: "Video upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -766,9 +788,15 @@ export default function VendorDashboard() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="video">Product Video URL</Label>
-                      <Input id="video" type="url" placeholder="https://example.com/video.mp4" value={productVideoUrl} onChange={(e) => setProductVideoUrl(e.target.value)} />
+                    <div className="space-y-3">
+                      <Label className="font-semibold">Product Video</Label>
+                      {productVideoUrl && (
+                        <div className="text-sm text-muted-foreground">✓ Video uploaded</div>
+                      )}
+                      <Button type="button" variant="outline" onClick={() => videoInputRef.current?.click()} disabled={uploading} className="w-full">
+                        <Upload className="h-4 w-4 mr-2" /> {uploading ? "Uploading..." : productVideoUrl ? "Change Video" : "Upload Video"}
+                      </Button>
+                      <input ref={videoInputRef} type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
                     </div>
 
                     <div className="space-y-2">
