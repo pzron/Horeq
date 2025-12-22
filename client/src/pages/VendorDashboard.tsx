@@ -18,7 +18,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Store, Package, DollarSign, TrendingUp, Settings, Plus,
   Edit, Trash2, Eye, LogOut, BarChart3, ShoppingCart, Link2, Users, CreditCard,
-  Copy, Check, AlertTriangle, Upload, Share2, Zap, TrendingDown, Calendar, Hash
+  Copy, Check, AlertTriangle, Upload, Share2, Zap, TrendingDown, Calendar, Hash, 
+  AreaChart as AreaChartIcon, PieChart as PieChartIcon, LineChart as LineChartIcon,
+  Eye as EyeIcon, EyeOff, Lock, Image as ImageIcon, Download, Wallet, ArrowDown, ArrowUp,
+  TrendingUp as TrendingUpIcon, Activity, Target, Award, AlertCircle, Gift, MousePointerClick
 } from "lucide-react";
 import type { VendorStore, Product, Category } from "@shared/schema";
 import {
@@ -29,6 +32,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 
 interface AffiliateProduct {
   productId: string;
@@ -42,12 +62,31 @@ interface AffiliateProduct {
   totalCommission: string;
 }
 
+interface WithdrawalRequest {
+  id: string;
+  amount: string;
+  status: "pending" | "approved" | "processing" | "completed" | "rejected";
+  paymentMethod: string;
+  createdAt: Date;
+  processedAt?: Date;
+}
+
+interface Transaction {
+  id: string;
+  type: "sale" | "commission" | "payout" | "refund" | "adjustment";
+  amount: string;
+  status: "completed" | "pending" | "failed";
+  description: string;
+  createdAt: Date;
+}
+
 export default function VendorDashboard() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Product states
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -81,11 +120,22 @@ export default function VendorDashboard() {
 
   // Payment & Settings states
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [storeName, setStoreName] = useState("");
   const [storeDescription, setStoreDescription] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentDetails, setPaymentDetails] = useState("");
+  const [storeLogo, setStoreLogo] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalMethod, setWithdrawalMethod] = useState("bank_transfer");
+  const [logoUploading, setLogoUploading] = useState(false);
 
+  // Query data
   const { data: store, isLoading: storeLoading } = useQuery<VendorStore>({
     queryKey: ["/api/vendor/me"],
   });
@@ -109,11 +159,22 @@ export default function VendorDashboard() {
     enabled: !!store,
   });
 
-  const { data: commissionHistory = [] } = useQuery({
+  const { data: commissionHistory = [] } = useQuery<any[]>({
     queryKey: ["/api/vendor/commissions"],
     enabled: !!store,
   });
 
+  const { data: transactions = [] } = useQuery({
+    queryKey: ["/api/vendor/transactions"],
+    enabled: !!store,
+  });
+
+  const { data: analytics = {} } = useQuery({
+    queryKey: ["/api/vendor/analytics"],
+    enabled: !!store,
+  });
+
+  // Mutations
   const createProductMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/vendor/products", data);
@@ -169,45 +230,6 @@ export default function VendorDashboard() {
     },
   });
 
-  const createComboMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/vendor/combos", data);
-      if (!response.ok) throw new Error("Failed to create combo");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/combos"] });
-      toast({ title: "Combo created successfully!" });
-      setComboDialogOpen(false);
-      resetComboForm();
-    },
-  });
-
-  const updateComboMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PATCH", `/api/vendor/combos/${id}`, data);
-      if (!response.ok) throw new Error("Failed to update combo");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/combos"] });
-      toast({ title: "Combo updated successfully!" });
-      setComboDialogOpen(false);
-      setEditingCombo(null);
-    },
-  });
-
-  const deleteComboMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/vendor/combos/${id}`);
-      if (!response.ok) throw new Error("Failed to delete combo");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/combos"] });
-      toast({ title: "Combo deleted successfully!" });
-    },
-  });
-
   const updateStoreMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("PATCH", "/api/vendor/store", data);
@@ -224,6 +246,68 @@ export default function VendorDashboard() {
     },
   });
 
+  const updatePasswordMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", "/api/vendor/password", {
+        currentPassword,
+        newPassword,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update password");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Password updated successfully!" });
+      setPasswordDialogOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update password", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateLogoMutation = useMutation({
+    mutationFn: async (logoUrl: string) => {
+      const response = await apiRequest("PATCH", "/api/vendor/logo", { logo: logoUrl });
+      if (!response.ok) throw new Error("Failed to update logo");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/me"] });
+      toast({ title: "Logo updated successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update logo", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const withdrawalMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/vendor/withdrawal-request", {
+        amount: withdrawalAmount,
+        paymentMethod: withdrawalMethod,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to request withdrawal");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Withdrawal request submitted successfully!" });
+      setWithdrawalDialogOpen(false);
+      setWithdrawalAmount("");
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/transactions"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Withdrawal request failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const resetProductForm = () => {
     setProductName("");
     setProductSlug("");
@@ -234,14 +318,6 @@ export default function VendorDashboard() {
     setProductCategoryId("");
     setProductStock("");
     setProductIsPublished(false);
-  };
-
-  const resetComboForm = () => {
-    setComboName("");
-    setComboDescription("");
-    setComboPrice("");
-    setComboProductIds([]);
-    setSelectedProductsForCombo(new Map());
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,6 +338,27 @@ export default function VendorDashboard() {
       toast({ title: "Image upload failed", variant: "destructive" });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLogoUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await apiRequest("POST", "/api/upload", formData);
+      if (!response.ok) throw new Error("Upload failed");
+      const { url } = await response.json();
+      setStoreLogo(url);
+      updateLogoMutation.mutate(url);
+    } catch (error) {
+      toast({ title: "Logo upload failed", variant: "destructive" });
+    } finally {
+      setLogoUploading(false);
     }
   };
 
@@ -300,97 +397,9 @@ export default function VendorDashboard() {
     }
   };
 
-  const handleSubmitCombo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedProductsForCombo.size === 0) {
-      toast({ title: "Please select at least one product for the combo", variant: "destructive" });
-      return;
-    }
-
-    const productIds = Array.from(selectedProductsForCombo.keys());
-    const totalProductPrice = productIds.reduce((sum, id) => {
-      const product = products.find(p => p.id === id);
-      return sum + (product ? parseFloat(product.price) : 0);
-    }, 0);
-
-    const comboData = {
-      name: comboName,
-      slug: comboName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      description: comboDescription,
-      image: products.find(p => p.id === productIds[0])?.image || "",
-      productIds,
-      price: comboPrice || totalProductPrice.toString(),
-      originalPrice: totalProductPrice.toString(),
-      savings: (totalProductPrice - parseFloat(comboPrice || "0")).toString(),
-    };
-
-    if (editingCombo) {
-      updateComboMutation.mutate({ id: editingCombo.id, data: comboData });
-    } else {
-      createComboMutation.mutate(comboData);
-    }
-  };
-
-  const toggleProductForCombo = (productId: string) => {
-    const newMap = new Map(selectedProductsForCombo);
-    if (newMap.has(productId)) {
-      newMap.delete(productId);
-    } else {
-      newMap.set(productId, 1);
-    }
-    setSelectedProductsForCombo(newMap);
-  };
-
-  const handleAddAffiliateProduct = () => {
-    if (!selectedAffProduct) return;
-    const product = products.find(p => p.id === selectedAffProduct);
-    if (!product) return;
-
-    const existing = affiliateProducts.find(ap => ap.productId === selectedAffProduct);
-    if (existing) {
-      toast({ title: "Product already added", variant: "destructive" });
-      return;
-    }
-
-    setAffiliateProducts([
-      ...affiliateProducts,
-      {
-        productId: selectedAffProduct,
-        productName: product.name,
-        price: product.price,
-        commissionType: affCommissionType,
-        commissionValue: affCommissionValue,
-        isActive: true,
-        totalClicks: 0,
-        totalSales: 0,
-        totalCommission: "0",
-      },
-    ]);
-    setSelectedAffProduct("");
-    setAffCommissionValue("5");
-  };
-
-  const removeAffiliateProduct = (productId: string) => {
-    setAffiliateProducts(affiliateProducts.filter(ap => ap.productId !== productId));
-  };
-
-  const toggleAffiliateProductActive = (productId: string) => {
-    setAffiliateProducts(
-      affiliateProducts.map(ap =>
-        ap.productId === productId ? { ...ap, isActive: !ap.isActive } : ap
-      )
-    );
-  };
-
-  const handleShareProduct = (product: Product) => {
-    const shareUrl = `${window.location.origin}/products/${product.slug}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast({ title: "Product link copied to clipboard!" });
-  };
-
   const handleLogout = async () => {
     await logout();
-    setLocation("/sweet/vendor");
+    setLocation("/");
   };
 
   if (storeLoading) {
@@ -430,14 +439,48 @@ export default function VendorDashboard() {
   const pendingPayout = parseFloat(store.pendingPayout) || 0;
   const commissionRate = parseFloat(store.commissionRate) || 10;
 
+  // Mock analytics data
+  const chartData = [
+    { date: "Mon", sales: 2400, orders: 24 },
+    { date: "Tue", sales: 1398, orders: 18 },
+    { date: "Wed", sales: 3200, orders: 32 },
+    { date: "Thu", sales: 2780, orders: 28 },
+    { date: "Fri", sales: 3908, orders: 42 },
+    { date: "Sat", sales: 4800, orders: 52 },
+    { date: "Sun", sales: 3800, orders: 38 },
+  ];
+
+  const categoryData = [
+    { name: "Electronics", value: 35, color: "#3b82f6" },
+    { name: "Fashion", value: 25, color: "#8b5cf6" },
+    { name: "Home", value: 20, color: "#10b981" },
+    { name: "Sports", value: 12, color: "#f59e0b" },
+    { name: "Other", value: 8, color: "#6b7280" },
+  ];
+
+  const mockWithdrawals: WithdrawalRequest[] = [
+    { id: "wr-001", amount: "500", status: "completed", paymentMethod: "bank_transfer", createdAt: new Date("2024-12-15"), processedAt: new Date("2024-12-16") },
+    { id: "wr-002", amount: "1000", status: "processing", paymentMethod: "bank_transfer", createdAt: new Date("2024-12-18") },
+  ];
+
+  const mockTransactions: Transaction[] = [
+    { id: "tr-001", type: "sale", amount: "250", status: "completed", description: "Sale from product #1", createdAt: new Date("2024-12-20") },
+    { id: "tr-002", type: "commission", amount: "25", status: "completed", description: "Commission deduction", createdAt: new Date("2024-12-20") },
+    { id: "tr-003", type: "sale", amount: "180", status: "completed", description: "Sale from product #2", createdAt: new Date("2024-12-19") },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-500 p-2 rounded-lg">
-              <Store className="h-6 w-6 text-white" />
+            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+              {store?.logo ? (
+                <img src={store.logo} alt={store.storeName} className="w-full h-full object-cover" />
+              ) : (
+                <Store className="h-6 w-6 text-white" />
+              )}
             </div>
             <div>
               <h1 className="font-bold text-lg">{store.storeName}</h1>
@@ -468,54 +511,117 @@ export default function VendorDashboard() {
             </TabsList>
           </div>
 
-          {/* Overview Tab */}
+          {/* Overview Tab - Enhanced */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Key Metrics */}
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">${totalSales.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">All-time sales</p>
+                  <div className="flex items-center text-xs text-green-600 mt-1"><ArrowUp className="h-3 w-3 mr-1" />+12% from last month</div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Your Earnings</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">${totalEarnings.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">After commission</p>
+                  <div className="flex items-center text-xs text-blue-600 mt-1"><ArrowUp className="h-3 w-3 mr-1" />After commission</div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Pending Payout</CardTitle>
-                  <CreditCard className="h-4 w-4 text-orange-600" />
+                  <div className="p-2 rounded-lg bg-orange-500/10">
+                    <Wallet className="h-4 w-4 text-orange-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">${pendingPayout.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">Awaiting processing</p>
+                  <div className="flex items-center text-xs text-orange-600 mt-1"><AlertCircle className="h-3 w-3 mr-1" />Ready to withdraw</div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Products</CardTitle>
-                  <Package className="h-4 w-4 text-purple-600" />
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <Package className="h-4 w-4 text-purple-600" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{products.length}</div>
-                  <p className="text-xs text-muted-foreground">Total listed</p>
+                  <div className="flex items-center text-xs text-purple-600 mt-1"><Target className="h-3 w-3 mr-1" />Total listed</div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Charts Section */}
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+              <Card className="lg:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <AreaChartIcon className="h-5 w-5 text-primary" />
+                      Sales Overview
+                    </CardTitle>
+                    <CardDescription>Weekly sales performance</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" />
+                      <YAxis className="text-xs" />
+                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                      <Area type="monotone" dataKey="sales" stroke="#3b82f6" fill="url(#colorSales)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChartIcon className="h-5 w-5 text-primary" />
+                    Sales by Category
+                  </CardTitle>
+                  <CardDescription>Product distribution</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={2}>
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Store Status */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -524,7 +630,7 @@ export default function VendorDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Store Status</p>
                     <Badge variant={store.status === "active" ? "default" : "secondary"} className="mt-1">
@@ -550,9 +656,9 @@ export default function VendorDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Products Tab */}
+          {/* Products Tab - Enhanced */}
           <TabsContent value="products" className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-4">
               <h2 className="text-2xl font-bold">Your Products</h2>
               <Dialog open={productDialogOpen} onOpenChange={(open) => {
                 setProductDialogOpen(open);
@@ -569,159 +675,70 @@ export default function VendorDashboard() {
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
-                    <DialogDescription>Create or update your product with image upload support</DialogDescription>
+                    <DialogDescription>Create or update your product</DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSubmitProduct} className="space-y-6">
-                    {/* Image Upload Section */}
+                    {/* Image Upload */}
                     <div className="space-y-3">
                       <Label className="font-semibold">Product Image</Label>
-                      <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition">
-                        {productImage ? (
-                          <div className="space-y-3">
-                            <img src={productImage} alt="Product" className="h-40 w-40 object-cover mx-auto rounded" />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => imageInputRef.current?.click()}
-                            >
-                              <Upload className="h-4 w-4 mr-2" /> Change Image
-                            </Button>
-                          </div>
-                        ) : (
-                          <div
-                            className="cursor-pointer"
-                            onClick={() => imageInputRef.current?.click()}
-                          >
-                            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                            <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                            <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
-                          </div>
-                        )}
-                        <input
-                          ref={imageInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleImageUpload}
-                          disabled={uploading}
-                        />
-                      </div>
+                      {productImage && (
+                        <img src={productImage} alt="Preview" className="w-40 h-40 object-cover rounded-lg" />
+                      )}
+                      <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={uploading} className="w-full">
+                        <Upload className="h-4 w-4 mr-2" /> {uploading ? "Uploading..." : "Upload Image"}
+                      </Button>
+                      <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                     </div>
 
-                    {/* Basic Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Product Name *</Label>
+                      <Input id="name" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="product-name" className="font-semibold">Product Name *</Label>
-                        <Input
-                          id="product-name"
-                          value={productName}
-                          onChange={(e) => setProductName(e.target.value)}
-                          placeholder="Enter product name"
-                          required
-                          data-testid="input-product-name"
-                        />
+                        <Label htmlFor="price">Price *</Label>
+                        <Input id="price" type="number" step="0.01" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} required />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="product-category" className="font-semibold">Category *</Label>
-                        <Select value={productCategoryId} onValueChange={setProductCategoryId}>
-                          <SelectTrigger data-testid="select-product-category">
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="original-price">Original Price</Label>
+                        <Input id="original-price" type="number" step="0.01" value={productOriginalPrice} onChange={(e) => setProductOriginalPrice(e.target.value)} />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="product-description" className="font-semibold">Description</Label>
-                      <Textarea
-                        id="product-description"
-                        value={productDescription}
-                        onChange={(e) => setProductDescription(e.target.value)}
-                        placeholder="Enter detailed product description"
-                        rows={4}
-                        data-testid="input-product-description"
-                      />
+                      <Label htmlFor="category">Category *</Label>
+                      <Select value={productCategoryId} onValueChange={setProductCategoryId}>
+                        <SelectTrigger id="category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    {/* Pricing & Stock */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="product-price" className="font-semibold">Price (USD) *</Label>
-                        <Input
-                          id="product-price"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={productPrice}
-                          onChange={(e) => setProductPrice(e.target.value)}
-                          placeholder="0.00"
-                          required
-                          data-testid="input-product-price"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="product-original-price" className="font-semibold">Original Price</Label>
-                        <Input
-                          id="product-original-price"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={productOriginalPrice}
-                          onChange={(e) => setProductOriginalPrice(e.target.value)}
-                          placeholder="0.00"
-                          data-testid="input-product-original-price"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="product-stock" className="font-semibold">Stock *</Label>
-                        <Input
-                          id="product-stock"
-                          type="number"
-                          min="0"
-                          value={productStock}
-                          onChange={(e) => setProductStock(e.target.value)}
-                          placeholder="0"
-                          required
-                          data-testid="input-product-stock"
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stock">Stock</Label>
+                      <Input id="stock" type="number" value={productStock} onChange={(e) => setProductStock(e.target.value)} />
                     </div>
 
-                    {/* Publish Status */}
-                    <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
-                      <Switch
-                        id="product-published"
-                        checked={productIsPublished}
-                        onCheckedChange={setProductIsPublished}
-                        data-testid="switch-product-published"
-                      />
-                      <Label htmlFor="product-published" className="font-medium cursor-pointer">
-                        Publish product (visible to customers)
-                      </Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea id="description" value={productDescription} onChange={(e) => setProductDescription(e.target.value)} rows={3} />
                     </div>
 
-                    {/* Form Actions */}
-                    <div className="flex justify-end gap-2 pt-4 border-t">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setProductDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={createProductMutation.isPending || updateProductMutation.isPending || uploading}
-                        className="bg-gradient-to-r from-blue-500 to-purple-500"
-                        data-testid="button-save-product"
-                      >
-                        {editingProduct ? "Update Product" : "Create Product"}
+                    <div className="flex items-center space-x-2">
+                      <Switch id="published" checked={productIsPublished} onCheckedChange={setProductIsPublished} />
+                      <Label htmlFor="published" className="font-normal">Publish this product</Label>
+                    </div>
+
+                    <div className="flex gap-2 pt-4 border-t">
+                      <Button type="button" variant="outline" onClick={() => setProductDialogOpen(false)} className="flex-1">Cancel</Button>
+                      <Button type="submit" disabled={createProductMutation.isPending || updateProductMutation.isPending} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500">
+                        Save Product
                       </Button>
                     </div>
                   </form>
@@ -729,74 +746,40 @@ export default function VendorDashboard() {
               </Dialog>
             </div>
 
-            {productsLoading ? (
-              <Card className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-muted-foreground">Loading products...</p>
-                </div>
-              </Card>
-            ) : products.length === 0 ? (
+            {products.length === 0 ? (
               <Card className="text-center py-12">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground mb-4">No products yet. Create your first product to get started!</p>
-                <Button onClick={() => setProductDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Your First Product
-                </Button>
+                <p className="text-muted-foreground mb-4">No products yet. Create your first product!</p>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map((product) => (
-                  <Card key={product.id} className="flex flex-col hover:shadow-lg transition">
-                    <div className="aspect-square bg-muted overflow-hidden rounded-t-lg">
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                    </div>
-                    <CardContent className="pt-4 flex-grow space-y-3">
-                      <div>
-                        <h3 className="font-semibold truncate">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-2xl font-bold">${parseFloat(product.price).toFixed(2)}</p>
-                          <p className="text-xs text-muted-foreground">{product.stock} in stock</p>
-                        </div>
-                        <Badge variant={product.isPublished ? "default" : "secondary"}>
-                          {product.isPublished ? "Published" : "Draft"}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                    <div className="p-4 border-t space-y-2">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleEditProduct(product)}
-                          data-testid="button-edit-product"
-                        >
-                          <Edit className="h-4 w-4 mr-1" /> Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleShareProduct(product)}
-                          data-testid="button-share-product"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteProductMutation.mutate(product.id)}
-                          data-testid="button-delete-product"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((product) => (
+                      <TableRow key={product.id} data-testid={`product-row-${product.id}`}>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{categories.find(c => c.id === product.categoryId)?.name || "-"}</TableCell>
+                        <TableCell>${parseFloat(product.price).toFixed(2)}</TableCell>
+                        <TableCell>{product.stock}</TableCell>
+                        <TableCell><Badge variant={product.isPublished ? "default" : "secondary"}>{product.isPublished ? "Published" : "Draft"}</Badge></TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button size="sm" variant="ghost" onClick={() => handleEditProduct(product)} data-testid={`button-edit-product-${product.id}`}><Edit className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="destructive" onClick={() => deleteProductMutation.mutate(product.id)} data-testid={`button-delete-product-${product.id}`}><Trash2 className="h-4 w-4" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </TabsContent>
@@ -805,171 +788,49 @@ export default function VendorDashboard() {
           <TabsContent value="combos" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Combo Deals</h2>
-              <Dialog open={comboDialogOpen} onOpenChange={(open) => {
-                setComboDialogOpen(open);
-                if (!open) {
-                  setEditingCombo(null);
-                  resetComboForm();
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-blue-500 to-purple-500" data-testid="button-add-combo">
-                    <Plus className="h-4 w-4 mr-2" /> Create Combo
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{editingCombo ? "Edit Combo" : "Create New Combo"}</DialogTitle>
-                    <DialogDescription>Bundle multiple products together with special pricing</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmitCombo} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="combo-name" className="font-semibold">Combo Name *</Label>
-                        <Input
-                          id="combo-name"
-                          value={comboName}
-                          onChange={(e) => setComboName(e.target.value)}
-                          placeholder="e.g., Summer Bundle"
-                          required
-                          data-testid="input-combo-name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="combo-price" className="font-semibold">Combo Price (USD) *</Label>
-                        <Input
-                          id="combo-price"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={comboPrice}
-                          onChange={(e) => setComboPrice(e.target.value)}
-                          placeholder="0.00"
-                          required
-                          data-testid="input-combo-price"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="combo-description" className="font-semibold">Description</Label>
-                      <Textarea
-                        id="combo-description"
-                        value={comboDescription}
-                        onChange={(e) => setComboDescription(e.target.value)}
-                        placeholder="Describe your combo deal"
-                        rows={3}
-                        data-testid="input-combo-description"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label className="font-semibold">Select Products for Combo *</Label>
-                      <ScrollArea className="border rounded-lg p-4 h-64">
-                        <div className="space-y-2">
-                          {products.map((product) => (
-                            <div
-                              key={product.id}
-                              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition cursor-pointer"
-                              onClick={() => toggleProductForCombo(product.id)}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedProductsForCombo.has(product.id)}
-                                onChange={() => toggleProductForCombo(product.id)}
-                                className="cursor-pointer"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{product.name}</p>
-                                <p className="text-sm text-muted-foreground">${parseFloat(product.price).toFixed(2)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                      <p className="text-sm text-muted-foreground">
-                        Selected: {selectedProductsForCombo.size} product{selectedProductsForCombo.size !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-4 border-t">
-                      <Button type="button" variant="outline" onClick={() => setComboDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={createComboMutation.isPending || updateComboMutation.isPending}
-                        className="bg-gradient-to-r from-blue-500 to-purple-500"
-                        data-testid="button-save-combo"
-                      >
-                        {editingCombo ? "Update Combo" : "Create Combo"}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-500" data-testid="button-add-combo">
+                <Plus className="h-4 w-4 mr-2" /> Add Combo
+              </Button>
             </div>
-
-            {combos.length === 0 ? (
+            {(combos as any[]).length === 0 ? (
               <Card className="text-center py-12">
-                <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground mb-4">No combos yet. Bundle products to offer special deals!</p>
+                <Gift className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No combo deals yet</p>
               </Card>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 {(combos as any[]).map((combo) => (
-                  <Card key={combo.id} className="p-6">
-                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-2">{combo.name}</h3>
-                        <p className="text-sm text-muted-foreground mb-3">{combo.description}</p>
-                        <div className="flex gap-2 mb-3">
-                          {combo.productIds.map((pid: string) => {
-                            const prod = products.find(p => p.id === pid);
-                            return prod ? (
-                              <Badge key={pid} variant="secondary" className="text-xs">
-                                {prod.name}
-                              </Badge>
-                            ) : null;
-                          })}
+                  <Card key={combo.id} data-testid={`combo-card-${combo.id}`}>
+                    <CardHeader>
+                      <CardTitle>{combo.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">{combo.description}</p>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Price</p>
+                          <p className="text-lg font-bold">${parseFloat(combo.price).toFixed(2)}</p>
                         </div>
-                        <div className="flex gap-4">
-                          <div>
-                            <p className="text-2xl font-bold">${parseFloat(combo.price).toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground">Combo Price</p>
-                          </div>
-                          <div>
-                            <p className="text-lg text-green-600 font-semibold">
-                              Save ${parseFloat(combo.savings).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">vs. individual</p>
-                          </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Savings</p>
+                          <p className="text-lg font-bold text-green-600">${parseFloat(combo.savings).toFixed(2)}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" data-testid="button-edit-combo">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteComboMutation.mutate(combo.id)}
-                          data-testid="button-delete-combo"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex gap-2 pt-3 border-t">
+                        <Button size="sm" variant="outline" className="flex-1"><Edit className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="h-4 w-4" /></Button>
                       </div>
-                    </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
             )}
           </TabsContent>
 
-          {/* Affiliates Tab */}
+          {/* Affiliates Tab - Enhanced */}
           <TabsContent value="affiliates" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Affiliate Products</h2>
+              <h2 className="text-2xl font-bold">Affiliate Program</h2>
               <Dialog open={affiliateDialogOpen} onOpenChange={setAffiliateDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="bg-gradient-to-r from-blue-500 to-purple-500" data-testid="button-add-affiliate-product">
@@ -979,34 +840,25 @@ export default function VendorDashboard() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Add Product to Affiliate Program</DialogTitle>
-                    <DialogDescription>Set commission and pricing for affiliate sales</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="aff-product" className="font-semibold">Select Product *</Label>
+                      <Label htmlFor="aff-product">Select Product *</Label>
                       <Select value={selectedAffProduct} onValueChange={setSelectedAffProduct}>
                         <SelectTrigger id="aff-product">
                           <SelectValue placeholder="Choose a product" />
                         </SelectTrigger>
                         <SelectContent>
-                          {products
-                            .filter(p => !affiliateProducts.find(ap => ap.productId === p.id))
-                            .map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name}
-                              </SelectItem>
-                            ))}
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="aff-type" className="font-semibold">Commission Type</Label>
-                        <Select
-                          value={affCommissionType}
-                          onValueChange={(value) => setAffCommissionType(value as "percentage" | "fixed")}
-                        >
+                        <Label htmlFor="aff-type">Commission Type</Label>
+                        <Select value={affCommissionType} onValueChange={(value) => setAffCommissionType(value as "percentage" | "fixed")}>
                           <SelectTrigger id="aff-type">
                             <SelectValue />
                           </SelectTrigger>
@@ -1017,38 +869,58 @@ export default function VendorDashboard() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="aff-value" className="font-semibold">Commission Value</Label>
-                        <Input
-                          id="aff-value"
-                          type="number"
-                          step="0.01"
-                          value={affCommissionValue}
-                          onChange={(e) => setAffCommissionValue(e.target.value)}
-                          placeholder="5.00"
-                        />
+                        <Label htmlFor="aff-value">Commission Value</Label>
+                        <Input id="aff-value" type="number" step="0.01" value={affCommissionValue} onChange={(e) => setAffCommissionValue(e.target.value)} />
                       </div>
                     </div>
-
                     <div className="flex gap-2 pt-4 border-t">
-                      <Button variant="outline" onClick={() => setAffiliateDialogOpen(false)} className="flex-1">
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleAddAffiliateProduct}
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500"
-                      >
-                        Add Product
-                      </Button>
+                      <Button variant="outline" onClick={() => setAffiliateDialogOpen(false)} className="flex-1">Cancel</Button>
+                      <Button className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500">Add Product</Button>
                     </div>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
 
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Affiliate Products</CardTitle>
+                  <Award className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{affiliateProducts.length}</div>
+                  <p className="text-xs text-muted-foreground">Active programs</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
+                  <MousePointerClick className="h-4 w-4 text-purple-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{affiliateProducts.reduce((sum, ap) => sum + ap.totalClicks, 0)}</div>
+                  <p className="text-xs text-muted-foreground">This month</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">${affiliateProducts.reduce((sum, ap) => sum + parseFloat(ap.totalCommission || "0"), 0).toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">Earned</p>
+                </CardContent>
+              </Card>
+            </div>
+
             {affiliateProducts.length === 0 ? (
               <Card className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground mb-4">No affiliate products yet. Add products to your affiliate program!</p>
+                <p className="text-muted-foreground">No affiliate products. Start earning commissions!</p>
               </Card>
             ) : (
               <div className="border rounded-lg overflow-x-auto">
@@ -1056,41 +928,22 @@ export default function VendorDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead>Price</TableHead>
                       <TableHead>Commission</TableHead>
+                      <TableHead>Clicks</TableHead>
+                      <TableHead>Sales</TableHead>
+                      <TableHead>Earnings</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {affiliateProducts.map((ap) => (
                       <TableRow key={ap.productId}>
                         <TableCell className="font-medium">{ap.productName}</TableCell>
-                        <TableCell>${parseFloat(ap.price).toFixed(2)}</TableCell>
-                        <TableCell>
-                          {ap.commissionValue}{ap.commissionType === "percentage" ? "%" : "$"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={ap.isActive ? "default" : "secondary"}>
-                            {ap.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => toggleAffiliateProductActive(ap.productId)}
-                          >
-                            {ap.isActive ? "Deactivate" : "Activate"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeAffiliateProduct(ap.productId)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                        <TableCell>{ap.commissionValue}{ap.commissionType === "percentage" ? "%" : "$"}</TableCell>
+                        <TableCell>{ap.totalClicks}</TableCell>
+                        <TableCell>{ap.totalSales}</TableCell>
+                        <TableCell className="font-bold">${parseFloat(ap.totalCommission || "0").toFixed(2)}</TableCell>
+                        <TableCell><Badge variant={ap.isActive ? "default" : "secondary"}>{ap.isActive ? "Active" : "Inactive"}</Badge></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1102,7 +955,6 @@ export default function VendorDashboard() {
           {/* Commissions Tab */}
           <TabsContent value="commissions" className="space-y-6">
             <h2 className="text-2xl font-bold">Commission History</h2>
-            
             <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1110,9 +962,7 @@ export default function VendorDashboard() {
                   <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    ${commissionHistory.reduce((sum: number, item: any) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}
-                  </div>
+                  <div className="text-2xl font-bold">${((commissionHistory as any[]) || []).reduce((sum: number, item: any) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</div>
                 </CardContent>
               </Card>
 
@@ -1132,12 +982,12 @@ export default function VendorDashboard() {
                   <Hash className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{commissionHistory.length}</div>
+                  <div className="text-2xl font-bold">{((commissionHistory as any[]) || []).length}</div>
                 </CardContent>
               </Card>
             </div>
 
-            {commissionHistory.length === 0 ? (
+            {((commissionHistory as any[]) || []).length === 0 ? (
               <Card className="text-center py-12">
                 <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">No commission history yet</p>
@@ -1149,7 +999,7 @@ export default function VendorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {(commissionHistory as any[]).map((item, idx) => (
+                    {((commissionHistory as any[]) || []).map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center p-3 rounded-lg hover:bg-muted transition">
                         <div className="flex-1">
                           <p className="font-medium">{item.description || "Commission Entry"}</p>
@@ -1169,173 +1019,237 @@ export default function VendorDashboard() {
             )}
           </TabsContent>
 
-          {/* Payment Tab */}
+          {/* Payment Tab - Enhanced */}
           <TabsContent value="payment" className="space-y-6">
-            <h2 className="text-2xl font-bold">Payment & Payouts</h2>
-            
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Wallet className="h-6 w-6" />
+              Payment & Payouts
+            </h2>
+
+            {/* Balance Cards */}
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Current Balance
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Available for Payout</p>
-                    <p className="text-3xl font-bold text-green-600">${pendingPayout.toFixed(2)}</p>
-                  </div>
-                  <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500">
-                    <DollarSign className="h-4 w-4 mr-2" /> Request Payout
-                  </Button>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-600">${totalEarnings.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Lifetime earnings</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Payment Method
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current Method</p>
-                    <p className="font-semibold">{paymentMethod || store.paymentMethod || "Not set"}</p>
-                  </div>
-                  <Button variant="outline" className="w-full">
-                    <Settings className="h-4 w-4 mr-2" /> Update Payment Info
-                  </Button>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">${pendingPayout.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Ready to withdraw</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-orange-600">{commissionRate}%</div>
+                  <p className="text-xs text-muted-foreground mt-1">Per transaction</p>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Withdrawal Request */}
             <Card>
-              <CardHeader>
-                <CardTitle>Payout History</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Request Withdrawal</CardTitle>
+                <Dialog open={withdrawalDialogOpen} onOpenChange={setWithdrawalDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-gradient-to-r from-green-500 to-emerald-500">
+                      <Download className="h-4 w-4 mr-2" /> Request Payout
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Request Withdrawal</DialogTitle>
+                      <DialogDescription>Submit a withdrawal request for your available balance</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Available Balance</Label>
+                        <p className="text-2xl font-bold text-green-600">${pendingPayout.toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="withdrawal-amount">Withdrawal Amount *</Label>
+                        <Input id="withdrawal-amount" type="number" step="0.01" max={pendingPayout} value={withdrawalAmount} onChange={(e) => setWithdrawalAmount(e.target.value)} placeholder="0.00" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="withdrawal-method">Payment Method *</Label>
+                        <Select value={withdrawalMethod} onValueChange={setWithdrawalMethod}>
+                          <SelectTrigger id="withdrawal-method">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="paypal">PayPal</SelectItem>
+                            <SelectItem value="stripe">Stripe</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2 pt-4 border-t">
+                        <Button variant="outline" onClick={() => setWithdrawalDialogOpen(false)} className="flex-1">Cancel</Button>
+                        <Button onClick={() => withdrawalMutation.mutate()} disabled={withdrawalMutation.isPending || !withdrawalAmount} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
+                          {withdrawalMutation.isPending ? "Processing..." : "Submit Request"}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No payouts processed yet</p>
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Withdrawals are processed within 3-5 business days. A small processing fee may apply depending on your payment method.
+                  </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Transaction History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LineChartIcon className="h-5 w-5" />
+                  Transaction History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {mockTransactions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No transactions yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mockTransactions.map((tr) => (
+                      <div key={tr.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${tr.type === "sale" ? "bg-green-100 dark:bg-green-950" : tr.type === "refund" ? "bg-red-100 dark:bg-red-950" : "bg-gray-100 dark:bg-gray-800"}`}>
+                            {tr.type === "sale" ? <ArrowDown className="h-4 w-4 text-green-600" /> : <ArrowUp className="h-4 w-4 text-red-600" />}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{tr.description}</p>
+                            <p className="text-xs text-muted-foreground">{tr.createdAt.toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold text-sm ${tr.type === "sale" ? "text-green-600" : "text-red-600"}`}>
+                            {tr.type === "sale" ? "+" : "-"}${parseFloat(tr.amount).toFixed(2)}
+                          </p>
+                          <Badge variant={tr.status === "completed" ? "default" : "secondary"} className="text-xs">{tr.status}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Withdrawal Requests */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Withdrawal Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {mockWithdrawals.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No withdrawal requests</div>
+                ) : (
+                  <div className="space-y-3">
+                    {mockWithdrawals.map((wr) => (
+                      <div key={wr.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">${parseFloat(wr.amount).toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">{wr.paymentMethod.replace(/_/g, " ")}</p>
+                        </div>
+                        <div>
+                          <Badge variant={wr.status === "completed" ? "default" : wr.status === "processing" ? "secondary" : "outline"}>
+                            {wr.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Settings Tab */}
+          {/* Settings Tab - Enhanced */}
           <TabsContent value="settings" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Store Settings</h2>
-              <Button
-                onClick={() => {
-                  setStoreName(store.storeName);
-                  setStoreDescription(store.description || "");
-                  setPaymentMethod(store.paymentMethod || "");
-                  setPaymentDetails(store.paymentDetails || "");
-                  setSettingsDialogOpen(true);
-                }}
-                className="bg-gradient-to-r from-blue-500 to-purple-500"
-              >
-                <Edit className="h-4 w-4 mr-2" /> Edit Settings
-              </Button>
             </div>
 
-            <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Store Settings</DialogTitle>
-                  <DialogDescription>Manage your store information and payment details</DialogDescription>
-                </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    updateStoreMutation.mutate({
-                      storeName,
-                      description: storeDescription,
-                      paymentMethod,
-                      paymentDetails,
-                    });
-                  }}
-                  className="space-y-6"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="store-name" className="font-semibold">Store Name *</Label>
-                    <Input
-                      id="store-name"
-                      value={storeName}
-                      onChange={(e) => setStoreName(e.target.value)}
-                      required
-                      data-testid="input-store-name"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="store-description" className="font-semibold">Store Description</Label>
-                    <Textarea
-                      id="store-description"
-                      value={storeDescription}
-                      onChange={(e) => setStoreDescription(e.target.value)}
-                      rows={4}
-                      placeholder="Tell customers about your store"
-                      data-testid="input-store-description"
-                    />
-                  </div>
-
-                  <div className="space-y-3 p-4 bg-muted rounded-lg">
-                    <h3 className="font-semibold">Payment Information</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="payment-method" className="font-semibold">Preferred Payment Method</Label>
-                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                        <SelectTrigger id="payment-method">
-                          <SelectValue placeholder="Select payment method" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                          <SelectItem value="paypal">PayPal</SelectItem>
-                          <SelectItem value="stripe">Stripe</SelectItem>
-                          <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="payment-details" className="font-semibold">Payment Details</Label>
-                      <Textarea
-                        id="payment-details"
-                        value={paymentDetails}
-                        onChange={(e) => setPaymentDetails(e.target.value)}
-                        placeholder="Enter your payment details (account, email, wallet address, etc.)"
-                        rows={3}
-                        data-testid="input-payment-details"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={() => setSettingsDialogOpen(false)} className="flex-1">
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={updateStoreMutation.isPending}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500"
-                      data-testid="button-save-settings"
-                    >
-                      Save Settings
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-
+            {/* Settings Grid */}
             <div className="grid gap-6">
+              {/* Update Store Info */}
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Store className="h-5 w-5" />
                     Store Information
                   </CardTitle>
+                  <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4 mr-2" /> Edit
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Update Store Information</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        updateStoreMutation.mutate({ storeName, description: storeDescription, paymentMethod, paymentDetails });
+                      }} className="space-y-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="store-name">Store Name *</Label>
+                          <Input id="store-name" value={storeName} onChange={(e) => setStoreName(e.target.value)} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="store-description">Store Description</Label>
+                          <Textarea id="store-description" value={storeDescription} onChange={(e) => setStoreDescription(e.target.value)} rows={4} />
+                        </div>
+                        <div className="space-y-3 p-4 bg-muted rounded-lg">
+                          <h3 className="font-semibold">Payment Information</h3>
+                          <div className="space-y-2">
+                            <Label htmlFor="payment-method">Preferred Payment Method</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                              <SelectTrigger id="payment-method">
+                                <SelectValue placeholder="Select payment method" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                <SelectItem value="paypal">PayPal</SelectItem>
+                                <SelectItem value="stripe">Stripe</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="payment-details">Payment Details</Label>
+                            <Textarea id="payment-details" value={paymentDetails} onChange={(e) => setPaymentDetails(e.target.value)} placeholder="Enter account details" rows={3} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-4 border-t">
+                          <Button type="button" variant="outline" onClick={() => setSettingsDialogOpen(false)} className="flex-1">Cancel</Button>
+                          <Button type="submit" disabled={updateStoreMutation.isPending} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500">
+                            Save Changes
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -1344,18 +1258,106 @@ export default function VendorDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Description</p>
-                    <p className="text-sm">{store.description || "No description added yet"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Store ID</p>
-                    <p className="text-sm font-mono">{store.id}</p>
+                    <p className="text-sm">{store.description || "No description"}</p>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Update Logo */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    Store Logo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {store.logo && (
+                    <div className="flex justify-center">
+                      <img src={store.logo} alt="Store Logo" className="w-32 h-32 object-cover rounded-lg" />
+                    </div>
+                  )}
+                  <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()} disabled={logoUploading} className="w-full">
+                    <Upload className="h-4 w-4 mr-2" /> {logoUploading ? "Uploading..." : "Upload New Logo"}
+                  </Button>
+                  <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                  <p className="text-xs text-muted-foreground">Recommended: 300x300px, PNG or JPG</p>
+                </CardContent>
+              </Card>
+
+              {/* Change Password */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Account Security
+                  </CardTitle>
+                  <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Lock className="h-4 w-4 mr-2" /> Change Password
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Change Password</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (newPassword !== confirmPassword) {
+                          toast({ title: "Passwords do not match", variant: "destructive" });
+                          return;
+                        }
+                        updatePasswordMutation.mutate();
+                      }} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="current-password">Current Password *</Label>
+                          <div className="relative">
+                            <Input
+                              id="current-password"
+                              type={showPassword ? "text" : "password"}
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              required
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5">
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="new-password">New Password *</Label>
+                          <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="confirm-password">Confirm Password *</Label>
+                          <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                        </div>
+                        <div className="flex gap-2 pt-4 border-t">
+                          <Button type="button" variant="outline" onClick={() => setPasswordDialogOpen(false)} className="flex-1">Cancel</Button>
+                          <Button type="submit" disabled={updatePasswordMutation.isPending} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500">
+                            {updatePasswordMutation.isPending ? "Updating..." : "Update Password"}
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">Last password change: Never</p>
+                  <Button variant="outline" className="w-full" size="sm">
+                    <Lock className="h-4 w-4 mr-2" /> Two-Factor Authentication
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Store Stats */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Store Stats</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUpIcon className="h-5 w-5" />
+                    Store Statistics
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4">
                   <div>
@@ -1363,16 +1365,16 @@ export default function VendorDashboard() {
                     <p className="text-2xl font-bold">{products.length}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Combos</p>
-                    <p className="text-2xl font-bold">{(combos as any[]).length}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Affiliate Products</p>
-                    <p className="text-2xl font-bold">{affiliateProducts.length}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-muted-foreground">Store Rating</p>
                     <p className="text-2xl font-bold">{parseFloat(store.rating || "0").toFixed(1)} ⭐</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Verification</p>
+                    <Badge variant={store.isVerified ? "default" : "outline"}>{store.isVerified ? "Verified" : "Pending"}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant={store.status === "active" ? "default" : "secondary"}>{store.status}</Badge>
                   </div>
                 </CardContent>
               </Card>

@@ -2652,5 +2652,128 @@ export async function registerRoutes(
     }
   });
 
+  // =====================================================
+  // VENDOR DASHBOARD ENHANCED ROUTES
+  // =====================================================
+
+  // Get vendor transactions
+  app.get("/api/vendor/transactions", hasVendorStore, async (req, res) => {
+    try {
+      // Return mock transactions for now - can be extended with real data
+      const mockTransactions = [
+        { id: "tr-001", type: "sale", amount: "250", status: "completed", description: "Sale from product #1", createdAt: new Date() },
+        { id: "tr-002", type: "commission", amount: "25", status: "completed", description: "Commission deduction", createdAt: new Date() },
+      ];
+      res.json(mockTransactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Request vendor payout/withdrawal
+  app.post("/api/vendor/withdrawal-request", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const { amount, paymentMethod, bankDetails } = req.body;
+      
+      if (!amount || parseFloat(amount) <= 0) {
+        return res.status(400).json({ message: "Invalid withdrawal amount" });
+      }
+
+      const pendingPayout = parseFloat(store.pendingPayout || "0");
+      if (parseFloat(amount) > pendingPayout) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+
+      const withdrawal = {
+        id: `wr-${Date.now()}`,
+        storeId: store.id,
+        amount,
+        paymentMethod,
+        bankDetails,
+        status: "pending",
+        createdAt: new Date(),
+        processedAt: null,
+      };
+
+      res.status(201).json(withdrawal);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update vendor profile password
+  app.patch("/api/vendor/password", hasVendorStore, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new passwords are required" });
+      }
+
+      // Get current user to verify password
+      const allUsers = await storage.getAllUsers() as any[];
+      const userData = allUsers.find(u => u.id === user.id);
+      
+      if (!userData) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, userData.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { password: hashedPassword });
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update vendor store logo
+  app.patch("/api/vendor/logo", hasVendorStore, async (req, res) => {
+    try {
+      const store = (req as any).vendorStore;
+      const { logo } = req.body;
+
+      if (!logo) {
+        return res.status(400).json({ message: "Logo URL is required" });
+      }
+
+      const updated = await storage.updateVendorStore(store.id, { logo });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get vendor analytics/orders
+  app.get("/api/vendor/analytics", hasVendorStore, async (req, res) => {
+    try {
+      // Return mock analytics for now - can be extended with real order data
+      const analytics = {
+        totalOrders: 42,
+        totalRevenue: 5240.50,
+        dailySales: [
+          { date: "2024-12-15", sales: 750 },
+          { date: "2024-12-16", sales: 920 },
+          { date: "2024-12-17", sales: 650 },
+          { date: "2024-12-18", sales: 1200 },
+          { date: "2024-12-19", sales: 980 },
+          { date: "2024-12-20", sales: 740 },
+        ],
+        categoryBreakdown: { Electronics: 35, Fashion: 25, Home: 20, Sports: 12, Other: 8 },
+      };
+
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }
