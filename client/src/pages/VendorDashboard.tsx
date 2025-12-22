@@ -16,9 +16,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { 
   Store, Package, DollarSign, TrendingUp, Settings, Plus, 
-  Edit, Trash2, Eye, LogOut, BarChart3, ShoppingCart, Link2, Users, CreditCard
+  Edit, Trash2, Eye, LogOut, BarChart3, ShoppingCart, Link2, Users, CreditCard, Copy, Check, AlertTriangle, TrendingDown
 } from "lucide-react";
 import type { VendorStore, Product, Category } from "@shared/schema";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function VendorDashboard() {
   const { user, logout } = useAuth();
@@ -37,6 +45,18 @@ export default function VendorDashboard() {
   const [productCategoryId, setProductCategoryId] = useState("");
   const [productStock, setProductStock] = useState("");
   const [productIsPublished, setProductIsPublished] = useState(false);
+  const [comboDialogOpen, setComboDialogOpen] = useState(false);
+  const [editingCombo, setEditingCombo] = useState<any>(null);
+  const [comboName, setComboName] = useState("");
+  const [comboDescription, setComboDescription] = useState("");
+  const [comboPrice, setComboPrice] = useState("");
+  const [comboDiscountPercent, setComboDiscountPercent] = useState("");
+  const [comboProductIds, setComboProductIds] = useState<string[]>([]);
+  const [affiliateDialogOpen, setAffiliateDialogOpen] = useState(false);
+  const [affiliateName, setAffiliateName] = useState("");
+  const [affiliateEmail, setAffiliateEmail] = useState("");
+  const [affiliateCode, setAffiliateCode] = useState("");
+  const [affiliateCommission, setAffiliateCommission] = useState("5");
 
   const { data: store, isLoading: storeLoading } = useQuery<VendorStore>({
     queryKey: ["/api/vendor/me"],
@@ -49,6 +69,21 @@ export default function VendorDashboard() {
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
+  });
+
+  const { data: combos = [], isLoading: combosLoading } = useQuery({
+    queryKey: ["/api/vendor/combos"],
+    enabled: !!store,
+  });
+
+  const { data: affiliates = [], isLoading: affiliatesLoading } = useQuery({
+    queryKey: ["/api/vendor/affiliates"],
+    enabled: !!store,
+  });
+
+  const { data: commissionHistory = [], isLoading: commissionsLoading } = useQuery({
+    queryKey: ["/api/vendor/commissions"],
+    enabled: !!store,
   });
 
   const createProductMutation = useMutation({
@@ -106,6 +141,78 @@ export default function VendorDashboard() {
     },
     onError: (error: any) => {
       toast({ title: "Failed to delete product", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createComboMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/vendor/combos", data);
+      if (!response.ok) throw new Error("Failed to create combo");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/combos"] });
+      toast({ title: "Combo created successfully!" });
+      setComboDialogOpen(false);
+      setComboName("");
+      setComboDescription("");
+      setComboPrice("");
+      setComboDiscountPercent("");
+    },
+  });
+
+  const updateComboMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/vendor/combos/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update combo");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/combos"] });
+      toast({ title: "Combo updated!" });
+      setComboDialogOpen(false);
+      setEditingCombo(null);
+    },
+  });
+
+  const deleteComboMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/vendor/combos/${id}`);
+      if (!response.ok) throw new Error("Failed to delete");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/combos"] });
+      toast({ title: "Combo deleted!" });
+    },
+  });
+
+  const createAffiliateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/vendor/affiliates", data);
+      if (!response.ok) throw new Error("Failed to create affiliate");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/affiliates"] });
+      toast({ title: "Affiliate invited!" });
+      setAffiliateDialogOpen(false);
+      setAffiliateName("");
+      setAffiliateEmail("");
+      setAffiliateCode("");
+      setAffiliateCommission("5");
+    },
+  });
+
+  const deleteAffiliateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/vendor/affiliates/${id}`);
+      if (!response.ok) throw new Error("Failed to delete");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/affiliates"] });
+      toast({ title: "Affiliate removed!" });
     },
   });
 
@@ -492,74 +599,67 @@ export default function VendorDashboard() {
           </TabsContent>
 
           <TabsContent value="combos">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" /> Combo Deals
-                </CardTitle>
-                <CardDescription>Create and manage combo bundles for your products</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Combo management coming soon</p>
-                  <p className="text-sm mt-2">Bundle multiple products together for special pricing</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Combo Deals</h2>
+              <Dialog open={comboDialogOpen} onOpenChange={setComboDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-teal-500 to-emerald-500" data-testid="button-add-combo"><Plus className="h-4 w-4 mr-2" />Add Combo</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader><DialogTitle>{editingCombo ? "Edit Combo" : "Create New Combo"}</DialogTitle><DialogDescription>Bundle multiple products with special pricing</DialogDescription></DialogHeader>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (editingCombo) {
+                      updateComboMutation.mutate({ id: editingCombo.id, data: { name: comboName, description: comboDescription, bundlePrice: parseFloat(comboPrice), discountPercent: parseFloat(comboDiscountPercent) } });
+                    } else {
+                      createComboMutation.mutate({ name: comboName, description: comboDescription, bundlePrice: parseFloat(comboPrice), discountPercent: parseFloat(comboDiscountPercent) });
+                    }
+                  }} className="space-y-4">
+                    <div className="space-y-2"><Label>Combo Name *</Label><Input value={comboName} onChange={(e) => setComboName(e.target.value)} required data-testid="input-combo-name" /></div>
+                    <div className="space-y-2"><Label>Description</Label><Textarea value={comboDescription} onChange={(e) => setComboDescription(e.target.value)} rows={3} data-testid="input-combo-description" /></div>
+                    <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Bundle Price *</Label><Input type="number" step="0.01" value={comboPrice} onChange={(e) => setComboPrice(e.target.value)} required data-testid="input-combo-price" /></div><div className="space-y-2"><Label>Discount %</Label><Input type="number" step="0.01" value={comboDiscountPercent} onChange={(e) => setComboDiscountPercent(e.target.value)} placeholder="e.g. 10" data-testid="input-combo-discount" /></div></div>
+                    <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setComboDialogOpen(false); setEditingCombo(null); setComboName(""); setComboDescription(""); setComboPrice(""); setComboDiscountPercent(""); }}>Cancel</Button><Button type="submit">{editingCombo ? "Update" : "Create"}</Button></div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {combosLoading ? <div className="text-center py-8">Loading...</div> : combos.length === 0 ? <Card className="text-center py-12"><ShoppingCart className="h-16 w-16 mx-auto text-muted-foreground mb-4" /><h3 className="text-lg font-medium mb-2">No Combos Yet</h3><p className="text-muted-foreground">Create your first combo bundle</p></Card> : <div className="grid gap-4 md:grid-cols-2">{(combos as any[]).map((combo: any) => <Card key={combo.id} className="overflow-hidden"><CardContent className="p-4"><h3 className="font-medium mb-2">{combo.name}</h3><p className="text-sm text-muted-foreground mb-3">{combo.description}</p><div className="flex justify-between mb-3"><span className="text-lg font-bold">${combo.bundlePrice}</span><Badge>{combo.discountPercent}% off</Badge></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => { setEditingCombo(combo); setComboName(combo.name); setComboDescription(combo.description); setComboPrice(combo.bundlePrice); setComboDiscountPercent(combo.discountPercent); setComboDialogOpen(true); }} data-testid={`button-edit-combo-${combo.id}`}><Edit className="h-3 w-3 mr-1" />Edit</Button><Button size="sm" variant="destructive" onClick={() => deleteComboMutation.mutate(combo.id)} data-testid={`button-delete-combo-${combo.id}`}><Trash2 className="h-3 w-3 mr-1" />Delete</Button></div></CardContent></Card>)}</div>}
           </TabsContent>
 
           <TabsContent value="affiliates">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" /> Affiliate Program
-                </CardTitle>
-                <CardDescription>Manage your store's affiliate partners</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Affiliate management coming soon</p>
-                  <p className="text-sm mt-2">Recruit and track affiliate partners selling your products</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Affiliate Partners</h2>
+              <Dialog open={affiliateDialogOpen} onOpenChange={setAffiliateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-teal-500 to-emerald-500" data-testid="button-add-affiliate"><Plus className="h-4 w-4 mr-2" />Invite Affiliate</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader><DialogTitle>Invite Affiliate Partner</DialogTitle><DialogDescription>Add a new affiliate to promote your products</DialogDescription></DialogHeader>
+                  <form onSubmit={(e) => { e.preventDefault(); createAffiliateMutation.mutate({ name: affiliateName, email: affiliateEmail, code: affiliateCode, commission: parseFloat(affiliateCommission) }); }} className="space-y-4">
+                    <div className="space-y-2"><Label>Affiliate Name *</Label><Input value={affiliateName} onChange={(e) => setAffiliateName(e.target.value)} required data-testid="input-affiliate-name" /></div>
+                    <div className="space-y-2"><Label>Email *</Label><Input type="email" value={affiliateEmail} onChange={(e) => setAffiliateEmail(e.target.value)} required data-testid="input-affiliate-email" /></div>
+                    <div className="space-y-2"><Label>Affiliate Code *</Label><Input value={affiliateCode} onChange={(e) => setAffiliateCode(e.target.value)} placeholder="e.g. AFF-001" required data-testid="input-affiliate-code" /></div>
+                    <div className="space-y-2"><Label>Commission Rate % *</Label><Input type="number" step="0.01" value={affiliateCommission} onChange={(e) => setAffiliateCommission(e.target.value)} required data-testid="input-affiliate-commission" /></div>
+                    <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setAffiliateDialogOpen(false); setAffiliateName(""); setAffiliateEmail(""); setAffiliateCode(""); setAffiliateCommission("5"); }}>Cancel</Button><Button type="submit" disabled={createAffiliateMutation.isPending}>Create</Button></div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {affiliatesLoading ? <div className="text-center py-8">Loading...</div> : affiliates.length === 0 ? <Card className="text-center py-12"><Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" /><h3 className="text-lg font-medium mb-2">No Affiliates Yet</h3><p className="text-muted-foreground">Invite your first affiliate partner</p></Card> : <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Code</TableHead><TableHead>Commission</TableHead><TableHead>Conversions</TableHead><TableHead>Earnings</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader><TableBody>{affiliates.map((aff: any) => <TableRow key={aff.id} data-testid={`affiliate-row-${aff.id}`}><TableCell className="font-medium">{aff.name}</TableCell><TableCell>{aff.email}</TableCell><TableCell className="font-mono text-sm">{aff.code}</TableCell><TableCell>{aff.commission}%</TableCell><TableCell>{aff.totalConversions || 0}</TableCell><TableCell>${parseFloat(aff.totalEarnings || 0).toFixed(2)}</TableCell><TableCell><Button variant="ghost" size="icon" onClick={() => deleteAffiliateMutation.mutate(aff.id)} data-testid={`button-delete-affiliate-${aff.id}`}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>}
           </TabsContent>
 
           <TabsContent value="commissions">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" /> Commission & Payouts
-                </CardTitle>
-                <CardDescription>Track and manage your commission earnings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground mb-2">Total Earnings</p>
-                    <p className="text-2xl font-bold">${totalEarnings.toFixed(2)}</p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground mb-2">Pending Payout</p>
-                    <p className="text-2xl font-bold">${pendingPayout.toFixed(2)}</p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground mb-2">Commission Rate</p>
-                    <p className="text-2xl font-bold">{commissionRate}%</p>
-                  </Card>
-                </div>
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-3">Commission History</h3>
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No commission records yet</p>
-                    <p className="text-sm mt-2">Commission entries will appear as you make sales</p>
-                  </div>
-                </Card>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="p-4"><p className="text-sm text-muted-foreground mb-2">Total Earnings</p><p className="text-2xl font-bold">${totalEarnings.toFixed(2)}</p><p className="text-xs text-muted-foreground mt-2">From {commissionHistory.length} transactions</p></Card>
+                <Card className="p-4"><p className="text-sm text-muted-foreground mb-2">Pending Payout</p><p className="text-2xl font-bold">${pendingPayout.toFixed(2)}</p><Badge className="mt-2">Threshold: $100</Badge></Card>
+                <Card className="p-4"><p className="text-sm text-muted-foreground mb-2">Commission Rate</p><p className="text-2xl font-bold">{commissionRate}%</p><p className="text-xs text-muted-foreground mt-2">From platform</p></Card>
+              </div>
+              <Card>
+                <CardHeader><CardTitle>Commission History</CardTitle><CardDescription>Track all your earnings and payouts</CardDescription></CardHeader>
+                <CardContent>{commissionsLoading ? <div className="text-center py-8">Loading...</div> : commissionHistory.length === 0 ? <div className="text-center py-8 text-muted-foreground"><CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" /><p>No commission records yet</p><p className="text-sm mt-2">Commission entries will appear as you make sales</p></div> : <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead><TableHead>Description</TableHead></TableRow></TableHeader><TableBody>{(commissionHistory as any[]).map((record: any) => <TableRow key={record.id} data-testid={`commission-row-${record.id}`}><TableCell className="text-sm">{new Date(record.createdAt).toLocaleDateString()}</TableCell><TableCell className="capitalize text-sm">{record.type}</TableCell><TableCell className="font-medium text-sm">${parseFloat(record.amount).toFixed(2)}</TableCell><TableCell><Badge variant={record.status === "paid" ? "default" : record.status === "pending" ? "secondary" : "outline"} className="text-xs">{record.status}</Badge></TableCell><TableCell className="text-sm text-muted-foreground">{record.description}</TableCell></TableRow>)}</TableBody></Table>}</CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">
