@@ -332,6 +332,10 @@ export default function VendorDashboard() {
     },
   });
 
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategorySlug, setNewCategorySlug] = useState("");
+
   const resetProductForm = () => {
     setProductName("");
     setProductSlug("");
@@ -346,6 +350,31 @@ export default function VendorDashboard() {
     setProductSizes("");
     setProductVideoUrl("");
   };
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/categories", {
+        name: newCategoryName,
+        slug: newCategorySlug || newCategoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create category");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setProductCategoryId(data.id);
+      setCategoryDialogOpen(false);
+      setNewCategoryName("");
+      setNewCategorySlug("");
+      toast({ title: "Category created successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create category", description: error.message, variant: "destructive" });
+    },
+  });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -436,6 +465,9 @@ export default function VendorDashboard() {
       categoryId: productCategoryId,
       stock: parseInt(productStock) || 0,
       isPublished: productIsPublished,
+      colors: productColors || undefined,
+      sizes: productSizes || undefined,
+      videoUrl: productVideoUrl || undefined,
     };
 
     if (editingProduct) {
@@ -759,7 +791,33 @@ export default function VendorDashboard() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="category">Category *</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="category">Category *</Label>
+                        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button type="button" variant="ghost" size="sm" className="text-xs">+ Create</Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Create New Category</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="cat-name">Category Name *</Label>
+                                <Input id="cat-name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="e.g., Electronics" />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="cat-slug">Slug</Label>
+                                <Input id="cat-slug" value={newCategorySlug} onChange={(e) => setNewCategorySlug(e.target.value)} placeholder="e.g., electronics" />
+                              </div>
+                              <div className="flex gap-2 pt-4 border-t">
+                                <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(false)} className="flex-1">Cancel</Button>
+                                <Button type="button" disabled={!newCategoryName || createCategoryMutation.isPending} onClick={() => createCategoryMutation.mutate()} className="flex-1">Create</Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                       <Select value={productCategoryId} onValueChange={setProductCategoryId}>
                         <SelectTrigger id="category">
                           <SelectValue placeholder="Select category" />
