@@ -811,6 +811,7 @@ function ProductsSection() {
     price: "",
     originalPrice: "",
     image: "",
+    videoUrl: "",
     categoryId: "",
     stock: 0,
     featured: false,
@@ -819,8 +820,14 @@ function ProductsSection() {
     affiliateCommissionType: "percentage",
     affiliateCommissionValue: "10.00",
     affiliatePoints: 0,
+    sizes: [] as string[],
+    colors: [] as string[],
   };
   const [formData, setFormData] = useState(initialFormData);
+  const [newSize, setNewSize] = useState("");
+  const [newColor, setNewColor] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
 
   const { data: productsData } = useQuery({
     queryKey: ["/api/products"],
@@ -889,8 +896,12 @@ function ProductsSection() {
   });
 
   const handleAdd = () => {
-    if (!formData.name || !formData.slug || !formData.price || !formData.image || !formData.categoryId) {
-      toast({ title: "Validation Error", description: "Name, slug, price, image, and category are required", variant: "destructive" });
+    if (!formData.name || !formData.slug || !formData.price || !formData.categoryId) {
+      toast({ title: "Validation Error", description: "Name, slug, price, and category are required", variant: "destructive" });
+      return;
+    }
+    if (!formData.image && !imageFile) {
+      toast({ title: "Validation Error", description: "Product image is required", variant: "destructive" });
       return;
     }
     createMutation.mutate(formData);
@@ -909,6 +920,7 @@ function ProductsSection() {
       price: product.price?.toString() || "",
       originalPrice: product.originalPrice?.toString() || "",
       image: product.image || "",
+      videoUrl: product.videoUrl || "",
       categoryId: product.categoryId || "",
       stock: product.stock || 0,
       featured: product.featured || false,
@@ -917,6 +929,8 @@ function ProductsSection() {
       affiliateCommissionType: product.affiliateCommissionType || "percentage",
       affiliateCommissionValue: product.affiliateCommissionValue?.toString() || "10.00",
       affiliatePoints: product.affiliatePoints || 0,
+      sizes: product.sizes || [],
+      colors: product.colors || [],
     });
     setEditingProduct(product);
   };
@@ -1018,45 +1032,174 @@ function ProductsSection() {
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="product-image">Image URL</Label>
-        <Input
-          id="product-image"
-          value={formData.image}
-          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-          placeholder="https://example.com/image.jpg"
-          data-testid="input-product-image"
-        />
-        {formData.image && (
-          <div className="mt-2">
-            <img src={formData.image} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="product-image">Product Image</Label>
+          <div className="space-y-2">
+            <Input
+              id="product-image"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setImageFile(file);
+                  const reader = new FileReader();
+                  reader.onload = (e) => setFormData({ ...formData, image: e.target?.result as string });
+                  reader.readAsDataURL(file);
+                }
+              }}
+              data-testid="input-product-image-file"
+            />
+            <Input
+              value={formData.image}
+              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+              placeholder="Or paste image URL"
+              data-testid="input-product-image-url"
+            />
           </div>
-        )}
-      </div>
-      <div className="flex items-center gap-6 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Switch
-            id="product-featured"
-            checked={formData.featured}
-            onCheckedChange={(checked) => setFormData({ ...formData, featured: checked })}
-            data-testid="switch-product-featured"
-          />
-          <Label htmlFor="product-featured">Featured Product</Label>
+          {formData.image && (
+            <div className="mt-2">
+              <img src={formData.image} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="product-combo"
-            checked={formData.comboAvailable}
-            onCheckedChange={(checked) => setFormData({ ...formData, comboAvailable: checked })}
-            data-testid="switch-product-combo"
-          />
-          <Label htmlFor="product-combo">Available for Combos</Label>
+        <div className="space-y-2">
+          <Label htmlFor="product-video">Product Video (optional)</Label>
+          <div className="space-y-2">
+            <Input
+              id="product-video"
+              type="file"
+              accept="video/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setVideoFile(file);
+                  const reader = new FileReader();
+                  reader.onload = (e) => setFormData({ ...formData, videoUrl: e.target?.result as string });
+                  reader.readAsDataURL(file);
+                }
+              }}
+              data-testid="input-product-video-file"
+            />
+            <Input
+              value={formData.videoUrl}
+              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+              placeholder="Or paste video URL"
+              data-testid="input-product-video-url"
+            />
+          </div>
+          {formData.videoUrl && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              Video selected ✓
+            </div>
+          )}
         </div>
       </div>
-      
-      <Separator className="my-4" />
-      
       <div className="space-y-4">
+        <div className="flex items-center gap-6 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="product-featured"
+              checked={formData.featured}
+              onCheckedChange={(checked) => setFormData({ ...formData, featured: checked })}
+              data-testid="switch-product-featured"
+            />
+            <Label htmlFor="product-featured">Featured Product</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="product-combo"
+              checked={formData.comboAvailable}
+              onCheckedChange={(checked) => setFormData({ ...formData, comboAvailable: checked })}
+              data-testid="switch-product-combo"
+            />
+            <Label htmlFor="product-combo">Available for Combos</Label>
+          </div>
+        </div>
+
+        <Separator className="my-4" />
+        
+        <div className="space-y-3">
+          <div>
+            <h4 className="text-sm font-medium mb-2">Available Sizes</h4>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {formData.sizes.map((size, idx) => (
+                <Badge key={idx} variant="secondary" className="gap-1 pl-2">
+                  {size}
+                  <button onClick={() => setFormData({ ...formData, sizes: formData.sizes.filter((_, i) => i !== idx) })} className="ml-1 text-xs">✕</button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newSize}
+                onChange={(e) => setNewSize(e.target.value)}
+                placeholder="e.g., S, M, L, XL"
+                data-testid="input-new-size"
+              />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (newSize && !formData.sizes.includes(newSize)) {
+                    setFormData({ ...formData, sizes: [...formData.sizes, newSize] });
+                    setNewSize("");
+                  }
+                }}
+                data-testid="button-add-size"
+              >
+                Add Size
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-medium mb-2">Available Colors</h4>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {formData.colors.map((color, idx) => (
+                <Badge key={idx} variant="outline" className="gap-1 pl-2" style={{ borderColor: color }}>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                  {color}
+                  <button onClick={() => setFormData({ ...formData, colors: formData.colors.filter((_, i) => i !== idx) })} className="ml-1 text-xs">✕</button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Input
+                  type="color"
+                  value={newColor || "#000000"}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className="w-12 h-9 p-1 cursor-pointer"
+                  data-testid="input-color-picker"
+                />
+              </div>
+              <Input
+                value={newColor}
+                onChange={(e) => setNewColor(e.target.value)}
+                placeholder="Color name or hex"
+                data-testid="input-new-color"
+              />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (newColor && !formData.colors.includes(newColor)) {
+                    setFormData({ ...formData, colors: [...formData.colors, newColor] });
+                    setNewColor("");
+                  }
+                }}
+                data-testid="button-add-color"
+              >
+                Add Color
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <Separator className="my-4" />
+        
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-medium">Affiliate Settings</h4>
