@@ -4090,7 +4090,7 @@ function CouponsSection() {
             <Select value={formData.affiliateId} onValueChange={(val) => setFormData({ ...formData, affiliateId: val })}>
               <SelectTrigger><SelectValue placeholder="Select affiliate" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No affiliate</SelectItem>
+                <SelectItem value="none">No affiliate</SelectItem>
                 {(affiliates || []).map((aff: any) => (
                   <SelectItem key={aff.id} value={aff.id}>{aff.username || aff.code}</SelectItem>
                 ))}
@@ -9684,6 +9684,7 @@ function SuppliersSection() {
 
 // Vendor Applications Section
 function VendorApplicationsSection() {
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   
   const { data: applications = [], isLoading } = useQuery({
@@ -9769,6 +9770,7 @@ function VendorApplicationsSection() {
 
 // Vendor Stores Section
 function VendorStoresSection() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   
   const { data: stores = [], isLoading } = useQuery({
