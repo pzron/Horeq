@@ -65,6 +65,16 @@ import {
   type InsertVendorStore,
   type VendorApplication,
   type InsertVendorApplication,
+  type ProductVariant,
+  type InsertProductVariant,
+  type ProductImage,
+  type InsertProductImage,
+  type PaymentMethod,
+  type InsertPaymentMethod,
+  type VendorNotification,
+  type InsertVendorNotification,
+  type OrderTracking,
+  type InsertOrderTracking,
   users,
   products,
   categories,
@@ -98,6 +108,11 @@ import {
   brands,
   vendorStores,
   vendorApplications,
+  productVariants,
+  productImages,
+  paymentMethods,
+  vendorNotifications,
+  orderTracking,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, like } from "drizzle-orm";
@@ -312,6 +327,35 @@ export interface IStorage {
   // Vendor Products
   getProductsByVendorStore(vendorStoreId: string): Promise<Product[]>;
   getProductsByBrand(brandId: string): Promise<Product[]>;
+
+  // Product Variants
+  getProductVariants(productId: string): Promise<ProductVariant[]>;
+  createProductVariant(variant: InsertProductVariant): Promise<ProductVariant>;
+  updateProductVariant(id: string, data: Partial<InsertProductVariant>): Promise<ProductVariant | undefined>;
+  deleteProductVariant(id: string): Promise<void>;
+
+  // Product Images
+  getProductImages(productId: string): Promise<ProductImage[]>;
+  createProductImage(image: InsertProductImage): Promise<ProductImage>;
+  deleteProductImage(id: string): Promise<void>;
+
+  // Payment Methods
+  getPaymentMethodsByVendor(vendorStoreId: string): Promise<PaymentMethod[]>;
+  createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(id: string, data: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined>;
+  deletePaymentMethod(id: string): Promise<void>;
+
+  // Vendor Notifications
+  getVendorNotifications(vendorStoreId: string): Promise<VendorNotification[]>;
+  createVendorNotification(notification: InsertVendorNotification): Promise<VendorNotification>;
+  markVendorNotificationRead(id: string): Promise<void>;
+  getUnreadNotificationsCount(vendorStoreId: string): Promise<number>;
+
+  // Order Tracking
+  getOrderTracking(orderId: string): Promise<OrderTracking | undefined>;
+  createOrderTracking(tracking: InsertOrderTracking): Promise<OrderTracking>;
+  updateOrderTracking(id: string, data: Partial<InsertOrderTracking>): Promise<OrderTracking | undefined>;
+  getTrackingByShareableLink(link: string): Promise<OrderTracking | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -1158,6 +1202,98 @@ export class DbStorage implements IStorage {
 
   async getProductsByBrand(brandId: string): Promise<Product[]> {
     return await db.select().from(products).where(eq(products.brandId, brandId)).orderBy(desc(products.createdAt));
+  }
+
+  // Product Variants
+  async getProductVariants(productId: string): Promise<ProductVariant[]> {
+    return await db.select().from(productVariants).where(eq(productVariants.productId, productId));
+  }
+
+  async createProductVariant(variant: InsertProductVariant): Promise<ProductVariant> {
+    const result = await db.insert(productVariants).values(variant).returning();
+    return result[0];
+  }
+
+  async updateProductVariant(id: string, data: Partial<InsertProductVariant>): Promise<ProductVariant | undefined> {
+    const result = await db.update(productVariants).set(data).where(eq(productVariants.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteProductVariant(id: string): Promise<void> {
+    await db.delete(productVariants).where(eq(productVariants.id, id));
+  }
+
+  // Product Images
+  async getProductImages(productId: string): Promise<ProductImage[]> {
+    return await db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(productImages.sortOrder);
+  }
+
+  async createProductImage(image: InsertProductImage): Promise<ProductImage> {
+    const result = await db.insert(productImages).values(image).returning();
+    return result[0];
+  }
+
+  async deleteProductImage(id: string): Promise<void> {
+    await db.delete(productImages).where(eq(productImages.id, id));
+  }
+
+  // Payment Methods
+  async getPaymentMethodsByVendor(vendorStoreId: string): Promise<PaymentMethod[]> {
+    return await db.select().from(paymentMethods).where(eq(paymentMethods.vendorStoreId, vendorStoreId)).orderBy(paymentMethods.sortOrder);
+  }
+
+  async createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod> {
+    const result = await db.insert(paymentMethods).values(method).returning();
+    return result[0];
+  }
+
+  async updatePaymentMethod(id: string, data: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined> {
+    const result = await db.update(paymentMethods).set({ ...data, updatedAt: new Date() }).where(eq(paymentMethods.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePaymentMethod(id: string): Promise<void> {
+    await db.delete(paymentMethods).where(eq(paymentMethods.id, id));
+  }
+
+  // Vendor Notifications
+  async getVendorNotifications(vendorStoreId: string): Promise<VendorNotification[]> {
+    return await db.select().from(vendorNotifications).where(eq(vendorNotifications.vendorStoreId, vendorStoreId)).orderBy(desc(vendorNotifications.createdAt));
+  }
+
+  async createVendorNotification(notification: InsertVendorNotification): Promise<VendorNotification> {
+    const result = await db.insert(vendorNotifications).values(notification).returning();
+    return result[0];
+  }
+
+  async markVendorNotificationRead(id: string): Promise<void> {
+    await db.update(vendorNotifications).set({ isRead: true, readAt: new Date() }).where(eq(vendorNotifications.id, id));
+  }
+
+  async getUnreadNotificationsCount(vendorStoreId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(vendorNotifications).where(and(eq(vendorNotifications.vendorStoreId, vendorStoreId), eq(vendorNotifications.isRead, false)));
+    return result[0]?.count || 0;
+  }
+
+  // Order Tracking
+  async getOrderTracking(orderId: string): Promise<OrderTracking | undefined> {
+    const result = await db.select().from(orderTracking).where(eq(orderTracking.orderId, orderId));
+    return result[0];
+  }
+
+  async createOrderTracking(tracking: InsertOrderTracking): Promise<OrderTracking> {
+    const result = await db.insert(orderTracking).values(tracking).returning();
+    return result[0];
+  }
+
+  async updateOrderTracking(id: string, data: Partial<InsertOrderTracking>): Promise<OrderTracking | undefined> {
+    const result = await db.update(orderTracking).set({ ...data, updatedAt: new Date() }).where(eq(orderTracking.id, id)).returning();
+    return result[0];
+  }
+
+  async getTrackingByShareableLink(link: string): Promise<OrderTracking | undefined> {
+    const result = await db.select().from(orderTracking).where(eq(orderTracking.shareableLink, link));
+    return result[0];
   }
 }
 
