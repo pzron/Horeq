@@ -251,15 +251,6 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
-    id: "vendors-group",
-    title: "Vendors",
-    icon: Store,
-    items: [
-      { id: "vendor-applications", title: "Applications", icon: FileText },
-      { id: "vendor-stores", title: "All Vendors", icon: Store },
-    ],
-  },
-  {
     id: "users-group",
     title: "Users",
     icon: Users,
@@ -267,6 +258,8 @@ const menuGroups: MenuGroup[] = [
       { id: "users", title: "All Users", icon: Users },
       { id: "roles", title: "Roles & Permissions", icon: Shield },
       { id: "affiliates", title: "Affiliates", icon: UserCheck },
+      { id: "vendor-applications", title: "Vendor Applications", icon: Store },
+      { id: "vendor-stores", title: "Vendor Stores", icon: Building2 },
     ],
   },
   {
