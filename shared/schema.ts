@@ -194,6 +194,9 @@ export const products = pgTable("products", {
   affiliateCommissionType: text("affiliate_commission_type").notNull().default("percentage"),
   affiliateCommissionValue: decimal("affiliate_commission_value", { precision: 10, scale: 2 }).notNull().default("10.00"),
   affiliatePoints: integer("affiliate_points").notNull().default(0),
+  videoUrl: text("video_url"),
+  colors: text("colors").array(),
+  sizes: text("sizes").array(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -204,6 +207,113 @@ export const insertProductSchema = createInsertSchema(products).omit({
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
+
+// Product Variants Table
+export const productVariants = pgTable("product_variants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  color: text("color"),
+  size: text("size"),
+  sku: text("sku").notNull().unique(),
+  stock: integer("stock").notNull().default(0),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  image: text("image"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertProductVariantSchema = createInsertSchema(productVariants).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+export type ProductVariant = typeof productVariants.$inferSelect;
+
+// Product Images Table
+export const productImages = pgTable("product_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  url: text("url").notNull(),
+  altText: text("alt_text"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertProductImageSchema = createInsertSchema(productImages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProductImage = z.infer<typeof insertProductImageSchema>;
+export type ProductImage = typeof productImages.$inferSelect;
+
+// Payment Methods Table
+export const paymentMethods = pgTable("payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendorStoreId: varchar("vendor_store_id").notNull(),
+  methodType: text("method_type").notNull(), // bank_transfer, mobile_banking, cash_on_delivery
+  methodName: text("method_name").notNull(),
+  accountDetails: text("account_details"), // JSON encrypted details
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+
+// Vendor Notifications Table
+export const vendorNotifications = pgTable("vendor_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendorStoreId: varchar("vendor_store_id").notNull(),
+  notificationType: text("notification_type").notNull(), // sale, review, stock_alert, transaction, order_status
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  relatedEntityId: varchar("related_entity_id"),
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertVendorNotificationSchema = createInsertSchema(vendorNotifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertVendorNotification = z.infer<typeof insertVendorNotificationSchema>;
+export type VendorNotification = typeof vendorNotifications.$inferSelect;
+
+// Order Tracking Table
+export const orderTracking = pgTable("order_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull(),
+  status: text("status").notNull(), // pending, processing, shipped, delivered, cancelled, returned
+  location: text("location"),
+  estimatedDelivery: timestamp("estimated_delivery"),
+  trackingNumber: text("tracking_number"),
+  carrier: text("carrier"),
+  sharedWith: text("shared_with").array(),
+  shareableLink: text("shareable_link").unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertOrderTrackingSchema = createInsertSchema(orderTracking).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertOrderTracking = z.infer<typeof insertOrderTrackingSchema>;
+export type OrderTracking = typeof orderTracking.$inferSelect;
 
 export const reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -749,8 +859,8 @@ export const transactions = pgTable("transactions", {
   fee: decimal("fee", { precision: 10, scale: 2 }).default("0"),
   netAmount: decimal("net_amount", { precision: 10, scale: 2 }),
   currency: text("currency").notNull().default("USD"),
-  paymentMethod: text("payment_method"), // credit_card, debit_card, paypal, bank_transfer, crypto, wallet
-  paymentProvider: text("payment_provider"), // stripe, paypal, square, manual
+  paymentMethod: text("payment_method"), // bank_transfer, mobile_banking, cash_on_delivery, credit_card, debit_card, wallet
+  paymentProvider: text("payment_provider"), // manual, stripe, square
   providerTransactionId: text("provider_transaction_id"),
   orderId: varchar("order_id"),
   userId: varchar("user_id"),
