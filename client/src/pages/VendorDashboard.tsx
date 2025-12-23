@@ -583,9 +583,7 @@ export default function VendorDashboard() {
             <TabsList className="w-full inline-flex">
               <TabsTrigger value="overview" data-testid="tab-vendor-overview">Overview</TabsTrigger>
               <TabsTrigger value="products" data-testid="tab-vendor-products">Products</TabsTrigger>
-              <TabsTrigger value="orders" data-testid="tab-vendor-orders">Orders</TabsTrigger>
-              <TabsTrigger value="reviews" data-testid="tab-vendor-reviews">Reviews</TabsTrigger>
-              <TabsTrigger value="notifications" data-testid="tab-vendor-notifications">Notifications</TabsTrigger>
+              <TabsTrigger value="orders-reviews" data-testid="tab-vendor-orders-reviews">Orders & Reviews</TabsTrigger>
               <TabsTrigger value="stock" data-testid="tab-vendor-stock">Stock</TabsTrigger>
               <TabsTrigger value="combos" data-testid="tab-vendor-combos">Combos</TabsTrigger>
               <TabsTrigger value="affiliates" data-testid="tab-vendor-affiliates">Affiliates</TabsTrigger>
@@ -916,118 +914,104 @@ export default function VendorDashboard() {
             )}
           </TabsContent>
 
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6">
-            <h2 className="text-2xl font-bold">Your Orders</h2>
-            {(vendorOrders as any[]).length === 0 ? (
-              <Card className="text-center py-12">
-                <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No orders yet</p>
-              </Card>
-            ) : (
-              <div className="border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Buyer</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(vendorOrders as any[]).map((order) => (
-                      <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
-                        <TableCell className="font-mono text-sm">{order.id.substring(0, 8)}...</TableCell>
-                        <TableCell>{order.buyerName}</TableCell>
-                        <TableCell className="font-bold">${parseFloat(order.total).toFixed(2)}</TableCell>
-                        <TableCell>{order.items?.length || 0}</TableCell>
-                        <TableCell><Badge>{order.status}</Badge></TableCell>
-                        <TableCell className="text-sm">{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right space-x-1">
-                          <Button size="sm" variant="ghost" title="Share tracking" data-testid={`button-share-order-${order.id}`}>
-                            <Share2 className="h-4 w-4" />
+          {/* Orders & Reviews Combined Tab */}
+          <TabsContent value="orders-reviews" className="space-y-6">
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+              {/* Orders Section */}
+              <div>
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" /> Your Orders
+                </h3>
+                {(vendorOrders as any[]).length === 0 ? (
+                  <Card className="text-center py-8">
+                    <ShoppingCart className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground text-sm">No orders yet</p>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {(vendorOrders as any[]).slice(0, 10).map((order) => (
+                      <Card key={order.id} data-testid={`order-row-${order.id}`} className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-semibold text-sm">{order.buyerName}</p>
+                            <p className="text-xs text-muted-foreground">ID: {order.id.substring(0, 8)}</p>
+                          </div>
+                          <Badge>{order.status}</Badge>
+                        </div>
+                        <div className="flex justify-between text-sm mb-3">
+                          <span className="text-muted-foreground">{order.items?.length || 0} items</span>
+                          <span className="font-bold">${parseFloat(order.total).toFixed(2)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">{new Date(order.createdAt).toLocaleDateString()}</p>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1" data-testid={`button-share-order-${order.id}`}>
+                            <Share2 className="h-3 w-3 mr-1" /> Share
                           </Button>
-                          <Button size="sm" variant="ghost" title="View details" data-testid={`button-view-order-${order.id}`}>
-                            <Eye className="h-4 w-4" />
+                          <Button size="sm" variant="outline" className="flex-1" data-testid={`button-view-order-${order.id}`}>
+                            <Eye className="h-3 w-3 mr-1" /> View
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                      </Card>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                )}
               </div>
-            )}
-          </TabsContent>
 
-          {/* Reviews Tab */}
-          <TabsContent value="reviews" className="space-y-6">
-            <h2 className="text-2xl font-bold">Customer Reviews</h2>
-            {(vendorReviews as any[]).length === 0 ? (
-              <Card className="text-center py-12">
-                <Award className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No reviews yet</p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {(vendorReviews as any[]).map((review) => (
-                  <Card key={review.id} data-testid={`review-card-${review.id}`}>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <p className="font-semibold">{review.reviewerName}</p>
-                          <p className="text-sm text-muted-foreground">{review.productName}</p>
-                        </div>
-                        <Badge variant={review.rating >= 4 ? "default" : review.rating >= 3 ? "secondary" : "destructive"}>
-                          {review.rating}/5
-                        </Badge>
-                      </div>
-                      <p className="text-sm mb-3">{review.title}</p>
-                      <p className="text-sm text-muted-foreground">{review.comment}</p>
-                      <p className="text-xs text-muted-foreground mt-3">{new Date(review.createdAt).toLocaleDateString()}</p>
-                    </CardContent>
+              {/* Reviews Section */}
+              <div>
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Award className="h-5 w-5" /> Customer Reviews
+                </h3>
+                {(vendorReviews as any[]).length === 0 ? (
+                  <Card className="text-center py-8">
+                    <Award className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground text-sm">No reviews yet</p>
                   </Card>
-                ))}
+                ) : (
+                  <div className="space-y-3">
+                    {(vendorReviews as any[]).slice(0, 10).map((review) => (
+                      <Card key={review.id} data-testid={`review-card-${review.id}`} className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-semibold text-sm">{review.reviewerName}</p>
+                            <p className="text-xs text-muted-foreground">{review.productName}</p>
+                          </div>
+                          <Badge variant={review.rating >= 4 ? "default" : review.rating >= 3 ? "secondary" : "destructive"}>
+                            {review.rating}/5
+                          </Badge>
+                        </div>
+                        <p className="text-xs font-medium mb-1">{review.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{review.comment}</p>
+                        <p className="text-xs text-muted-foreground mt-2">{new Date(review.createdAt).toLocaleDateString()}</p>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <h2 className="text-2xl font-bold">Notifications</h2>
-            <div className="space-y-3">
-              {(notifications as any[]).length === 0 ? (
-                <Card className="text-center py-12">
-                  <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No notifications</p>
-                </Card>
-              ) : (
-                (notifications as any[]).map((notif) => (
-                  <Card key={notif.id} className={notif.isRead ? "opacity-60" : ""} data-testid={`notification-${notif.id}`}>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-semibold">{notif.title}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
-                          <p className="text-xs text-muted-foreground mt-2">{new Date(notif.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <Badge variant={notif.type === "success" ? "default" : notif.type === "error" ? "destructive" : "secondary"}>
-                          {notif.type}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
             </div>
           </TabsContent>
 
-          {/* Stock Management Tab */}
+          {/* Stock Management Tab - Enhanced */}
           <TabsContent value="stock" className="space-y-6">
-            <h2 className="text-2xl font-bold">Stock Management</h2>
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <h2 className="text-2xl font-bold">Stock Management</h2>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => {
+                  const csv = ["Product,In Stock,Sold,Last Updated"];
+                  (stockData as any[]).forEach(item => {
+                    csv.push(`"${item.name}",${item.stock},${item.sold},${new Date(item.lastUpdated).toISOString()}`);
+                  });
+                  const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "stock-data.csv";
+                  a.click();
+                }}>
+                  <Download className="h-4 w-4 mr-2" /> Download CSV
+                </Button>
+              </div>
+            </div>
             {(stockData as any[]).length === 0 ? (
               <Card className="text-center py-12">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
@@ -1041,15 +1025,13 @@ export default function VendorDashboard() {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <p className="font-semibold">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">Current Stock</p>
+                          <p className="text-sm text-muted-foreground">Stock Levels</p>
                         </div>
                         {item.isLowStock && (
-                          <Badge variant="destructive" className="flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" /> Low Stock
-                          </Badge>
+                          <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" /> Low</Badge>
                         )}
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-3 gap-4 mb-4">
                         <div>
                           <p className="text-2xl font-bold text-blue-600">{item.stock}</p>
                           <p className="text-xs text-muted-foreground">In Stock</p>
@@ -1060,8 +1042,19 @@ export default function VendorDashboard() {
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">Updated</p>
-                          <p className="text-sm">{new Date(item.lastUpdated).toLocaleDateString()}</p>
+                          <p className="text-sm font-medium">{new Date(item.lastUpdated).toLocaleDateString()}</p>
                         </div>
+                      </div>
+                      <div className="flex gap-2 pt-3 border-t">
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <Plus className="h-3 w-3 mr-1" /> Stock In
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <Trash2 className="h-3 w-3 mr-1" /> Stock Out
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <ArrowDown className="h-3 w-3 mr-1" /> Return
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1070,9 +1063,9 @@ export default function VendorDashboard() {
             )}
           </TabsContent>
 
-          {/* Combos Tab */}
+          {/* Combos Tab - Enhanced */}
           <TabsContent value="combos" className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-4">
               <h2 className="text-2xl font-bold">Combo Deals</h2>
               <Button className="bg-gradient-to-r from-blue-500 to-purple-500" data-testid="button-add-combo">
                 <Plus className="h-4 w-4 mr-2" /> Add Combo
@@ -1087,24 +1080,46 @@ export default function VendorDashboard() {
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 {(combos as any[]).map((combo) => (
                   <Card key={combo.id} data-testid={`combo-card-${combo.id}`}>
-                    <CardHeader>
-                      <CardTitle>{combo.name}</CardTitle>
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{combo.name}</CardTitle>
+                        <Badge variant="outline">Active</Badge>
+                      </div>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4">
                       <p className="text-sm text-muted-foreground">{combo.description}</p>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Price</p>
-                          <p className="text-lg font-bold">${parseFloat(combo.price).toFixed(2)}</p>
+                      <div className="bg-muted p-3 rounded-lg">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Combo Price</p>
+                            <p className="text-lg font-bold">${parseFloat(combo.price).toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Customer Saves</p>
+                            <p className="text-lg font-bold text-green-600">${parseFloat(combo.savings).toFixed(2)}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Savings</p>
-                          <p className="text-lg font-bold text-green-600">${parseFloat(combo.savings).toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium">Products in Combo</p>
+                        <div className="flex flex-wrap gap-1">
+                          {(combo.productIds || []).slice(0, 3).map((id: string) => (
+                            <Badge key={id} variant="secondary" className="text-xs">
+                              Prod {id.substring(0, 4)}
+                            </Badge>
+                          ))}
+                          {(combo.productIds?.length || 0) > 3 && (
+                            <Badge variant="outline" className="text-xs">+{(combo.productIds?.length || 0) - 3}</Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-2 pt-3 border-t">
-                        <Button size="sm" variant="outline" className="flex-1"><Edit className="h-4 w-4" /></Button>
-                        <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="outline" className="flex-1" data-testid={`button-edit-combo-${combo.id}`}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="destructive" className="flex-1" data-testid={`button-delete-combo-${combo.id}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1472,9 +1487,61 @@ export default function VendorDashboard() {
 
           {/* Settings Tab - Enhanced */}
           <TabsContent value="settings" className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-4">
               <h2 className="text-2xl font-bold">Store Settings</h2>
             </div>
+
+            {/* Notifications Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Notification Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg hover-elevate">
+                    <div>
+                      <p className="font-medium">Order Notifications</p>
+                      <p className="text-sm text-muted-foreground">Get notified on new orders and updates</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg hover-elevate">
+                    <div>
+                      <p className="font-medium">Review Alerts</p>
+                      <p className="text-sm text-muted-foreground">Receive alerts when customers review products</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg hover-elevate">
+                    <div>
+                      <p className="font-medium">Stock Warnings</p>
+                      <p className="text-sm text-muted-foreground">Alert when product stock runs low</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg hover-elevate">
+                    <div>
+                      <p className="font-medium">Payment Updates</p>
+                      <p className="text-sm text-muted-foreground">Notify on payment transactions and payouts</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg hover-elevate">
+                    <div>
+                      <p className="font-medium">Marketing Emails</p>
+                      <p className="text-sm text-muted-foreground">Receive promotional and marketing updates</p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+                <div className="pt-4 border-t">
+                  <Button className="w-full">Save Notification Settings</Button>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Settings Grid */}
             <div className="grid gap-6">
