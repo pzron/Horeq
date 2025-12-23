@@ -183,7 +183,7 @@ import {
   Legend,
 } from "recharts";
 
-type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools" | "transactions" | "inventory" | "suppliers" | "vendor-applications" | "vendor-stores";
+type AdminSection = "dashboard" | "products" | "categories" | "combos" | "banners" | "orders" | "users" | "affiliates" | "pages" | "all-pages" | "add-page" | "blocks" | "patterns" | "media" | "menus" | "coupons" | "roles" | "reports" | "settings" | "activity" | "appearance" | "comments" | "tools" | "transactions" | "inventory" | "suppliers" | "applications" | "vendor-stores";
 
 interface MenuGroup {
   id: string;
@@ -257,8 +257,8 @@ const menuGroups: MenuGroup[] = [
     items: [
       { id: "users", title: "All Users", icon: Users },
       { id: "roles", title: "Roles & Permissions", icon: Shield },
+      { id: "applications", title: "Applications", icon: FileText },
       { id: "affiliates", title: "Affiliates", icon: UserCheck },
-      { id: "vendor-applications", title: "Vendor Applications", icon: Store },
       { id: "vendor-stores", title: "Vendor Stores", icon: Building2 },
     ],
   },
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
             {activeSection === "transactions" && <TransactionsSection />}
             {activeSection === "inventory" && <InventorySection />}
             {activeSection === "suppliers" && <SuppliersSection />}
-            {activeSection === "vendor-applications" && <VendorApplicationsSection />}
+            {activeSection === "applications" && <ApplicationsSection />}
             {activeSection === "vendor-stores" && <VendorStoresSection />}
           </main>
         </div>
@@ -9675,16 +9675,28 @@ function SuppliersSection() {
   );
 }
 
-// Vendor Applications Section
-function VendorApplicationsSection() {
+// Applications Section - Shows all application types (Vendor, Affiliate, Job, etc.)
+function ApplicationsSection() {
   const { toast } = useToast();
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   
   const { data: applications = [], isLoading } = useQuery({
     queryKey: ["/api/admin/vendor-applications"],
   });
 
-  const filteredApps = applications.filter((app: any) => statusFilter === "all" || app.status === statusFilter);
+  const appTypes = [
+    { value: "all", label: "All Applications", icon: FileText },
+    { value: "vendor", label: "Vendor Applications", icon: Store },
+    { value: "affiliate", label: "Affiliate Applications", icon: UserCheck },
+    { value: "job", label: "Job Applications", icon: Users },
+  ];
+
+  const filteredApps = applications.filter((app: any) => {
+    const statusMatch = statusFilter === "all" || app.status === statusFilter;
+    const typeMatch = typeFilter === "all" || app.type === typeFilter || (typeFilter === "vendor" && !app.type);
+    return statusMatch && typeMatch;
+  });
 
   const approveMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -9694,7 +9706,7 @@ function VendorApplicationsSection() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/vendor-applications"] });
-      toast({ title: "Vendor approved successfully!" });
+      toast({ title: "Application approved successfully!" });
     },
   });
 
@@ -9706,47 +9718,77 @@ function VendorApplicationsSection() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/vendor-applications"] });
-      toast({ title: "Vendor application rejected" });
+      toast({ title: "Application rejected" });
     },
   });
 
+  const getApplicationTypeLabel = (app: any) => {
+    if (app.type === "affiliate") return "Affiliate";
+    if (app.type === "job") return "Job";
+    return "Vendor";
+  };
+
+  const getApplicationTypeIcon = (app: any) => {
+    if (app.type === "affiliate") return <UserCheck className="h-4 w-4" />;
+    if (app.type === "job") return <Users className="h-4 w-4" />;
+    return <Store className="h-4 w-4" />;
+  };
+
   return (
     <div className="space-y-6">
-      <div><h2 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-6 w-6" />Vendor Applications</h2><p className="text-muted-foreground">Review and manage vendor applications</p></div>
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-6 w-6" />Applications</h2>
+        <p className="text-muted-foreground">Review and manage all application types</p>
+      </div>
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <CardTitle>Pending Applications</CardTitle>
-            <div className="flex gap-2">
-              {["all", "pending", "approved", "rejected"].map((status) => (
-                <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(status)} className="capitalize" data-testid={`button-filter-${status}`}>{status}</Button>
-              ))}
+            <CardTitle>All Applications</CardTitle>
+            <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-1 border rounded-lg p-1 bg-muted">
+                {appTypes.map((type) => (
+                  <Button key={type.value} variant={typeFilter === type.value ? "default" : "ghost"} size="sm" onClick={() => setTypeFilter(type.value)} className="text-xs" data-testid={`button-filter-type-${type.value}`}>
+                    {type.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex gap-1">
+                {["all", "pending", "approved", "rejected"].map((status) => (
+                  <Button key={status} variant={statusFilter === status ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(status)} className="capitalize text-xs" data-testid={`button-filter-status-${status}`}>
+                    {status}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="text-center py-8">Loading applications...</div>
           ) : filteredApps.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground"><FileText className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No applications found</p></div>
           ) : (
             <div className="space-y-4">
               {filteredApps.map((app: any) => (
-                <Card key={app.id} className="p-4 border">
+                <Card key={app.id} className="p-4 border hover-elevate transition-all">
                   <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold">{app.storeName}</h3>
-                      <p className="text-sm text-muted-foreground">{app.businessName}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        {getApplicationTypeIcon(app)}
+                        <h3 className="font-semibold">{app.storeName || app.name || "Unknown"}</h3>
+                        <Badge variant="outline" className="text-xs">{getApplicationTypeLabel(app)}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{app.businessName || app.email || "No details"}</p>
                     </div>
                     <Badge variant={app.status === "pending" ? "default" : app.status === "approved" ? "secondary" : "destructive"} className="capitalize">{app.status}</Badge>
                   </div>
                   <p className="text-sm mb-3"><span className="font-medium">Description:</span> {app.description || "N/A"}</p>
                   {app.status === "pending" && (
                     <div className="flex gap-2">
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate(app.id)} disabled={approveMutation.isPending} data-testid={`button-approve-vendor-${app.id}`}>
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate(app.id)} disabled={approveMutation.isPending} data-testid={`button-approve-app-${app.id}`}>
                         <Check className="h-4 w-4 mr-2" /> Approve
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => rejectMutation.mutate({ id: app.id, reason: "Application rejected by admin" })} disabled={rejectMutation.isPending} data-testid={`button-reject-vendor-${app.id}`}>
+                      <Button size="sm" variant="destructive" onClick={() => rejectMutation.mutate({ id: app.id, reason: "Application rejected by admin" })} disabled={rejectMutation.isPending} data-testid={`button-reject-app-${app.id}`}>
                         <AlertTriangle className="h-4 w-4 mr-2" /> Reject
                       </Button>
                     </div>
