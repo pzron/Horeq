@@ -7963,6 +7963,7 @@ function CombosSection() {
       isActive: combo.isActive,
       sortOrder: combo.sortOrder || 0,
     });
+    setProductSearch("");
     setEditingCombo(combo);
   };
 
@@ -8243,6 +8244,64 @@ function CombosSection() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   data-testid="input-edit-combo-name"
                 />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="edit-product-search">Add Products</Label>
+                <Input
+                  id="edit-product-search"
+                  placeholder="Search and add products..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  data-testid="input-edit-combo-product-search"
+                />
+                {filteredProducts.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 border rounded-lg p-2 bg-muted/30 max-h-40 overflow-y-auto">
+                    {filteredProducts.map(product => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, productIds: [...formData.productIds, product.id] });
+                          setProductSearch("");
+                        }}
+                        className="text-left p-2 rounded-md hover:bg-primary/10 text-sm font-medium transition-colors"
+                        data-testid={`button-edit-add-product-${product.id}`}
+                      >
+                        {product.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Combo Packages</Label>
+                {formData.productIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.productIds.map((productId, idx) => {
+                      const product = allProducts.find(p => p.id === productId);
+                      const color = bucketColors[idx % bucketColors.length];
+                      return (
+                        <div
+                          key={productId}
+                          className={`${color} rounded-lg px-3 py-2 flex items-center gap-2 text-sm font-medium border border-black/10`}
+                          data-testid={`bucket-edit-product-${productId}`}
+                        >
+                          <span className="truncate">{product?.name || 'Unknown'}</span>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, productIds: formData.productIds.filter(id => id !== productId) })}
+                            className="text-destructive hover:text-destructive/80 ml-1"
+                            data-testid={`button-edit-remove-product-${productId}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-2">No products added yet</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-slug">Slug</Label>
