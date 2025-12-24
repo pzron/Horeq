@@ -8875,68 +8875,323 @@ function AllPagesSection() {
 
 function AddPageSection() {
   const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
   const [status, setStatus] = useState("draft");
+  const [pageType, setPageType] = useState("public");
+  const [template, setTemplate] = useState("default");
+  const [parentPage, setParentPage] = useState("none");
+  const [showBlocks, setShowBlocks] = useState(false);
+  const [showPatterns, setShowPatterns] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+  const [seoKeywords, setSeoKeywords] = useState("");
+  const [featured, setFeatured] = useState(false);
+  const [featuredImage, setFeaturedImage] = useState("");
+  const [pageBlocks, setPageBlocks] = useState<any[]>([]);
   const { toast } = useToast();
+
+  const blockTemplates = [
+    { type: "hero", name: "Hero Section", icon: Layout, color: "text-purple-500" },
+    { type: "products", name: "Products Grid", icon: Grid3X3, color: "text-blue-500" },
+    { type: "gallery", name: "Gallery", icon: ImagePlus, color: "text-green-500" },
+    { type: "cta", name: "Call to Action", icon: MousePointerClick, color: "text-orange-500" },
+    { type: "text", name: "Text Content", icon: Type, color: "text-cyan-500" },
+    { type: "features", name: "Features", icon: Sparkles, color: "text-pink-500" },
+    { type: "testimonials", name: "Testimonials", icon: MessageSquareQuote, color: "text-yellow-500" },
+    { type: "banner", name: "Promo Banner", icon: Megaphone, color: "text-red-500" },
+  ];
+
+  const pageTypes = [
+    { value: "public", label: "Public", description: "Visible to everyone" },
+    { value: "ecommerce", label: "E-commerce", description: "Shop and product pages" },
+    { value: "user", label: "User Dashboard", description: "Customer account pages" },
+    { value: "affiliate", label: "Affiliate", description: "Affiliate partner pages" },
+    { value: "admin", label: "Admin", description: "Admin panel pages" },
+  ];
+
+  const templates = [
+    { value: "default", label: "Default", description: "Standard page layout" },
+    { value: "full-width", label: "Full Width", description: "Full width without sidebar" },
+    { value: "sidebar", label: "With Sidebar", description: "Left/right sidebar layout" },
+    { value: "landing", label: "Landing Page", description: "Optimized for conversions" },
+    { value: "blog", label: "Blog", description: "Article/blog layout" },
+  ];
+
+  const roles = [
+    { value: "customer", label: "Customer" },
+    { value: "affiliate", label: "Affiliate" },
+    { value: "admin", label: "Admin" },
+  ];
+
+  const handleAddBlock = (type: string) => {
+    const newBlock = {
+      id: `block-${Date.now()}`,
+      type,
+      settings: {},
+    };
+    setPageBlocks([...pageBlocks, newBlock]);
+    setShowBlocks(false);
+    toast({ title: "Block Added", description: `${type} block added to page` });
+  };
+
+  const handleRemoveBlock = (id: string) => {
+    setPageBlocks(pageBlocks.filter(b => b.id !== id));
+    toast({ title: "Block Removed" });
+  };
+
+  const handleSave = () => {
+    if (!title || !slug) {
+      toast({ title: "Validation Error", description: "Title and slug are required", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Success", description: "Page saved as " + status });
+  };
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <div className="lg:col-span-3 space-y-4">
-        <Input placeholder="Add title" className="text-2xl font-bold border-0 border-b rounded-none focus-visible:ring-0 px-0" value={title} onChange={(e) => setTitle(e.target.value)} data-testid="input-page-title" />
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs text-muted-foreground">Page Title</Label>
+            <Input 
+              placeholder="Enter page title" 
+              className="text-2xl font-bold mt-1" 
+              value={title} 
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"));
+              }} 
+              data-testid="input-page-title" 
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground">Slug</Label>
+            <Input 
+              placeholder="page-slug" 
+              value={slug} 
+              onChange={(e) => setSlug(e.target.value)} 
+              data-testid="input-page-slug" 
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground">Description</Label>
+            <Textarea 
+              placeholder="Page description for SEO and display" 
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              className="min-h-20"
+              data-testid="input-page-description" 
+            />
+          </div>
+        </div>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon"><Type className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon"><ImagePlus className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon"><Grid3X3 className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon"><Code className="h-4 w-4" /></Button>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Page Content</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Textarea placeholder="Start writing or type / to choose a block" className="min-h-[400px] resize-none border-0 focus-visible:ring-0" value={content} onChange={(e) => setContent(e.target.value)} data-testid="input-page-content" />
+          <CardContent className="space-y-3">
+            {pageBlocks.length > 0 ? (
+              <div className="space-y-2">
+                {pageBlocks.map((block, idx) => (
+                  <div key={block.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                    <span className="text-sm font-medium">{block.type} Block #{idx + 1}</span>
+                    <Button size="icon" variant="ghost" onClick={() => handleRemoveBlock(block.id)} data-testid={`button-remove-block-${block.id}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-4">No blocks added yet</p>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowBlocks(!showBlocks)} className="flex-1" data-testid="button-add-block">
+                <Plus className="h-4 w-4 mr-1" /> Add Block
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowPatterns(!showPatterns)} className="flex-1" data-testid="button-add-pattern">
+                <Plus className="h-4 w-4 mr-1" /> Add Pattern
+              </Button>
+            </div>
+
+            {showBlocks && (
+              <div className="grid grid-cols-2 gap-2 p-2 border rounded-lg bg-muted/20">
+                {blockTemplates.map(block => (
+                  <button
+                    key={block.type}
+                    onClick={() => handleAddBlock(block.type)}
+                    className="p-2 text-left text-sm hover:bg-background rounded transition-colors"
+                    data-testid={`button-template-${block.type}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <block.icon className={`h-4 w-4 ${block.color}`} />
+                      <span className="font-medium">{block.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">SEO Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs">SEO Title</Label>
+              <Input 
+                placeholder="SEO title for search engines" 
+                value={seoTitle} 
+                onChange={(e) => setSeoTitle(e.target.value)}
+                data-testid="input-seo-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Meta Description</Label>
+              <Textarea 
+                placeholder="Meta description for search results" 
+                value={seoDescription} 
+                onChange={(e) => setSeoDescription(e.target.value)}
+                className="min-h-16"
+                data-testid="input-seo-description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Keywords</Label>
+              <Input 
+                placeholder="SEO keywords (comma-separated)" 
+                value={seoKeywords} 
+                onChange={(e) => setSeoKeywords(e.target.value)}
+                data-testid="input-seo-keywords"
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
+
       <div className="space-y-4">
         <Card>
           <CardHeader><CardTitle className="text-sm">Publish</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Status:</span><Badge>{status}</Badge></div>
-            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Visibility:</span><span>Public</span></div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Status:</span>
+              <Badge variant={status === "published" ? "default" : "outline"}>{status}</Badge>
+            </div>
             <Separator />
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => { setStatus("draft"); toast({ title: "Saved as draft" }); }} data-testid="button-save-draft">Save Draft</Button>
-              <Button className="flex-1" onClick={() => { setStatus("published"); toast({ title: "Page published!" }); }} data-testid="button-publish">Publish</Button>
+            <div className="flex gap-2 flex-col">
+              <Button 
+                variant="outline" 
+                onClick={() => { setStatus("draft"); toast({ title: "Saved as draft" }); }} 
+                data-testid="button-save-draft"
+              >
+                Save Draft
+              </Button>
+              <Button 
+                onClick={() => { setStatus("published"); handleSave(); }} 
+                data-testid="button-publish"
+              >
+                Publish Page
+              </Button>
             </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader><CardTitle className="text-sm">Page Attributes</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <Label className="text-xs">Template</Label>
-              <Select defaultValue="default"><SelectTrigger data-testid="select-template"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default Template</SelectItem>
-                  <SelectItem value="full-width">Full Width</SelectItem>
-                  <SelectItem value="sidebar">With Sidebar</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Parent Page</Label>
-              <Select defaultValue="none"><SelectTrigger data-testid="select-parent"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="none">(no parent)</SelectItem></SelectContent>
-              </Select>
-            </div>
+          <CardHeader><CardTitle className="text-sm">Page Type</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {pageTypes.map(type => (
+              <button
+                key={type.value}
+                onClick={() => setPageType(type.value)}
+                className={`w-full text-left p-2 rounded-lg border transition-colors ${pageType === type.value ? "bg-primary/10 border-primary" : "hover:bg-muted"}`}
+                data-testid={`button-type-${type.value}`}
+              >
+                <div className="text-sm font-medium">{type.label}</div>
+                <div className="text-xs text-muted-foreground">{type.description}</div>
+              </button>
+            ))}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Template</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {templates.map(t => (
+              <button
+                key={t.value}
+                onClick={() => setTemplate(t.value)}
+                className={`w-full text-left p-2 rounded-lg border transition-colors ${template === t.value ? "bg-primary/10 border-primary" : "hover:bg-muted"}`}
+                data-testid={`button-template-select-${t.value}`}
+              >
+                <div className="text-sm font-medium">{t.label}</div>
+                <div className="text-xs text-muted-foreground">{t.description}</div>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Access Control</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {roles.map(role => (
+              <div key={role.value} className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id={`role-${role.value}`}
+                  checked={selectedRoles.includes(role.value)}
+                  onChange={() => toggleRole(role.value)}
+                  className="rounded"
+                  data-testid={`checkbox-role-${role.value}`}
+                />
+                <Label htmlFor={`role-${role.value}`} className="text-sm font-normal cursor-pointer">{role.label}</Label>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader><CardTitle className="text-sm">Featured Image</CardTitle></CardHeader>
           <CardContent>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover-elevate">
-              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Set featured image</p>
+            {featuredImage ? (
+              <div className="space-y-2">
+                <img src={featuredImage} alt="Featured" className="w-full h-32 object-cover rounded-lg" />
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setFeaturedImage("")} data-testid="button-remove-image">Remove</Button>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover-elevate" data-testid="drop-zone-image">
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Click to upload featured image</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Options</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-normal">Featured</Label>
+              <Switch checked={featured} onCheckedChange={setFeatured} data-testid="switch-featured" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Parent Page</Label>
+              <Select value={parentPage} onValueChange={setParentPage}>
+                <SelectTrigger data-testid="select-parent-page"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Parent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
