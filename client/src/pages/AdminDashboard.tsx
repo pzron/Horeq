@@ -7849,6 +7849,8 @@ function CombosSection() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState("");
+  const [bucketColors] = useState(["bg-blue-100", "bg-green-100", "bg-purple-100", "bg-orange-100", "bg-pink-100", "bg-yellow-100"]);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -7865,8 +7867,17 @@ function CombosSection() {
   const { data } = useQuery({
     queryKey: ["/api/combos"],
   });
+  const { data: productsData } = useQuery({
+    queryKey: ["/api/products"],
+  });
   const combos = data as any[] | undefined;
+  const allProducts = (productsData as any[]) || [];
   const isLoading = !combos;
+  
+  const filteredProducts = allProducts.filter(p => 
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) && 
+    !formData.productIds.includes(p.id)
+  ).slice(0, 8);
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -7987,6 +7998,64 @@ function CombosSection() {
                     placeholder="e.g. Summer Bundle"
                     data-testid="input-combo-name"
                   />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="product-search">Add Products</Label>
+                  <Input
+                    id="product-search"
+                    placeholder="Search and add products..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    data-testid="input-combo-product-search"
+                  />
+                  {filteredProducts.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 border rounded-lg p-2 bg-muted/30 max-h-40 overflow-y-auto">
+                      {filteredProducts.map(product => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, productIds: [...formData.productIds, product.id] });
+                            setProductSearch("");
+                          }}
+                          className="text-left p-2 rounded-md hover:bg-primary/10 text-sm font-medium transition-colors"
+                          data-testid={`button-add-product-${product.id}`}
+                        >
+                          {product.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Combo Packages</Label>
+                  {formData.productIds.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.productIds.map((productId, idx) => {
+                        const product = allProducts.find(p => p.id === productId);
+                        const color = bucketColors[idx % bucketColors.length];
+                        return (
+                          <div
+                            key={productId}
+                            className={`${color} rounded-lg px-3 py-2 flex items-center gap-2 text-sm font-medium border border-black/10`}
+                            data-testid={`bucket-product-${productId}`}
+                          >
+                            <span className="truncate">{product?.name || 'Unknown'}</span>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, productIds: formData.productIds.filter(id => id !== productId) })}
+                              className="text-destructive hover:text-destructive/80 ml-1"
+                              data-testid={`button-remove-product-${productId}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-2">No products added yet</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="slug">Slug</Label>
