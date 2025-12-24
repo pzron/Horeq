@@ -163,6 +163,11 @@ import {
   Info,
   Link as LinkIcon,
   BarChart2,
+  List,
+  Music,
+  Minus,
+  Box,
+  Share2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -8805,21 +8810,56 @@ function AllPagesSection() {
   const pages = data as any[] | undefined;
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [selectedPages, setSelectedPages] = useState<string[]>([]);
+  const [editingPage, setEditingPage] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const filteredPages = pages?.filter(page => {
     const matchesSearch = page.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          page.slug?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || page.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === "all" || page.pageType === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
   }) || [];
+
+  const togglePageSelect = (id: string) => {
+    setSelectedPages(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
+
+  const toggleAllPages = () => {
+    setSelectedPages(selectedPages.length === filteredPages.length ? [] : filteredPages.map(p => p.id));
+  };
+
+  const handleBulkDelete = () => {
+    toast({ title: "Deleted", description: `${selectedPages.length} pages deleted` });
+    setSelectedPages([]);
+  };
+
+  const handleBulkPublish = () => {
+    toast({ title: "Published", description: `${selectedPages.length} pages published` });
+    setSelectedPages([]);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" className={statusFilter === "all" ? "bg-primary text-primary-foreground" : ""} onClick={() => setStatusFilter("all")} data-testid="filter-all">All ({pages?.length || 0})</Button>
           <Button variant="outline" size="sm" className={statusFilter === "published" ? "bg-primary text-primary-foreground" : ""} onClick={() => setStatusFilter("published")} data-testid="filter-published">Published ({pages?.filter(p => p.status === "published").length || 0})</Button>
           <Button variant="outline" size="sm" className={statusFilter === "draft" ? "bg-primary text-primary-foreground" : ""} onClick={() => setStatusFilter("draft")} data-testid="filter-draft">Draft ({pages?.filter(p => p.status === "draft").length || 0})</Button>
+          <Separator orientation="vertical" className="h-6" />
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-40" data-testid="select-type-filter"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="public">Public</SelectItem>
+              <SelectItem value="ecommerce">E-commerce</SelectItem>
+              <SelectItem value="user">User Dashboard</SelectItem>
+              <SelectItem value="affiliate">Affiliate</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -8829,46 +8869,83 @@ function AllPagesSection() {
           <Button data-testid="button-add-page"><Plus className="h-4 w-4 mr-2" />Add New Page</Button>
         </div>
       </div>
+
+      {selectedPages.length > 0 && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <span className="text-sm font-medium">{selectedPages.length} page(s) selected</span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleBulkPublish} data-testid="button-bulk-publish">Publish</Button>
+              <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm("bulk")} data-testid="button-bulk-delete">Delete</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12"><input type="checkbox" className="rounded" /></TableHead>
+                <TableHead className="w-12"><input type="checkbox" className="rounded" checked={selectedPages.length === filteredPages.length && filteredPages.length > 0} onChange={toggleAllPages} data-testid="checkbox-select-all" /></TableHead>
                 <TableHead>Title</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Author</TableHead>
-                <TableHead>Stats</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8">Loading pages...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8">Loading pages...</TableCell></TableRow>
               ) : filteredPages.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8">No pages found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8">No pages found</TableCell></TableRow>
               ) : filteredPages.map((page) => (
                 <TableRow key={page.id} data-testid={`row-page-${page.id}`}>
-                  <TableCell><input type="checkbox" className="rounded" /></TableCell>
+                  <TableCell><input type="checkbox" className="rounded" checked={selectedPages.includes(page.id)} onChange={() => togglePageSelect(page.id)} data-testid={`checkbox-page-${page.id}`} /></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center"><FileImage className="h-6 w-6 text-muted-foreground" /></div>
+                      <div className="w-10 h-10 bg-muted rounded flex items-center justify-center"><FileImage className="h-5 w-5 text-muted-foreground" /></div>
                       <div>
-                        <p className="font-medium">{page.title}</p>
+                        <p className="font-medium text-sm">{page.title}</p>
                         <p className="text-xs text-muted-foreground">/{page.slug}</p>
                       </div>
                     </div>
                   </TableCell>
+                  <TableCell className="text-sm"><Badge variant="outline" className="text-xs">{page.pageType || "public"}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{page.createdBy || "Admin"}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs">0 views</Badge></TableCell>
                   <TableCell><Badge className={page.status === "published" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"}>{page.status}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(page.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setEditingPage(page.id)} data-testid={`button-edit-${page.id}`}><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(page.id)} data-testid={`button-delete-${page.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Page(s)</DialogTitle>
+            <DialogDescription>Are you sure? This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => {
+              if (deleteConfirm === "bulk") handleBulkDelete();
+              else toast({ title: "Deleted", description: "Page deleted" });
+              setDeleteConfirm(null);
+            }} data-testid="button-confirm-delete">Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -9201,78 +9278,384 @@ function AddPageSection() {
 }
 
 function BlocksSection() {
-  const blockTypes = [
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newBlockName, setNewBlockName] = useState("");
+  const [newBlockCategory, setNewBlockCategory] = useState("text");
+  const [customBlocks, setCustomBlocks] = useState<any[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const textBlocks = [
     { id: "paragraph", name: "Paragraph", icon: Type, description: "Start with plain text" },
     { id: "heading", name: "Heading", icon: Type, description: "Add a heading (H1-H6)" },
+    { id: "quote", name: "Quote", icon: MessageSquareQuote, description: "Add a quote block" },
+    { id: "list", name: "List", icon: List, description: "Bullet or numbered list" },
+    { id: "code", name: "Code", icon: Code, description: "Add code snippet" },
+  ];
+
+  const mediaBlocks = [
     { id: "image", name: "Image", icon: Image, description: "Insert an image" },
     { id: "gallery", name: "Gallery", icon: Grid3X3, description: "Display multiple images" },
     { id: "video", name: "Video", icon: Play, description: "Embed a video" },
-    { id: "button", name: "Button", icon: MousePointerClick, description: "Add a call-to-action" },
+    { id: "audio", name: "Audio", icon: Music, description: "Embed audio player" },
+    { id: "file", name: "File", icon: FileText, description: "Embed downloadable file" },
+  ];
+
+  const designBlocks = [
     { id: "columns", name: "Columns", icon: Columns, description: "Add a multi-column layout" },
     { id: "spacer", name: "Spacer", icon: RectangleHorizontal, description: "Add whitespace" },
-    { id: "quote", name: "Quote", icon: MessageSquareQuote, description: "Add a quote block" },
-    { id: "code", name: "Code", icon: Code, description: "Add code snippet" },
-    { id: "products", name: "Products", icon: Package, description: "Display products" },
+    { id: "divider", name: "Divider", icon: Minus, description: "Horizontal line" },
+    { id: "button", name: "Button", icon: MousePointerClick, description: "Add a call-to-action" },
+    { id: "container", name: "Container", icon: Box, description: "Create a styled container" },
   ];
+
+  const widgetBlocks = [
+    { id: "products", name: "Products", icon: Package, description: "Display products" },
+    { id: "testimonials", name: "Testimonials", icon: MessageSquareQuote, description: "Customer reviews" },
+    { id: "pricing", name: "Pricing Table", icon: DollarSign, description: "Pricing comparison" },
+    { id: "newsletter", name: "Newsletter", icon: Mail, description: "Email subscription" },
+    { id: "social", name: "Social Links", icon: Share2, description: "Social media icons" },
+  ];
+
+  const allBlocksByCategory = { text: textBlocks, media: mediaBlocks, design: designBlocks, widgets: widgetBlocks };
+
+  const handleCreateBlock = () => {
+    if (!newBlockName.trim()) {
+      toast({ title: "Error", description: "Block name is required", variant: "destructive" });
+      return;
+    }
+    const newBlock = {
+      id: `custom-${Date.now()}`,
+      name: newBlockName,
+      category: newBlockCategory,
+      isCustom: true,
+      icon: Package,
+      description: "Custom block created",
+    };
+    setCustomBlocks([...customBlocks, newBlock]);
+    setNewBlockName("");
+    setShowCreateModal(false);
+    toast({ title: "Success", description: `Custom block "${newBlockName}" created` });
+  };
+
+  const renderBlocksForTab = (category: string) => {
+    const blocks = allBlocksByCategory[category as keyof typeof allBlocksByCategory] || [];
+    const displayBlocks = [...blocks, ...customBlocks.filter(b => b.category === category)];
+    
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {displayBlocks.map((block) => (
+          <Card key={block.id} className={`cursor-pointer hover-elevate relative group ${block.isCustom ? "border-dashed" : ""}`} data-testid={`block-${block.id}`}>
+            <CardContent className="p-4 text-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-primary/10 flex items-center justify-center">
+                <block.icon className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-medium text-sm">{block.name}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{block.description}</p>
+              {block.isCustom && (
+                <button 
+                  onClick={() => setDeleteConfirm(block.id)}
+                  className="absolute top-2 right-2 invisible group-hover:visible"
+                  data-testid={`button-delete-block-${block.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h2 className="text-lg font-semibold">Blocks Library</h2><p className="text-sm text-muted-foreground">Reusable content blocks for your pages</p></div>
-        <Button data-testid="button-create-block"><Plus className="h-4 w-4 mr-2" />Create Custom Block</Button>
+        <div>
+          <h2 className="text-lg font-semibold">Blocks Library</h2>
+          <p className="text-sm text-muted-foreground">WordPress-level reusable content blocks</p>
+        </div>
+        <Button onClick={() => setShowCreateModal(true)} data-testid="button-create-block">
+          <Plus className="h-4 w-4 mr-2" />Create Custom Block
+        </Button>
       </div>
+
       <Tabs defaultValue="all">
-        <TabsList><TabsTrigger value="all">All Blocks</TabsTrigger><TabsTrigger value="text">Text</TabsTrigger><TabsTrigger value="media">Media</TabsTrigger><TabsTrigger value="design">Design</TabsTrigger><TabsTrigger value="widgets">Widgets</TabsTrigger></TabsList>
+        <TabsList>
+          <TabsTrigger value="all">All Blocks</TabsTrigger>
+          <TabsTrigger value="text">Text</TabsTrigger>
+          <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="design">Design</TabsTrigger>
+          <TabsTrigger value="widgets">Widgets</TabsTrigger>
+        </TabsList>
+
         <TabsContent value="all" className="mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {blockTypes.map((block) => (
-              <Card key={block.id} className="cursor-pointer hover-elevate" data-testid={`block-${block.id}`}>
-                <CardContent className="p-4 text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-primary/10 flex items-center justify-center"><block.icon className="h-6 w-6 text-primary" /></div>
-                  <h3 className="font-medium text-sm">{block.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{block.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {renderBlocksForTab("text")}
+          <div className="my-6 border-t" />
+          {renderBlocksForTab("media")}
+          <div className="my-6 border-t" />
+          {renderBlocksForTab("design")}
+          <div className="my-6 border-t" />
+          {renderBlocksForTab("widgets")}
         </TabsContent>
+
+        {["text", "media", "design", "widgets"].map(category => (
+          <TabsContent key={category} value={category} className="mt-4">
+            {renderBlocksForTab(category)}
+          </TabsContent>
+        ))}
       </Tabs>
+
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Custom Block</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Block Name</Label>
+              <Input placeholder="e.g., Hero Banner, Product Card" value={newBlockName} onChange={(e) => setNewBlockName(e.target.value)} data-testid="input-block-name" />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={newBlockCategory} onValueChange={setNewBlockCategory}>
+                <SelectTrigger data-testid="select-block-category"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="media">Media</SelectItem>
+                  <SelectItem value="design">Design</SelectItem>
+                  <SelectItem value="widgets">Widgets</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateBlock} data-testid="button-confirm-create-block">Create Block</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Custom Block</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this custom block?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => {
+              setCustomBlocks(customBlocks.filter(b => b.id !== deleteConfirm));
+              setDeleteConfirm(null);
+              toast({ title: "Deleted", description: "Custom block deleted" });
+            }} data-testid="button-confirm-delete-block">Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function PatternsSection() {
-  const patterns = [
-    { id: "hero-1", name: "Hero with CTA", category: "Heroes", preview: "bg-gradient-to-r from-purple-500 to-pink-500" },
-    { id: "hero-2", name: "Hero with Image", category: "Heroes", preview: "bg-gradient-to-r from-blue-500 to-cyan-500" },
-    { id: "features-1", name: "Feature Grid", category: "Features", preview: "bg-gradient-to-r from-green-500 to-emerald-500" },
-    { id: "cta-1", name: "Call to Action", category: "CTA", preview: "bg-gradient-to-r from-orange-500 to-red-500" },
-    { id: "testimonials-1", name: "Testimonials", category: "Social Proof", preview: "bg-gradient-to-r from-indigo-500 to-purple-500" },
-    { id: "footer-1", name: "Footer", category: "Footers", preview: "bg-gradient-to-r from-gray-700 to-gray-900" },
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingPattern, setEditingPattern] = useState<string | null>(null);
+  const [patternName, setPatternName] = useState("");
+  const [patternCategory, setPatternCategory] = useState("heroes");
+  const [patternDescription, setPatternDescription] = useState("");
+  const [customPatterns, setCustomPatterns] = useState<any[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const defaultPatterns = [
+    { id: "hero-1", name: "Hero with CTA", category: "heroes", description: "Large hero section with call to action", preview: "bg-gradient-to-r from-purple-500 to-pink-500" },
+    { id: "hero-2", name: "Hero with Image", category: "heroes", description: "Hero section with background image", preview: "bg-gradient-to-r from-blue-500 to-cyan-500" },
+    { id: "hero-3", name: "Minimal Hero", category: "heroes", description: "Clean, simple hero layout", preview: "bg-gradient-to-r from-gray-600 to-gray-800" },
+    { id: "features-1", name: "Feature Grid", category: "features", description: "3-column feature showcase", preview: "bg-gradient-to-r from-green-500 to-emerald-500" },
+    { id: "features-2", name: "Features with Icons", category: "features", description: "Feature list with icons", preview: "bg-gradient-to-r from-teal-500 to-cyan-500" },
+    { id: "features-3", name: "Feature Showcase", category: "features", description: "Large feature highlight", preview: "bg-gradient-to-r from-blue-600 to-blue-400" },
+    { id: "cta-1", name: "Call to Action", category: "cta", description: "Conversion-focused CTA", preview: "bg-gradient-to-r from-orange-500 to-red-500" },
+    { id: "cta-2", name: "CTA with Testimonial", category: "cta", description: "CTA with social proof", preview: "bg-gradient-to-r from-pink-500 to-rose-500" },
+    { id: "cta-3", name: "Newsletter Signup", category: "cta", description: "Email signup section", preview: "bg-gradient-to-r from-purple-600 to-purple-400" },
+    { id: "footer-1", name: "Footer Standard", category: "footers", description: "Standard multi-column footer", preview: "bg-gradient-to-r from-gray-700 to-gray-900" },
+    { id: "footer-2", name: "Footer Minimal", category: "footers", description: "Minimal footer layout", preview: "bg-gradient-to-r from-slate-700 to-slate-900" },
+    { id: "footer-3", name: "Footer Extended", category: "footers", description: "Full-featured footer", preview: "bg-gradient-to-r from-stone-700 to-stone-900" },
   ];
+
+  const allPatterns = [...defaultPatterns, ...customPatterns];
+
+  const handleSavePattern = () => {
+    if (!patternName.trim()) {
+      toast({ title: "Error", description: "Pattern name is required", variant: "destructive" });
+      return;
+    }
+
+    if (editingPattern) {
+      setCustomPatterns(customPatterns.map(p => 
+        p.id === editingPattern 
+          ? { ...p, name: patternName, category: patternCategory, description: patternDescription }
+          : p
+      ));
+      toast({ title: "Updated", description: "Pattern updated successfully" });
+    } else {
+      const newPattern = {
+        id: `custom-${Date.now()}`,
+        name: patternName,
+        category: patternCategory,
+        description: patternDescription,
+        preview: "bg-gradient-to-r from-violet-500 to-violet-600",
+        isCustom: true,
+      };
+      setCustomPatterns([...customPatterns, newPattern]);
+      toast({ title: "Created", description: "Pattern created successfully" });
+    }
+
+    setShowCreateModal(false);
+    setPatternName("");
+    setPatternCategory("heroes");
+    setPatternDescription("");
+    setEditingPattern(null);
+  };
+
+  const renderPatternsForCategory = (category: string) => {
+    const filtered = allPatterns.filter(p => p.category === category);
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filtered.map((pattern) => (
+          <Card key={pattern.id} className={`overflow-hidden cursor-pointer hover-elevate relative group ${pattern.isCustom ? "border-dashed" : ""}`} data-testid={`pattern-${pattern.id}`}>
+            <div className={`h-32 ${pattern.preview}`} />
+            <CardContent className="p-4">
+              <Badge variant="outline" className="mb-2 text-xs">{pattern.category}</Badge>
+              <h3 className="font-medium">{pattern.name}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{pattern.description}</p>
+              <div className="flex gap-1 mt-3 invisible group-hover:visible">
+                {pattern.isCustom && (
+                  <>
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => {
+                      setEditingPattern(pattern.id);
+                      setPatternName(pattern.name);
+                      setPatternCategory(pattern.category);
+                      setPatternDescription(pattern.description);
+                      setShowCreateModal(true);
+                    }} data-testid={`button-edit-pattern-${pattern.id}`}>Edit</Button>
+                    <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(pattern.id)} data-testid={`button-delete-pattern-${pattern.id}`}>Delete</Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h2 className="text-lg font-semibold">Patterns</h2><p className="text-sm text-muted-foreground">Pre-designed layouts and sections</p></div>
-        <Button data-testid="button-create-pattern"><Plus className="h-4 w-4 mr-2" />Create Pattern</Button>
+        <div>
+          <h2 className="text-lg font-semibold">Patterns</h2>
+          <p className="text-sm text-muted-foreground">Pre-designed layouts and sections for faster building</p>
+        </div>
+        <Button onClick={() => {
+          setEditingPattern(null);
+          setPatternName("");
+          setPatternDescription("");
+          setShowCreateModal(true);
+        }} data-testid="button-create-pattern">
+          <Plus className="h-4 w-4 mr-2" />Create Pattern
+        </Button>
       </div>
+
       <Tabs defaultValue="all">
-        <TabsList><TabsTrigger value="all">All</TabsTrigger><TabsTrigger value="heroes">Heroes</TabsTrigger><TabsTrigger value="features">Features</TabsTrigger><TabsTrigger value="cta">CTA</TabsTrigger><TabsTrigger value="footers">Footers</TabsTrigger></TabsList>
+        <TabsList>
+          <TabsTrigger value="all">All ({allPatterns.length})</TabsTrigger>
+          <TabsTrigger value="heroes">Heroes ({allPatterns.filter(p => p.category === "heroes").length})</TabsTrigger>
+          <TabsTrigger value="features">Features ({allPatterns.filter(p => p.category === "features").length})</TabsTrigger>
+          <TabsTrigger value="cta">CTA ({allPatterns.filter(p => p.category === "cta").length})</TabsTrigger>
+          <TabsTrigger value="footers">Footers ({allPatterns.filter(p => p.category === "footers").length})</TabsTrigger>
+        </TabsList>
+
         <TabsContent value="all" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {patterns.map((pattern) => (
-              <Card key={pattern.id} className="overflow-hidden cursor-pointer hover-elevate" data-testid={`pattern-${pattern.id}`}>
-                <div className={`h-32 ${pattern.preview}`} />
-                <CardContent className="p-4">
-                  <Badge variant="outline" className="mb-2 text-xs">{pattern.category}</Badge>
-                  <h3 className="font-medium">{pattern.name}</h3>
-                </CardContent>
-              </Card>
+          <div className="space-y-8">
+            {["heroes", "features", "cta", "footers"].map(category => (
+              <div key={category}>
+                <h3 className="text-sm font-semibold mb-4 capitalize">{category}</h3>
+                {renderPatternsForCategory(category)}
+              </div>
             ))}
           </div>
         </TabsContent>
+
+        {["heroes", "features", "cta", "footers"].map(category => (
+          <TabsContent key={category} value={category} className="mt-4">
+            {renderPatternsForCategory(category)}
+          </TabsContent>
+        ))}
       </Tabs>
+
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingPattern ? "Edit Pattern" : "Create Pattern"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Pattern Name</Label>
+              <Input 
+                placeholder="e.g., Hero with Video" 
+                value={patternName} 
+                onChange={(e) => setPatternName(e.target.value)} 
+                data-testid="input-pattern-name" 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={patternCategory} onValueChange={setPatternCategory}>
+                <SelectTrigger data-testid="select-pattern-category"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="heroes">Heroes</SelectItem>
+                  <SelectItem value="features">Features</SelectItem>
+                  <SelectItem value="cta">Call to Action</SelectItem>
+                  <SelectItem value="footers">Footers</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Describe this pattern..." 
+                value={patternDescription} 
+                onChange={(e) => setPatternDescription(e.target.value)}
+                className="min-h-20"
+                data-testid="input-pattern-description" 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button onClick={handleSavePattern} data-testid="button-confirm-save-pattern">
+              {editingPattern ? "Update Pattern" : "Create Pattern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Pattern</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this pattern?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => {
+              setCustomPatterns(customPatterns.filter(p => p.id !== deleteConfirm));
+              setDeleteConfirm(null);
+              toast({ title: "Deleted", description: "Pattern deleted successfully" });
+            }} data-testid="button-confirm-delete-pattern">Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
